@@ -1,4 +1,4 @@
-## Novidades da 4.2.1
+## Novidades da 4.2.2
 
-- **Modo discreto em notch:** no Chrome e em outros apps com abas, os olhinhos agora ficam dentro de um notch pequenininho colado no topo, em vez de soltos na tela.
-- **Abrir com o Windows:** a opção agora fica em destaque no começo da aba Comportamento das configurações. Também dá para ligar pelo menu do ícone perto do relógio.
+- **Ícone novo:** o aplicativo ganhou um ícone com os olhinhos da ilha dentro do notch, num fundo degradê. Ele aparece no menu Iniciar, na área de trabalho, no instalador e perto do relógio, onde também ficou mais nítido em telas com escala alta.
+- Inclui as novidades da 4.2.1: modo discreto dentro de um notch pequeno e a opção "Abrir a ilha junto com o Windows" em destaque.
