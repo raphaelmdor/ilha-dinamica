@@ -28,3 +28,15 @@ jobs:
         run: npx electron-builder --win nsis --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Escrever as novidades na página da versão
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          ID=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$V" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).id||'')}catch{console.log('')}})")
+          if [ -n "$ID" ] && [ -f build/release-notes.md ]; then
+            node -e "console.log(JSON.stringify({body:require('fs').readFileSync('build/release-notes.md','utf8')}))" > corpo.json
+            curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" -d @corpo.json "https://api.github.com/repos/${{ github.repository }}/releases/$ID" > /dev/null
+          fi
