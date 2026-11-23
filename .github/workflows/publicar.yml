@@ -1,10 +1,11 @@
-# Gera o instalador do Windows e publica no GitHub Releases quando uma versão nova (tag v*) é enviada.
-# O app instalado confere essas publicações e se atualiza sozinho.
+# Gera o instalador do Windows e publica no GitHub Releases quando a versão do package.json muda.
+# (Se a versão já estiver publicada, nada acontece.) O app instalado confere e se atualiza sozinho.
 name: Publicar versão
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: ['package.json']
   workflow_dispatch:
 
 permissions:
