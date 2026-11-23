@@ -1022,6 +1022,16 @@ function limparInicioAntigo() {
   }
 }
 
+let reforcoTopo = 0;
+function reforcarTopo() {
+  if (!janela || janela.isDestroyed() || encerrando || !janela.isVisible()) return;
+  try {
+    janela.setAlwaysOnTop(false);
+    janela.setAlwaysOnTop(true, 'screen-saver');
+    janela.moveTop();
+  } catch { /* ignora */ }
+}
+
 function aplicarInicioAutomatico() {
   limparInicioAntigo();
   if (process.platform !== 'win32') return;
@@ -1125,6 +1135,8 @@ if (copiaDeTeste) {
     log(`==== Ilha Dinâmica v${VERSAO} iniciada ====`);
     criarJanela();
     criarBandeja();
+    // Abrindo junto com o Windows, a área de trabalho ainda está carregando: reforça o "por cima" depois
+    for (const ms of [3000, 10000, 30000]) setTimeout(reforcarTopo, ms);
     aplicarInicioAutomatico();
     iniciarAjudanteMidia();
 
@@ -1195,6 +1207,10 @@ if (copiaDeTeste) {
           const comAbas = (config.appsComAbas || []).includes(nomeApp.toLowerCase());
           if (config.modoDiscreto === 'sempre' || (config.modoDiscreto !== 'nunca' && comAbas)) modo = 'maximizada-abas';
         }
+        // O Windows às vezes tira o "sempre por cima" (ex.: quando a ilha abre junto com o Windows):
+        // reforça ao mudar de modo e, com app maximizado, a cada ~3 s
+        reforcoTopo = (reforcoTopo + 1) % 12;
+        if (modo !== modoAtual || (modo !== 'normal' && reforcoTopo === 0)) reforcarTopo();
         if (modo === modoAtual) return;
         modoAtual = modo;
         log('Modo:', modo, nomeApp ? `(${nomeApp})` : '');
