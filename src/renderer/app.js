@@ -973,7 +973,7 @@ api.on('privacidade', ({ mic, cam }) => {
 // ---------------------------------------------------------------------------
 // Arrastar arquivos para a ilha (bandeja)
 // ---------------------------------------------------------------------------
-let apertouEmY = null; // onde o botão do mouse foi apertado (arrastar começa longe do topo = arquivo)
+let apertou = null; // onde o botão do mouse foi apertado: { y, dentro } — clique dentro da ilha nunca é "arrastar arquivo"
 document.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
 document.addEventListener('dragenter', () => ilha.classList.add('arrastando'));
 document.addEventListener('dragleave', (e) => { if (!e.relatedTarget) ilha.classList.remove('arrastando'); });
@@ -986,10 +986,15 @@ document.addEventListener('drop', (e) => {
   olhos.reagir('feliz', 1500);
 });
 api.on('cursor', (pos) => {
-  if (!pos.botao) { apertouEmY = null; return; }
-  if (apertouEmY === null) apertouEmY = pos.y;
-  if (apertouEmY < 140) return; // começou perto do topo: provavelmente arrastando uma aba, não um arquivo
+  if (!pos.botao) { apertou = null; return; }
   const r = ilha.getBoundingClientRect();
+  if (apertou === null) {
+    const dentro = pos.x >= r.left - 10 && pos.x <= r.right + 10 && pos.y >= -4 && pos.y <= r.bottom + 10;
+    apertou = { y: pos.y, dentro };
+  }
+  // Clique dentro da ilha (setas, botões, barras...) é só um clique
+  if (apertou.dentro) return;
+  if (apertou.y < 140) return; // começou perto do topo: provavelmente arrastando uma aba, não um arquivo
   const perto = pos.x >= r.left - 40 && pos.x <= r.right + 40 && pos.y >= -4 && pos.y <= r.bottom + 30;
   if (!perto) return;
   api.interativo(true);
