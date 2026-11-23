@@ -65,7 +65,17 @@ function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = f
     bt.addEventListener('click', (e) => { e.stopPropagation(); b.acao(); voltarAoPadrao(); });
     caixa.appendChild(bt);
   }
-  ilha.classList.toggle('com-botoes', botoes.length > 0);
+  // avisos com ações (download, atualização, novidades...) ganham um × para fechar
+  if (botoes.length || alto) {
+    const x = document.createElement('button');
+    x.className = 'fechar-aviso';
+    x.textContent = '×';
+    x.title = 'Fechar';
+    x.setAttribute('aria-label', 'Fechar aviso');
+    x.addEventListener('click', (e) => { e.stopPropagation(); clearTimeout(timeoutAviso); voltarAoPadrao(); });
+    caixa.appendChild(x);
+  }
+  ilha.classList.toggle('com-botoes', botoes.length > 0 || alto);
   $('avisoTitulo').textContent = titulo;
   $('avisoSub').innerHTML = '';
   if (Array.isArray(sub)) {

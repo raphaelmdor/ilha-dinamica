@@ -1,3 +1,4 @@
-## Novidades da 4.4.2
+## Novidades da 4.4.3
 
-- **Configurações abrindo sempre:** às vezes a janela abria escondida atrás do programa em uso e parecia que não tinha aberto. Agora ela sempre vem para a frente, aparece na tela onde está o mouse e, se a página travar ou não carregar, recarrega sozinha.
+- **Botão × nos avisos:** as notificações com opções, como download concluído, atualização pronta e novidades da versão, agora têm um × para fechar na hora.
+- Inclui a 4.4.2: a janela de configurações sempre abre na frente.

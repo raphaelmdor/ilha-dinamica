@@ -857,6 +857,13 @@ body.sem-olhos .olhos { display: none; }
 }
 .aviso-botoes button:first-child { background: var(--destaque); color: #04121f; }
 .aviso-botoes button:hover { filter: brightness(1.15); }
+.aviso-botoes button.fechar-aviso {
+  width: 24px; height: 24px; padding: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08) !important; color: var(--suave) !important;
+  font-size: 15px; line-height: 1; display: grid; place-items: center;
+}
+.aviso-botoes button.fechar-aviso:hover { background: rgba(255, 255, 255, 0.18) !important; color: #fff !important; }
+.ilha.alto .aviso-botoes { position: absolute; top: 10px; right: 10px; }
 .aviso-botoes button:active { transform: scale(0.95); }
 .ilha[data-estado="aviso"].com-botoes { width: min(calc(440px * var(--escala)), calc(100vw - 24px)); }
 
