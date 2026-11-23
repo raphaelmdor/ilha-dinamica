@@ -307,7 +307,7 @@ function iniciarAjudanteMidia() {
           // guarda a capa da música atual e manda junto sempre (a interface pode ter recarregado)
           if (dados.ativo) {
             const chave = `${dados.titulo}|${dados.artista}`;
-            if (dados.capa) capaGuardada = { chave, capa: dados.capa };
+            if (dados.capa) { if (capaGuardada.chave !== chave) log('Capa recebida:', dados.titulo, `(${Math.round(dados.capa.length / 1024)} KB)`); capaGuardada = { chave, capa: dados.capa }; }
             else if (capaGuardada.chave === chave) dados.capa = capaGuardada.capa;
           }
           const resumo = `${dados.ativo ? 'ativo' : 'nada'} ${dados.status || ''} '${dados.titulo || ''}' capa=${dados.capa ? 'sim' : 'não'}`;

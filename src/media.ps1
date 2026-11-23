@@ -60,6 +60,8 @@ function Aguardar($operacao, [Type]$tipo) {
 $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
 $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties, Windows.Media.Control, ContentType = WindowsRuntime]
 $null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$null = [Windows.Storage.Streams.DataReader, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$null = [Windows.Storage.Streams.IInputStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
 
 $gerente = Aguardar ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) `
     ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
@@ -347,18 +349,54 @@ $rajada = 0
 $tocando = $false
 $ultimoNivel = -1.0
 
+$capaErroAvisado = $false
+function Avisar-Log($msg) {
+    [Console]::Out.WriteLine((@{ tipo = 'log'; msg = $msg } | ConvertTo-Json -Compress))
+    [Console]::Out.Flush()
+}
 function Ler-Capa($props) {
+    if (-not $props.Thumbnail) { return $null }
+    $stream = $null
     try {
-        if (-not $props.Thumbnail) { return $null }
         $stream = Aguardar ($props.Thumbnail.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
-        $netStream = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream)
-        $memoria = New-Object System.IO.MemoryStream
-        $netStream.CopyTo($memoria)
-        $tipo = if ($stream.ContentType) { $stream.ContentType } else { 'image/png' }
-        $b64 = [Convert]::ToBase64String($memoria.ToArray())
-        $netStream.Dispose(); $memoria.Dispose()
-        return "data:$tipo;base64,$b64"
-    } catch { return $null }
+    } catch {
+        if (-not $script:capaErroAvisado) { $script:capaErroAvisado = $true; Avisar-Log ("capa: não abriu: " + $_.Exception.Message) }
+        return $null
+    }
+    if (-not $stream) { return $null }
+    $tipo = 'image/png'
+    try { if ($stream.ContentType) { $tipo = [string]$stream.ContentType } } catch { }
+    $bytes = $null
+    # 1) DataReader (WinRT puro: funciona no PowerShell do Windows sem conversões de stream)
+    try {
+        $tam = [uint32]$stream.Size
+        if ($tam -gt 0 -and $tam -lt 8MB) {
+            $leitor = [Windows.Storage.Streams.DataReader]::new($stream.GetInputStreamAt(0))
+            $n = Aguardar ($leitor.LoadAsync($tam)) ([uint32])
+            $bytes = New-Object byte[] $n
+            $leitor.ReadBytes($bytes)
+            $leitor.Dispose()
+        }
+    } catch {
+        $bytes = $null
+        if (-not $script:capaErroAvisado) { $script:capaErroAvisado = $true; Avisar-Log ("capa: DataReader falhou: " + $_.Exception.Message) }
+    }
+    # 2) Conversão para stream do .NET
+    if (-not $bytes -or $bytes.Length -eq 0) {
+        try {
+            $netStream = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead([Windows.Storage.Streams.IInputStream]$stream.GetInputStreamAt(0))
+            $memoria = New-Object System.IO.MemoryStream
+            $netStream.CopyTo($memoria)
+            $bytes = $memoria.ToArray()
+            $netStream.Dispose(); $memoria.Dispose()
+        } catch {
+            if (-not $script:capaErroAvisado) { $script:capaErroAvisado = $true; Avisar-Log ("capa: stream falhou: " + $_.Exception.Message) }
+        }
+    }
+    try { $stream.Dispose() } catch { }
+    if (-not $bytes -or $bytes.Length -eq 0) { return $null }
+    if ($tipo -notmatch '^image/') { $tipo = 'image/jpeg' }
+    return "data:$tipo;base64," + [Convert]::ToBase64String($bytes)
 }
 
 # Qual player mostrar: SEMPRE o que está tocando de verdade (o "atual" do Windows pode ser um pausado).
