@@ -366,10 +366,24 @@ $sessaoFixa = $null
 $tocandoAntes = @{}
 $fixaTocouEm = [DateTime]::MinValue
 $segurar = $false
+# Som que não é música/vídeo: chamada e notificação do WhatsApp Web, avisos de sites...
+# O navegador manda essas "mídias" sem nome de música, só com o endereço do site como título.
+function Eh-Ruido($x) {
+    try {
+        $p = Aguardar ($x.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
+        if (-not $p) { return $false }
+        $t = ([string]$p.Title).Trim()
+        $a = ([string]$p.Artist).Trim()
+        if ($t -match '(?i)whatsapp') { return $true }
+        if (-not $a -and $t -match '^(?i)(https?://)?[a-z0-9-]+(\.[a-z0-9-]+)+(/\S*)?$') { return $true }
+    } catch { }
+    return $false
+}
+
 function Escolher-Sessao {
     if (-not $gerente) { return $null }
     $todas = @()
-    try { $todas = @($gerente.GetSessions()) } catch { }
+    try { $todas = @($gerente.GetSessions() | Where-Object { -not (Eh-Ruido $_) }) } catch { }
     if ($todas.Count -eq 0) { $script:sessaoFixa = $null; return $null }
     $tocandoAgora = @{}
     $tocando = New-Object System.Collections.Generic.List[object]

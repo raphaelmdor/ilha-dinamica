@@ -1,4 +1,4 @@
-## Novidades da 4.8.3
+## Novidades da 4.8.4
 
-- **Notinhas aparecendo de verdade:** com a ilha encostada no topo da tela (modo notch), as notinhas ♪ ♫ subiam para fora da tela e não dava para ver. Agora elas nascem ao lado dos olhinhos e sobem na diagonal dentro da ilha, um pouco maiores.
-- Inclui a 4.8.2: fechar um aviso volta ao notch sem abrir o painel.
+- **Ligações e notificações não viram "música":** sons de chamada e notificação do WhatsApp Web, e de outros sites que tocam som sem nome de música (aparecia só "web.whatsapp.com"), são ignorados. A ilha só mostra música e vídeo de verdade.
+- Inclui a 4.8.3: notinhas aparecendo dentro da ilha no modo notch.
