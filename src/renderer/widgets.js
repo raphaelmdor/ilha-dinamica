@@ -106,6 +106,12 @@ export function iniciarWidgets(ctx) {
     const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
     const delta = horizontal ? e.deltaX : e.deltaY;
     if (!horizontal && podeRolar(e.target, e.deltaY)) return;
+    // Dentro de uma lista que rola (ex.: escolher app favorito), a roda só rola a lista,
+    // mesmo chegando no fim: nunca passa o widget para o lado sem querer
+    if (!horizontal) {
+      const lista = e.target.closest('#dockBusca, .lista, .notas');
+      if (lista && (lista.id === 'dockBusca' || lista.scrollHeight > lista.clientHeight + 1)) { e.preventDefault(); return; }
+    }
     e.preventDefault();
     rolar(delta);
   };
@@ -727,7 +733,7 @@ export function iniciarWidgets(ctx) {
     const lista = (appsInstalados || [])
       .filter((a) => !dados.dock.some((d) => d.appId === a.appId))
       .filter((a) => !q || a.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q))
-      .slice(0, 6);
+      .slice(0, 80);
     if (!lista.length) { const li = document.createElement('li'); li.className = 'vazio'; li.textContent = 'Nenhum app encontrado'; ul.appendChild(li); }
     for (const a of lista) {
       const li = document.createElement('li');

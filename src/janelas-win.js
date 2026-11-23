@@ -46,6 +46,13 @@ function iniciar(log = () => {}, handlePropria = null) {
     w.QueryFullProcessImageNameW = kernel32.func('__stdcall', 'QueryFullProcessImageNameW', 'bool', ['void *', 'uint32', 'void *', koffi.inout(koffi.pointer('uint32'))]);
     w.CloseHandle = kernel32.func('__stdcall', 'CloseHandle', 'bool', ['void *']);
     w.GetAsyncKeyState = user32.func('__stdcall', 'GetAsyncKeyState', 'int16', ['int32']);
+    // Para trazer uma janela nossa para a frente (o Windows bloqueia apps "de fundo" de pegar o foco)
+    w.GetForegroundWindowI = user32.func('__stdcall', 'GetForegroundWindow', 'intptr', []);
+    w.GetWindowThreadProcessIdI = user32.func('__stdcall', 'GetWindowThreadProcessId', 'uint32', ['intptr', 'void *']);
+    w.AttachThreadInput = user32.func('__stdcall', 'AttachThreadInput', 'bool', ['uint32', 'uint32', 'bool']);
+    w.SetForegroundWindowI = user32.func('__stdcall', 'SetForegroundWindow', 'bool', ['intptr']);
+    w.BringWindowToTopI = user32.func('__stdcall', 'BringWindowToTop', 'bool', ['intptr']);
+    w.GetCurrentThreadId = kernel32.func('__stdcall', 'GetCurrentThreadId', 'uint32', []);
     // 3 = jogo/app DirectX em tela cheia exclusiva
     w.SHQueryUserNotificationState = shell32.func('__stdcall', 'SHQueryUserNotificationState', 'long', [koffi.out(koffi.pointer('int'))]);
     try {
@@ -183,4 +190,22 @@ function botaoMouseApertado() {
   try { return !!w && (w.GetAsyncKeyState(0x01) & 0x8000) !== 0; } catch { return false; }
 }
 
-module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado };
+// Joga uma janela nossa para a frente com foco de teclado, mesmo com outro app em primeiro plano
+// (liga por um instante a fila de entrada da nossa thread com a do app da frente).
+function trazerParaFrente(handle) {
+  if (!w || !w.SetForegroundWindowI || !handle) return false;
+  try {
+    const alvo = Number(handle.length >= 8 ? handle.readBigInt64LE(0) : handle.readInt32LE(0));
+    const frente = w.GetForegroundWindowI();
+    if (Number(frente) === alvo) return true;
+    const nossa = w.GetCurrentThreadId();
+    const dela = frente ? w.GetWindowThreadProcessIdI(frente, null) : 0;
+    const ligou = dela && dela !== nossa ? w.AttachThreadInput(nossa, dela, true) : false;
+    w.BringWindowToTopI(alvo);
+    const ok = w.SetForegroundWindowI(alvo);
+    if (ligou) w.AttachThreadInput(nossa, dela, false);
+    return ok;
+  } catch { return false; }
+}
+
+module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, trazerParaFrente };

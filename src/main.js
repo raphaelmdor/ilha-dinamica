@@ -658,8 +658,17 @@ function ativarTeclado(sim) {
     tecladoAtivo = true;
     janela.setFocusable(true);
     janela.setIgnoreMouseEvents(false);
+    // sem isso o Windows não deixa a ilha pegar o teclado e o que você digita vai para o outro app
+    janelasWin.trazerParaFrente(janela.getNativeWindowHandle());
     janela.focus();
     janela.webContents.focus();
+    setTimeout(() => {
+      if (tecladoAtivo && janela && !janela.isDestroyed() && !janela.isFocused()) {
+        janelasWin.trazerParaFrente(janela.getNativeWindowHandle());
+        janela.focus();
+        janela.webContents.focus();
+      }
+    }, 120);
   } else if (tecladoAtivo) {
     tecladoAtivo = false;
     janela.webContents.send('teclado:fim');
@@ -885,6 +894,7 @@ function trazerParaFrente(j) {
   j.setAlwaysOnTop(true, 'pop-up-menu');
   j.show();
   j.moveTop();
+  janelasWin.trazerParaFrente(j.getNativeWindowHandle());
   j.focus();
   j.webContents.focus();
   setTimeout(() => { if (!j.isDestroyed()) j.setAlwaysOnTop(false); }, 1200);
