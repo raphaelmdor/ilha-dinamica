@@ -1,4 +1,5 @@
-## Novidades da 4.4.0
+## Novidades da 4.4.1
 
-- **Clima com localização automática:** a ilha descobre sozinha em que cidade você está, pela sua conexão de internet, e mostra o tempo de lá (com 📍 ao lado do nome). Funciona em qualquer PC sem configurar nada.
-- **Preferir uma cidade fixa:** é só digitar o nome em Configurações → Widgets. O botão "Automático" volta a descobrir sozinho.
+- **Clima do seu município, não da região:** a localização automática agora usa a localização do Windows (Wi-Fi), que é bem mais precisa, e mostra o nome do município com a sigla do estado, por exemplo "Niterói, RJ". Antes vinha o nome da região, como "Rio de Janeiro".
+- Se a localização do Windows estiver desligada, a ilha usa a internet e mostra "(aprox.)" ao lado do nome.
+- **Cidade digitada:** a busca procura primeiro municípios do Brasil e escolhe a cidade, não o estado. Digitar "Rio de Janeiro" traz a capital, não o estado inteiro.

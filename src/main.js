@@ -711,32 +711,78 @@ function silenciarNoFoco(sim) {
 // Clima (Open-Meteo: grátis e sem chave)
 // ---------------------------------------------------------------------------
 const cacheCidades = new Map();
-// Localização automática pela internet (aproximada, nível de cidade; sem chave e sem cadastro)
-let localAuto = null; // { lat, lon, nome, quando }
+// Posição pela localização do Windows (Wi-Fi/GPS, precisa estar ligada em
+// Configurações > Privacidade > Localização > "Permitir que aplicativos da área de trabalho...")
+function localizacaoDoWindows() {
+  if (process.platform !== 'win32') return Promise.resolve(null);
+  const script = [
+    'Add-Type -AssemblyName System.Device',
+    "$w = New-Object System.Device.Location.GeoCoordinateWatcher('High')",
+    '$w.Start()',
+    '$fim = (Get-Date).AddSeconds(12)',
+    "while ((Get-Date) -lt $fim -and $w.Status -ne 'Ready' -and $w.Permission -ne 'Denied') { Start-Sleep -Milliseconds 200 }",
+    '$c = $w.Position.Location',
+    "if ($w.Status -eq 'Ready' -and -not $c.IsUnknown) { '{0};{1};{2}' -f $c.Latitude.ToString([Globalization.CultureInfo]::InvariantCulture), $c.Longitude.ToString([Globalization.CultureInfo]::InvariantCulture), [int]$c.HorizontalAccuracy } else { 'sem;' + $w.Status + ';' + $w.Permission }",
+    '$w.Stop()',
+  ].join('; ');
+  return new Promise((resolve) => {
+    let saida = '';
+    const p = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true });
+    const limite = setTimeout(() => { try { p.kill(); } catch { /* ignora */ } resolve(null); }, 20000);
+    p.stdout.on('data', (d) => { saida += d; });
+    p.on('error', () => { clearTimeout(limite); resolve(null); });
+    p.on('exit', () => {
+      clearTimeout(limite);
+      const [la, lo, prec] = saida.trim().split(';');
+      if (la === 'sem' || !la) { log('Localização do Windows indisponível:', saida.trim()); resolve(null); return; }
+      const lat = Number(la); const lon = Number(lo);
+      resolve(Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon, precisao: Number(prec) } : null);
+    });
+  });
+}
+
+// Nome do MUNICÍPIO a partir das coordenadas (não a região metropolitana nem o estado)
+async function nomeDoMunicipio(lat, lon) {
+  try {
+    const j = await (await net.fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=pt`)).json();
+    const adm = j?.localityInfo?.administrative || [];
+    const municipio = adm.find((x) => x.adminLevel === 8)?.name || j.locality || j.city;
+    const uf = String(j.principalSubdivisionCode || '').replace(/^BR-/, '');
+    return municipio ? (uf && uf.length <= 3 ? `${municipio}, ${uf}` : municipio) : null;
+  } catch { return null; }
+}
+
+// Localização automática: 1º a do Windows (precisa), senão pela internet (aproximada)
+let localAuto = null; // { lat, lon, nome, quando, fonte }
 async function descobrirLocal() {
   if (localAuto && Date.now() - localAuto.quando < 60 * 60 * 1000) return localAuto;
-  const fontes = [
-    async () => {
-      const j = await (await net.fetch('https://ipwho.is/?fields=success,city,region,latitude,longitude')).json();
-      if (!j.success) throw new Error('falhou');
-      return { lat: +j.latitude, lon: +j.longitude, nome: j.city || j.region };
-    },
-    async () => {
-      const j = await (await net.fetch('https://get.geojs.io/v1/ip/geo.json')).json();
-      return { lat: +j.latitude, lon: +j.longitude, nome: j.city || j.region };
-    },
-  ];
-  for (const f of fontes) {
-    try {
-      const l = await f();
-      if (Number.isFinite(l.lat) && Number.isFinite(l.lon)) {
-        localAuto = { ...l, nome: l.nome || 'Sua região', quando: Date.now() };
-        log('Localização automática:', localAuto.nome);
-        return localAuto;
-      }
-    } catch { /* tenta a próxima */ }
+  let pos = await localizacaoDoWindows();
+  let fonte = 'windows';
+  if (!pos) {
+    fonte = 'internet';
+    const fontes = [
+      async () => {
+        const j = await (await net.fetch('https://ipwho.is/?fields=success,latitude,longitude')).json();
+        if (!j.success) throw new Error('falhou');
+        return { lat: +j.latitude, lon: +j.longitude };
+      },
+      async () => {
+        const j = await (await net.fetch('https://get.geojs.io/v1/ip/geo.json')).json();
+        return { lat: +j.latitude, lon: +j.longitude };
+      },
+    ];
+    for (const f of fontes) {
+      try {
+        const l = await f();
+        if (Number.isFinite(l.lat) && Number.isFinite(l.lon)) { pos = l; break; }
+      } catch { /* tenta a próxima */ }
+    }
   }
-  return localAuto; // a última conhecida, se houver
+  if (!pos) return localAuto; // a última conhecida, se houver
+  const nome = (await nomeDoMunicipio(pos.lat, pos.lon)) || 'Sua região';
+  localAuto = { lat: pos.lat, lon: pos.lon, nome, fonte, quando: Date.now() };
+  log('Localização automática:', nome, `(${fonte}${pos.precisao ? `, ±${pos.precisao} m` : ''})`);
+  return localAuto;
 }
 
 async function buscarClima() {
@@ -750,8 +796,12 @@ async function buscarClima() {
       local = cacheCidades.get(nome);
     }
     if (!local) {
-      const g = await (await net.fetch(`https://geocoding-api.open-meteo.com/v1/search?count=1&language=pt&name=${encodeURIComponent(nome)}`)).json();
-      const r = g?.results?.[0];
+      // procura o município primeiro no Brasil; se não achar, no mundo
+      const busca = (extra) => net.fetch(`https://geocoding-api.open-meteo.com/v1/search?count=5&language=pt&name=${encodeURIComponent(nome)}${extra}`).then((r) => r.json());
+      let g = await busca('&countryCode=BR');
+      if (!g?.results?.length) g = await busca('');
+      // prefere lugares que são cidades/municípios (PPL*), não estados ou regiões (ADM1)
+      const r = (g?.results || []).find((x) => /^PPL/.test(x.feature_code || '')) || g?.results?.[0];
       if (!r) return { ok: false, erro: `cidade "${nome}" não encontrada` };
       local = { lat: r.latitude, lon: r.longitude, nome: r.name };
       cacheCidades.set(nome, local);
@@ -764,7 +814,7 @@ async function buscarClima() {
       + 'wind_speed_10m_max,uv_index_max,sunrise,sunset';
     const f = await (await net.fetch(url)).json();
     if (!f?.current) return { ok: false, erro: 'resposta inválida' };
-    return { ok: true, cidade: local.nome, automatico: !nome, atual: f.current, diario: f.daily, horario: f.hourly };
+    return { ok: true, cidade: local.nome, automatico: !nome, aproximado: !nome && local.fonte === 'internet', atual: f.current, diario: f.daily, horario: f.hourly };
   } catch (e) {
     return { ok: false, erro: 'sem internet' };
   }
