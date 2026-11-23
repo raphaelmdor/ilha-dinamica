@@ -1,5 +1,5 @@
 import { Voz, falar } from './voice.js';
-import { interpretar, LISTA_AJUDA } from './intents.js';
+import { interpretar, LISTA_AJUDA, frasesDeComando, acharApp, escolherIntencao } from './intents.js';
 import { Olhos } from './olhos.js';
 import { iniciarWidgets } from './widgets.js';
 
@@ -435,7 +435,18 @@ voz.addEventListener('silencio', () => {
   olhos.reagir('confuso', 1800);
   aviso('Não ouvi nada', 'Tente de novo: Ctrl+Alt+Espaço', { icone: '…', tipo: 'info', ms: 2000 });
 });
-voz.addEventListener('comando', (e) => executarFrase(e.detail));
+voz.addEventListener('comando', (e) => {
+  const d = e.detail;
+  if (typeof d === 'string') executarFrase(d);
+  else executarFrase(d.texto, d.alternativa);
+});
+
+// Ensina ao reconhecimento os comandos e os nomes dos apps instalados (acerta muito mais "abrir X")
+let appsParaVoz = [];
+async function prepararVocabulario() {
+  try { appsParaVoz = (await api.listarApps()) || []; } catch { appsParaVoz = []; }
+  try { voz.definirGramatica(frasesDeComando(appsParaVoz.map((a) => a.nome))); } catch (e) { console.warn(e); }
+}
 
 async function ativarVoz() {
   if (voz.escutandoComando) { voz.pararComando(); return; }
@@ -467,6 +478,7 @@ async function iniciarVoz() {
   try {
     await voz.carregar(r.url);
     ilha.classList.remove('voz-indisponivel');
+    await prepararVocabulario();
     await voz.definirContinua(estado.config.escutaContinua, estado.config.palavraAtivacao);
     aviso('Voz pronta', 'Ctrl+Alt+Espaço e fale um comando', { icone: '🎙', tipo: 'info', ms: 3000 });
   } catch (erro) {
@@ -733,12 +745,12 @@ setInterval(() => { if (estado.vista === 'expandida') api.sistema('estado'); }, 
 // ---------------------------------------------------------------------------
 // Execução dos comandos
 // ---------------------------------------------------------------------------
-async function executarFrase(frase) {
-  const intencao = interpretar(frase);
+async function executarFrase(textoOuvido, alternativa = '') {
+  const { intencao, frase } = escolherIntencao(textoOuvido, alternativa);
   if (!intencao) return;
   const agora = new Date();
   if (intencao.tipo === 'nao-entendi') olhos.reagir('confuso', 2400);
-  else if (intencao.tipo !== 'cancelar') olhos.reagir('feliz', 1500);
+  else if (intencao.tipo !== 'cancelar' && intencao.tipo !== 'abrir-instalado') olhos.reagir('feliz', 1500);
 
   switch (intencao.tipo) {
     case 'midia': {
@@ -801,6 +813,19 @@ async function executarFrase(frase) {
       await api.acao(intencao);
       aviso('Abrindo ' + intencao.app, '', { icone: '↗' });
       break;
+    case 'abrir-instalado': {
+      if (!appsParaVoz.length) await prepararVocabulario();
+      const achado = acharApp(intencao.nome, appsParaVoz);
+      if (achado) {
+        await api.acao({ tipo: 'abrirApp', appId: achado.appId });
+        olhos.reagir('feliz', 1500);
+        aviso('Abrindo ' + achado.nome, `"${frase}"`, { icone: '↗' });
+      } else {
+        olhos.reagir('confuso', 2400);
+        aviso('Não achei esse app', `Ouvi: "${frase}"`, { icone: '?', tipo: 'info', ms: 4000 });
+      }
+      break;
+    }
     case 'pesquisar':
       await api.acao(intencao);
       aviso('Pesquisando', intencao.termo, { icone: '🔎' });

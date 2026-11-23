@@ -17,6 +17,25 @@ export class Voz extends EventTarget {
     this.palavraAtivacao = 'ilha';
     this.pronta = false;
     this.timeoutComando = null;
+    this.gramatica = null;         // frases de comando conhecidas (melhora muito o acerto)
+    this.comandos = null;          // 2º reconhecedor, limitado às frases de comando
+    this.ultimoComando = '';
+  }
+
+  /** Lista de frases que o reconhecedor de comandos aceita (comandos + nomes dos apps) */
+  definirGramatica(frases) {
+    this.gramatica = JSON.stringify([...new Set(frases)].concat('[unk]'));
+    if (this.comandos) { try { this.comandos.remove(); } catch { /* ignora */ } this.comandos = null; }
+    if (this.contexto) this.criarReconhecedorComandos();
+  }
+
+  criarReconhecedorComandos() {
+    if (!this.gramatica || this.comandos || !this.contexto) return;
+    try {
+      this.comandos = new this.modelo.KaldiRecognizer(this.contexto.sampleRate, this.gramatica);
+      this.comandos.on('partialresult', (msg) => { if (msg.result.partial) this.ultimoComando = msg.result.partial; });
+      this.comandos.on('result', (msg) => { if (msg.result.text) this.ultimoComando = msg.result.text; });
+    } catch (e) { console.warn('Reconhecedor de comandos indisponível', e); this.comandos = null; }
   }
 
   emitir(tipo, detail) {
@@ -46,6 +65,7 @@ export class Voz extends EventTarget {
       if (parcial && this.escutandoComando) this.emitir('parcial', parcial);
     });
     this.reconhecedor.on('result', (msg) => this.aoResultado(msg.result.text || ''));
+    this.criarReconhecedorComandos();
 
     this.analisador = this.contexto.createAnalyser();
     this.analisador.fftSize = 256;
@@ -56,6 +76,9 @@ export class Voz extends EventTarget {
     this.processador.onaudioprocess = (e) => {
       if (this.escutandoComando || this.continua) {
         try { this.reconhecedor.acceptWaveform(e.inputBuffer); } catch { /* ignora */ }
+        if (this.escutandoComando && this.comandos) {
+          try { this.comandos.acceptWaveform(e.inputBuffer); } catch { /* ignora */ }
+        }
       }
     };
     fonte.connect(this.processador);
@@ -68,6 +91,8 @@ export class Voz extends EventTarget {
     this.analisador?.disconnect();
     this.microfone.getTracks().forEach((t) => t.stop());
     this.reconhecedor?.remove();
+    try { this.comandos?.remove(); } catch { /* ignora */ }
+    this.comandos = null;
     this.contexto?.close();
     this.microfone = this.contexto = this.reconhecedor = this.processador = this.analisador = null;
   }
@@ -88,6 +113,7 @@ export class Voz extends EventTarget {
     await this.abrirMicrofone();
     if (this.contexto.state === 'suspended') await this.contexto.resume();
     this.escutandoComando = true;
+    this.ultimoComando = '';
     this.emitir('ouvindo', true);
     this.reiniciarTimeout(8000);
   }
@@ -121,8 +147,18 @@ export class Voz extends EventTarget {
     if (!texto) return;
 
     if (this.escutandoComando) {
-      this.pararComando();
-      this.emitir('comando', texto);
+      // para de ouvir já, mas espera um instante o reconhecedor de comandos fechar a frase dele
+      clearTimeout(this.timeoutComando);
+      this.escutandoComando = false;
+      this.emitir('ouvindo', false);
+      const comandos = this.comandos;
+      const fim = () => {
+        const bruto = this.ultimoComando || '';
+        const alternativa = /\[unk\]/.test(bruto) ? '' : bruto.trim();
+        this.emitir('comando', { texto, alternativa });
+        this.fecharMicrofone();
+      };
+      if (comandos) { try { comandos.retrieveFinalResult(); } catch { /* ignora */ } setTimeout(fim, 300); } else fim();
       return;
     }
 

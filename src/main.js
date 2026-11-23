@@ -785,7 +785,13 @@ function recursos() {
 // ---------------------------------------------------------------------------
 let janelaConfig = null;
 function abrirConfiguracoes() {
-  if (janelaConfig) { janelaConfig.show(); janelaConfig.focus(); return; }
+  if (janelaConfig && !janelaConfig.isDestroyed()) {
+    if (janelaConfig.isMinimized()) janelaConfig.restore();
+    janelaConfig.show();
+    janelaConfig.moveTop();
+    janelaConfig.focus();
+    return;
+  }
   janelaConfig = new BrowserWindow({
     width: 600,
     height: 720,
@@ -799,6 +805,7 @@ function abrirConfiguracoes() {
   });
   janelaConfig.loadURL(`http://127.0.0.1:${PORTA}/configuracoes.html`);
   janelaConfig.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  janelaConfig.once('ready-to-show', () => { janelaConfig?.moveTop(); janelaConfig?.focus(); });
   janelaConfig.on('closed', () => { janelaConfig = null; });
 }
 
@@ -999,7 +1006,24 @@ function criarBandeja() {
   atualizarMenuBandeja();
 }
 
+// Tira do "Iniciar com o Windows" entradas antigas que abrem a cópia de teste (electron.exe da pasta do projeto)
+function limparInicioAntigo() {
+  if (process.platform !== 'win32' || !app.isPackaged) return;
+  const chave = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
+  let saida = '';
+  try { saida = execFileSync('reg.exe', ['query', chave], { encoding: 'utf8', windowsHide: true }); } catch { return; }
+  for (const linha of saida.split(/\r?\n/)) {
+    const m = linha.match(/^\s{4}(.+?)\s{4}REG_\w+\s{4}(.*)$/);
+    if (!m || !/node_modules\\electron\\dist\\electron\.exe/i.test(m[2]) || !/ilha/i.test(m[2])) continue;
+    try {
+      execFileSync('reg.exe', ['delete', chave, '/v', m[1], '/f'], { windowsHide: true });
+      log('Removido do início do Windows (cópia de teste):', m[1]);
+    } catch (e) { log('Não consegui remover', m[1], e.message); }
+  }
+}
+
 function aplicarInicioAutomatico() {
+  limparInicioAntigo();
   if (process.platform !== 'win32') return;
   // Sem instalador, o electron.exe precisa receber a pasta do app como argumento
   const args = app.isPackaged ? [] : [app.getAppPath()];
@@ -1065,7 +1089,20 @@ ipcMain.handle('modelo:garantir', async () => {
 // ---------------------------------------------------------------------------
 app.setAppUserModelId('br.raphael.ilhadinamica');
 
-if (!app.requestSingleInstanceLock()) {
+// A cópia de desenvolvimento (pasta do projeto) não abre se a versão instalada existir:
+// senão ficam duas ilhas uma em cima da outra (setas, cliques e configurações bugam)
+const EXES_INSTALADOS = [
+  path.join(process.env.ProgramFiles || 'C:\\Program Files', 'IlhaDinamica', 'IlhaDinamica.exe'),
+  path.join(process.env.LOCALAPPDATA || '', 'Programs', 'IlhaDinamica', 'IlhaDinamica.exe'),
+];
+const copiaDeTeste = !app.isPackaged && process.platform === 'win32' && !process.env.ILHA_DEV
+  && EXES_INSTALADOS.some((p) => fs.existsSync(p));
+
+if (copiaDeTeste) {
+  try { app.setLoginItemSettings({ openAtLogin: false, path: process.execPath, args: [app.getAppPath()] }); } catch { /* ignora */ }
+  log('Cópia de teste fechada: a versão instalada é a que vale');
+  app.quit();
+} else if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.whenReady().then(async () => {

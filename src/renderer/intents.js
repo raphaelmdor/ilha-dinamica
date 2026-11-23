@@ -151,17 +151,22 @@ export function interpretar(frase) {
   // Pesquisas (texto livre depois do verbo)
   m = t.match(/(?:^| )(?:tocar|toca|toque|colocar|coloca|coloque) (.+?) no youtube$/);
   if (m) return { tipo: 'youtube', termo: m[1] };
-  m = t.match(/(?:^| )(?:pesquisar|pesquisa|pesquise|procurar|procura|procure|buscar|busca|busque|google) (?:por |sobre )?(.+)$/);
-  if (m) return { tipo: 'pesquisar', termo: m[1] };
-
-  // Abrir apps
-  m = t.match(/(?:^| )(?:abrir|abre|abra|iniciar|inicia|inicie|executar|executa|execute) (?:o |a |os |as )?(.+)$/);
+  // Abrir apps (antes das pesquisas: "abrir o google chrome" não é pesquisar)
+  m = t.match(/^(?:(?:por favor|ilha) )?(?:abrir|abre|abra|abri|iniciar|inicia|inicie|executar|executa|execute) (?:o |a |os |as )?(.+)$/);
   if (m) {
     const resto = m[1];
     const achado = APPS.find(([chave]) => resto.includes(chave));
+    // "google chrome", "microsoft edge"...: o nome inteiro do app instalado vale mais que a palavra solta
+    if (achado && !/chrome|crome|edge/.test(resto)) return { tipo: 'abrir', app: achado[1] };
+    if (/chrome|crome|crom\b/.test(resto)) return { tipo: 'abrir', app: 'chrome' };
+    if (/\bedge\b|\bedi\b/.test(resto)) return { tipo: 'abrir', app: 'edge' };
     if (achado) return { tipo: 'abrir', app: achado[1] };
-    return { tipo: 'nao-entendi', dica: `Não sei abrir "${resto}" ainda` };
+    // qualquer outro: procura entre os apps instalados (com tolerância a erro de pronúncia)
+    return { tipo: 'abrir-instalado', nome: resto };
   }
+
+  m = t.match(/(?:^| )(?:pesquisar|pesquisa|pesquise|procurar|procura|procure|buscar|busca|busque|google) (?:por |sobre )?(.+)$/);
+  if (m) return { tipo: 'pesquisar', termo: m[1] };
 
   // Controles do sistema
   m = t.match(/(?:^| )(?:volume|som)(?: (?:em|para|no|a))? (.+)$/);
@@ -238,3 +243,82 @@ export const LISTA_AJUDA = [
   'marcar 14:30 dentista · começar foco · abrir agenda',
   'Claude, como fazer arroz soltinho',
 ];
+
+// ---------------------------------------------------------------------------
+// Ajuda ao reconhecimento: frases que o 2º reconhecedor (limitado) conhece
+// ---------------------------------------------------------------------------
+const NUMEROS_FALADOS = ['zero', 'dez', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa', 'cem',
+  'um', 'dois', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'quinze', 'vinte e cinco', 'setenta e cinco'];
+const COMANDOS_FIXOS = [
+  'pausar', 'pausa', 'continuar', 'tocar', 'proxima', 'proxima musica', 'pular', 'anterior', 'musica anterior', 'voltar musica',
+  'aumentar volume', 'aumenta o volume', 'abaixar volume', 'abaixa o volume', 'diminuir volume', 'diminui o volume', 'mudo', 'silenciar', 'tirar do mudo',
+  'ligar wifi', 'desligar wifi', 'ligar o wifi', 'desligar o wifi', 'ligar bluetooth', 'desligar bluetooth', 'ligar o bluetooth', 'desligar o bluetooth',
+  'modo escuro', 'modo claro', 'trocar tema', 'que horas sao', 'que dia e hoje', 'bateria', 'o que esta tocando',
+  'bloquear computador', 'bloquear o computador', 'tirar print', 'esconder', 'cancelar', 'ajuda', 'cancelar timer',
+  'comecar foco', 'iniciar foco', 'parar foco', 'iniciar pomodoro', 'abrir busca',
+  ...['agenda', 'calendario', 'tarefas', 'clima', 'tempo', 'notas', 'sistema', 'copiados', 'favoritos', 'bandeja']
+    .flatMap((w) => [`abrir ${w}`, `abrir a ${w}`, `abrir o ${w}`, `mostrar ${w}`]),
+];
+const VERBOS_ABRIR = ['abrir', 'abrir o', 'abrir a', 'abre o', 'abre a', 'abre', 'abra o', 'abra'];
+
+/** Frases de comando + "abrir <app>" para cada app conhecido/instalado */
+export function frasesDeComando(nomesApps = []) {
+  const nomes = new Set(APPS.map(([chave]) => chave).concat('google chrome', 'microsoft edge'));
+  for (const bruto of nomesApps) {
+    const n = normalizar(bruto).replace(/\d+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (n.length >= 2 && n.split(' ').length <= 4) nomes.add(n);
+  }
+  const frases = [...COMANDOS_FIXOS];
+  for (const n of nomes) for (const v of VERBOS_ABRIR) frases.push(`${v} ${n}`);
+  for (const pre of ['volume', 'volume em', 'brilho', 'brilho em']) for (const n of NUMEROS_FALADOS) frases.push(`${pre} ${n}`);
+  for (const n of ['um', 'dois', 'tres', 'cinco', 'dez', 'quinze', 'vinte', 'trinta']) frases.push(`timer de ${n} minutos`, `timer de ${n} minuto`);
+  return frases;
+}
+
+// Simplifica a "pronúncia" para comparar nomes ouvidos errado ("gugou crome" ~ "google chrome")
+function soar(texto) {
+  return normalizar(texto)
+    .replace(/ch|sh/g, 'x').replace(/ph/g, 'f').replace(/qu|k/g, 'c').replace(/w/g, 'u').replace(/y/g, 'i')
+    .replace(/z/g, 's').replace(/h/g, '').replace(/ou/g, 'o').replace(/oo/g, 'u').replace(/(.)\1+/g, '$1')
+    .replace(/\s+/g, '');
+}
+function bigramas(s) {
+  const b = new Map();
+  for (let i = 0; i < s.length - 1; i++) { const k = s.slice(i, i + 2); b.set(k, (b.get(k) || 0) + 1); }
+  return b;
+}
+function parecido(a, b) {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const A = bigramas(a); const B = bigramas(b);
+  let comum = 0;
+  for (const [k, n] of A) comum += Math.min(n, B.get(k) || 0);
+  return (2 * comum) / (Math.max(1, a.length - 1) + Math.max(1, b.length - 1));
+}
+
+/** Acha o app instalado mais parecido com o nome falado (ou null) */
+export function acharApp(nomeFalado, apps) {
+  const alvo = normalizar(nomeFalado);
+  const som = soar(nomeFalado);
+  let melhor = null;
+  for (const a of apps || []) {
+    const n = normalizar(a.nome);
+    let nota = 0;
+    if (n === alvo) nota = 2;
+    else if (n.startsWith(alvo) || n.split(' ').some((p) => p === alvo)) nota = 1.5 - n.length / 200;
+    else if (n.includes(alvo) && alvo.length >= 3) nota = 1.2 - n.length / 200;
+    else nota = Math.max(parecido(som, soar(a.nome)), ...n.split(' ').filter((p) => p.length >= 4).map((p) => parecido(som, soar(p)) * 0.9));
+    if (!melhor || nota > melhor.nota) melhor = { app: a, nota };
+  }
+  return melhor && melhor.nota >= 0.62 ? melhor.app : null;
+}
+
+/** Escolhe a melhor leitura entre o texto livre e o reconhecedor de comandos */
+export function escolherIntencao(texto, alternativa) {
+  const livre = interpretar(texto);
+  const TEXTO_LIVRE = ['tarefa', 'nota', 'evento', 'pesquisar', 'youtube', 'claude', 'timer'];
+  if (livre && TEXTO_LIVRE.includes(livre.tipo)) return { intencao: livre, frase: texto };
+  const cmd = alternativa ? interpretar(alternativa) : null;
+  if (cmd && cmd.tipo !== 'nao-entendi') return { intencao: cmd, frase: alternativa };
+  return { intencao: livre, frase: texto };
+}
