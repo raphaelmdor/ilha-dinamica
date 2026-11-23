@@ -46,7 +46,6 @@ export class Olhos {
       m.ultBatida = agora;
       const forca = Math.min(1, 0.4 + v);
       m.vy += 1.9 * forca;           // aceno pra baixo; a mola traz de volta
-      if (forca > 0.75 && agora - m.ultNota > 1600) { m.ultNota = agora; this.soltarNota(); }
     }
     if (!this.ritmoLigado) {
       this.ritmoLigado = true;
@@ -65,6 +64,13 @@ export class Olhos {
         m.amp += (animada - m.amp) * 0.03 * k;
         m.brilho *= Math.pow(0.97, k);
         const balanco = Math.sin(m.fase);
+        // notinhas o tempo todo enquanto toca: uma a cada ~2 batidas, com um pouco de variação
+        const agoraNota = performance.now();
+        if (agoraNota - m.ultNota > (m.proximaNota || 900)) {
+          m.ultNota = agoraNota;
+          m.proximaNota = Math.max(650, Math.min(1500, m.periodo * 2)) * (0.8 + Math.random() * 0.5);
+          this.soltarNota();
+        }
         for (const g of this.grupos) {
           g.style.setProperty('--y', Math.max(-1, Math.min(3, m.y)).toFixed(2));
           g.style.setProperty('--giro', (balanco * 7 * m.amp).toFixed(2));
