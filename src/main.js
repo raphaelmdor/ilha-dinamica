@@ -364,6 +364,26 @@ function caminhoScriptMidia() {
 
 let tentativasMidia = 0;
 let capaGuardada = { chave: '', capa: null };
+let ultimaMidia = null;
+const capasWeb = new Map(); // "titulo|artista" -> data URL (ou null se não achou)
+async function buscarCapaWeb(titulo, artista) {
+  const chave = `${titulo}|${artista}`;
+  if (capasWeb.has(chave)) return capasWeb.get(chave);
+  capasWeb.set(chave, null); // evita buscar de novo enquanto a primeira busca anda
+  try {
+    const termo = `${artista || ''} ${String(titulo || '').replace(/\(.*?\)|\[.*?\]|official.*|video.*|lyrics.*/gi, '')}`.trim();
+    if (termo.length < 3) return null;
+    const r = await (await net.fetch(`https://itunes.apple.com/search?media=music&entity=song&limit=3&term=${encodeURIComponent(termo)}`)).json();
+    const item = (r.results || [])[0];
+    if (!item?.artworkUrl100) return null;
+    const img = await net.fetch(item.artworkUrl100.replace('100x100bb', '300x300bb'));
+    if (!img.ok) return null;
+    const url = 'data:image/jpeg;base64,' + Buffer.from(await img.arrayBuffer()).toString('base64');
+    capasWeb.set(chave, url);
+    log('Capa da internet:', titulo);
+    return url;
+  } catch { return null; }
+}
 let medidorAvisado = false;
 let ultimoResumoMidia = '';
 
@@ -405,11 +425,25 @@ function iniciarAjudanteMidia() {
           // guarda a capa da música atual e manda junto sempre (a interface pode ter recarregado)
           if (dados.ativo) {
             const chave = `${dados.titulo}|${dados.artista}`;
-            if (dados.capa) { if (capaGuardada.chave !== chave) log('Capa recebida:', dados.titulo, `(${Math.round(dados.capa.length / 1024)} KB)`); capaGuardada = { chave, capa: dados.capa }; }
-            else if (capaGuardada.chave === chave) dados.capa = capaGuardada.capa;
+            // capa "de mentira": o Chrome/Edge às vezes manda o próprio ícone (pequeno) no lugar da capa
+            const pequena = dados.capa && dados.capa.length < 9000 && /chrome|msedge|edge|firefox|opera|brave/i.test(dados.app || '');
+            if (dados.capa && !pequena) { if (capaGuardada.chave !== chave) log('Capa recebida:', dados.titulo, `(${Math.round(dados.capa.length / 1024)} KB)`); capaGuardada = { chave, capa: dados.capa }; }
+            else if (capaGuardada.chave === chave && capaGuardada.capa) dados.capa = capaGuardada.capa;
+            else {
+              // sem capa boa: procura a capa da música na internet (iTunes, grátis) e manda quando chegar
+              if (pequena) delete dados.capa;
+              buscarCapaWeb(dados.titulo, dados.artista).then((url) => {
+                if (!url || capaGuardada.chave === chave) return;
+                capaGuardada = { chave, capa: url };
+                if (ultimaMidia && `${ultimaMidia.titulo}|${ultimaMidia.artista}` === chave) {
+                  janela?.webContents.send('midia', { ...ultimaMidia, capa: url });
+                }
+              });
+            }
           }
           const resumo = `${dados.ativo ? 'ativo' : 'nada'} ${dados.status || ''} '${dados.titulo || ''}' capa=${dados.capa ? 'sim' : 'não'}`;
           if (resumo.replace(/ capa=.*/, '') !== ultimoResumoMidia) { ultimoResumoMidia = resumo.replace(/ capa=.*/, ''); log('Mídia mostrada:', resumo); }
+          ultimaMidia = dados;
           janela?.webContents.send('midia', dados);
         }
         tentativasMidia = 0;
@@ -618,7 +652,11 @@ function posicionarJanela() {
   const largura = Math.round(Math.min(JANELA.largura, area.width * 0.9));
   const x = Math.round(area.x + (area.width - largura) / 2);
   const y = tela.bounds.y;
-  janela.setBounds({ x, y, width: largura, height: JANELA.altura });
+  // só mexe na janela se a posição mudou de verdade (mexer no meio de um clique cancela o clique)
+  const b = janela.getBounds();
+  if (b.x !== x || b.y !== y || b.width !== largura || b.height !== JANELA.altura) {
+    janela.setBounds({ x, y, width: largura, height: JANELA.altura });
+  }
   janela.webContents.send('tela', {
     largura: area.width,
     altura: area.height,

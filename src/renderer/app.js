@@ -45,6 +45,15 @@ function mostrar(vista) {
   if (vista !== 'aviso') ilha.classList.remove('alto', 'com-botoes');
 }
 
+// Clique "atravessa" a janela fora da ilha. Guarda o estado e, com o mouse em cima da ilha,
+// garante que ela está clicável (se um evento se perder, o próximo movimento conserta)
+let interativoAgora = null;
+function definirInterativo(sim) {
+  sim = !!sim;
+  interativoAgora = sim;
+  api.interativo(sim);
+}
+
 function vistaPadrao() {
   if (voz.escutandoComando) return 'escuta';
   if (estado.esperarSair) return 'compacta'; // acabou de fechar um aviso: fica no notch
@@ -121,7 +130,7 @@ function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = f
 ilha.addEventListener('mouseenter', () => {
   if (ilha.classList.contains('discreta') && estado.vista === 'compacta') return; // abre só parando o mouse (veja o cursor)
   estado.hover = true;
-  api.interativo(true);
+  definirInterativo(true);
   clearTimeout(timeoutRecolher);
   if (estado.config.abrirAoPassar !== false) {
     timeoutRecolher = setTimeout(() => {
@@ -130,16 +139,22 @@ ilha.addEventListener('mouseenter', () => {
   }
   if (Math.random() < 0.35) olhos.reagir('surpreso', 500);
 });
+ilha.addEventListener('mousemove', () => {
+  if (interativoAgora === false && !(ilha.classList.contains('discreta') && estado.vista === 'compacta')) {
+    estado.hover = true;
+    definirInterativo(true);
+  }
+});
 ilha.addEventListener('mouseleave', () => {
   if (estado.jogo) return; // aberta por cima do jogo: só fecha com Esc, Ctrl+Alt+I ou clicando no jogo
   estado.hover = false;
   estado.fixada = false;
-  api.interativo(false);
+  definirInterativo(false);
   clearTimeout(timeoutRecolher);
   timeoutRecolher = setTimeout(() => {
     if (estado.vista === 'expandida' && !estado.fixada && !estado.teclado) mostrar('compacta');
   }, 220);
-  if (estado.vista === 'busca' || estado.teclado) api.interativo(true); // continua clicável enquanto digita
+  if (estado.vista === 'busca' || estado.teclado) definirInterativo(true); // continua clicável enquanto digita
 });
 ilha.addEventListener('click', (e) => {
   if (e.target.closest('button, input, textarea, .resultados, .controles-rapidos, .carrossel')) return;
@@ -201,7 +216,7 @@ api.on('teclado:fim', () => {
   estado.teclado = false;
   document.activeElement?.blur?.();
   if (!estado.hover) {
-    api.interativo(false);
+    definirInterativo(false);
     if (estado.vista === 'expandida' && !estado.fixada) mostrar('compacta');
   }
 });
@@ -621,7 +636,7 @@ const busca = { itens: [], ativo: 0, confirmando: null, seq: 0 };
 function abrirBusca() {
   clearTimeout(timeoutAviso);
   mostrar('busca');
-  api.interativo(true);
+  definirInterativo(true);
   campo.value = '';
   busca.confirmando = null;
   atualizarBusca();
@@ -633,7 +648,7 @@ function fecharBusca(avisar = true) {
   campo.blur();
   ilha.style.removeProperty('--altura-busca');
   mostrar(vistaPadrao());
-  if (!estado.hover) api.interativo(false);
+  if (!estado.hover) definirInterativo(false);
   if (avisar) api.fecharBusca();
 }
 
@@ -853,7 +868,7 @@ function ligarSlider(el, enviar) {
     if (el.disabled || e.button !== 0) return;
     e.preventDefault();
     arrastando = el;
-    api.interativo(true);
+    definirInterativo(true);
     try { el.setPointerCapture(e.pointerId); } catch { /* ignora */ }
     aplicar(valorDoMouse(e));
   });
@@ -1185,7 +1200,7 @@ api.on('cursor', (pos) => {
   if (apertou.y < 140) return; // começou perto do topo: provavelmente arrastando uma aba, não um arquivo
   const perto = pos.x >= r.left - 40 && pos.x <= r.right + 40 && pos.y >= -4 && pos.y <= r.bottom + 30;
   if (!perto) return;
-  api.interativo(true);
+  definirInterativo(true);
   estado.hover = true;
   if (estado.vista !== 'expandida' && estado.vista !== 'busca') {
     estado.fixada = true;
@@ -1230,7 +1245,7 @@ function verificarParado() {
   if (Math.abs(ultimoCursor.x - parado.x) + Math.abs(ultimoCursor.y - parado.y) > 8) return;
   parado = null;
   estado.hover = true;
-  api.interativo(true);
+  definirInterativo(true);
   abrirPainel();
   olhos.reagir('surpreso', 500);
 }
@@ -1270,7 +1285,7 @@ api.on('cursor', (pos) => {
       timeoutForaDoPainel = null;
       if (estado.vista === 'expandida' && !estado.teclado && !estado.fixada) {
         estado.hover = false;
-        api.interativo(false);
+        definirInterativo(false);
         mostrar('compacta');
       }
     }, 260);
@@ -1286,7 +1301,7 @@ function aplicarModoApp(modo) {
   const mini = estado.config.modoMini !== false && modo === 'cheia';
   const discreta = modo === 'maximizada-abas';
   ilha.classList.toggle('discreta', discreta);
-  if (discreta && estado.vista === 'compacta') api.interativo(false); // nunca rouba cliques das abas
+  if (discreta && estado.vista === 'compacta') definirInterativo(false); // nunca rouba cliques das abas
   ilha.classList.toggle('colada', notch && (modo === 'maximizada' || modo === 'maximizada-abas' || modo === 'cheia') || mini || discreta);
   ilha.classList.toggle('mini', mini);
   if (mini && estado.fixada) { estado.fixada = false; voltarAoPadrao(); }
