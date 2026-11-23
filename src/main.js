@@ -519,6 +519,9 @@ function criarJanela() {
       backgroundThrottling: false,
     },
   });
+  // Depois de fechada, nenhum timer pode mexer na janela ("Object has been destroyed")
+  janela.on('closed', () => { janela = null; });
+
   janela.setAlwaysOnTop(true, 'screen-saver');
   janela.setVisibleOnAllWorkspaces(true);
   janela.setIgnoreMouseEvents(true, { forward: true });
@@ -1108,7 +1111,7 @@ if (!app.requestSingleInstanceLock()) {
     // Manda a posição do mouse para os olhinhos seguirem (só quando muda)
     let ultimoCursor = '';
     setInterval(() => {
-      if (!janela || !visivel || (ocultaPorJogo && !mostrarMesmoEmJogo)) return;
+      if (!janela || encerrando || janela.isDestroyed() || !visivel || (ocultaPorJogo && !mostrarMesmoEmJogo)) return;
       const p = screen.getCursorScreenPoint();
       const b = janela.getBounds();
       const pos = { x: p.x - b.x, y: p.y - b.y, botao: janelasWin.botaoMouseApertado() };
@@ -1126,6 +1129,7 @@ if (!app.requestSingleInstanceLock()) {
       jogos.carregarGameBar(log);
       setInterval(() => jogos.carregarGameBar(), 10 * 60 * 1000);
       setInterval(() => {
+        if (encerrando || !janela) return;
         let info = null;
         try { info = janelasWin.estadoPrimeiroPlano(); } catch (e) { log('Erro no detector:', e.message); }
         if (!info) return;

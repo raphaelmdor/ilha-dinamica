@@ -1,4 +1,5 @@
-## Novidades da 4.2.3
+## Novidades da 4.2.4
 
-- **Correção:** não aparece mais a janela "A JavaScript error occurred in the main process" (erro EPIPE). Ela surgia quando o ajudante de volume e brilho fechava e a ilha tentava mandar um comando para ele. Agora a ilha espera ele reabrir sozinho.
-- Qualquer outro erro inesperado passa a ser só registrado no log, sem abrir janela de erro.
+- **Correção:** clicar em Sair não mostra mais a janela de erro "Object has been destroyed".
+- **Ícone novo aparecendo de verdade:** o instalador agora faz o Windows recarregar os ícones. Assim o menu Iniciar e a área de trabalho trocam para o ícone novo sem precisar reiniciar o PC.
+- Inclui a correção da 4.2.3, que acaba com o erro EPIPE quando o ajudante de volume e brilho fecha.
