@@ -179,26 +179,79 @@ function desenharWidgets() {
   const ordem = [...ligados, ...TODOS_WIDGETS.filter((w) => !ligados.includes(w))];
   ordem.forEach((w) => {
     const on = ligados.includes(w);
-    const i = ligados.indexOf(w);
     const li = document.createElement('li');
+    li.dataset.w = w;
     if (!on) li.className = 'off';
+    const alca = document.createElement('span'); alca.className = 'alca'; alca.textContent = '⠿'; alca.title = 'Arraste para mudar a ordem';
     const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = WIDGETS[w][0];
     const nome = document.createElement('span'); nome.className = 'nome'; nome.textContent = WIDGETS[w][1];
-    const sobe = document.createElement('button'); sobe.textContent = '↑'; sobe.title = 'Subir'; sobe.disabled = !on || i === 0;
-    const desce = document.createElement('button'); desce.textContent = '↓'; desce.title = 'Descer'; desce.disabled = !on || i === ligados.length - 1;
     const chave = document.createElement('label'); chave.className = 'chave';
     const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = on;
     chave.append(cb, document.createElement('span'));
-    sobe.addEventListener('click', () => { const l = [...ligados]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; salvar({ widgets: l }); });
-    desce.addEventListener('click', () => { const l = [...ligados]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; salvar({ widgets: l }); });
     cb.addEventListener('change', () => {
       const l = cb.checked ? [...ligados, w] : ligados.filter((x) => x !== w);
       if (!l.length) { toast('Deixe pelo menos um widget ligado', true); cb.checked = true; return; }
       salvar({ widgets: l });
     });
-    li.append(ic, nome, sobe, desce, chave);
+    li.append(alca, ic, nome, chave);
+    arrastavel(li, ul);
     ul.appendChild(li);
   });
+}
+
+// Arrastar para reordenar: a linha segue o mouse e as outras abrem espaço com animação
+function arrastavel(li, ul) {
+  let arr = null;
+  li.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.target.closest('.chave')) return;
+    e.preventDefault();
+    // (mover a linha no DOM solta o "pointer capture", então os eventos vêm do documento)
+    document.addEventListener('pointermove', mover);
+    document.addEventListener('pointerup', soltar);
+    document.addEventListener('pointercancel', soltar);
+    const r = li.getBoundingClientRect();
+    arr = { dy: e.clientY - r.top };
+    li.classList.add('arrastando');
+    ul.classList.add('reordenando');
+  });
+  const mover = (e) => {
+    if (!arr) return;
+    const irmaos = [...ul.children].filter((x) => x !== li);
+    // posição pelo layout (offsetTop), não pela tela: as outras linhas podem estar no meio da animação
+    const y = e.clientY - ul.getBoundingClientRect().top;
+    let antes = null;
+    for (const x of irmaos) {
+      if (y < x.offsetTop + x.offsetHeight / 2) { antes = x; break; }
+    }
+    if (li.nextElementSibling !== antes && antes !== li) {
+      // FLIP: guarda onde as outras estavam, troca de lugar e anima até a posição nova
+      const antesTop = new Map(irmaos.map((x) => [x, x.offsetTop]));
+      ul.insertBefore(li, antes);
+      for (const x of irmaos) {
+        const d = antesTop.get(x) - x.offsetTop;
+        if (!d) continue;
+        x.style.transition = 'none';
+        x.style.transform = `translateY(${d}px)`;
+        requestAnimationFrame(() => { x.style.transition = ''; x.style.transform = ''; });
+      }
+    }
+    const topoUl = ul.getBoundingClientRect().top;
+    li.style.transform = `translateY(${e.clientY - arr.dy - topoUl - li.offsetTop}px)`;
+  };
+  const soltar = () => {
+    document.removeEventListener('pointermove', mover);
+    document.removeEventListener('pointerup', soltar);
+    document.removeEventListener('pointercancel', soltar);
+    if (!arr) return;
+    arr = null;
+    li.classList.remove('arrastando');
+    ul.classList.remove('reordenando');
+    li.style.transform = '';
+    const ligadosAgora = new Set(cfg.widgets || TODOS_WIDGETS);
+    const nova = [...ul.children].map((x) => x.dataset.w).filter((w) => ligadosAgora.has(w));
+    if (nova.join() !== (cfg.widgets || TODOS_WIDGETS).join()) salvar({ widgets: nova }, 'Ordem dos widgets atualizada');
+  };
+
 }
 
 // ---------------------------------------------------------------------------
