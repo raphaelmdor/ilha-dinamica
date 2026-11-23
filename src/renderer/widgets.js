@@ -783,7 +783,7 @@ export function iniciarWidgets(ctx) {
     if (e.key === 'Escape') fecharBuscaDock();
     if (e.key === 'Enter') $('dockSugestoes').querySelector('li:not(.vazio)')?.click();
   });
-  $('dockCampo').addEventListener('pointerdown', () => pedirTeclado(true));
+  $('dockCampo').addEventListener('pointerdown', () => { pedirTeclado(true); setTimeout(() => $('dockCampo').focus(), 40); });
 
   // -------------------------------------------------------------------------
   // Bandeja: arraste arquivos para cá e depois arraste para onde quiser

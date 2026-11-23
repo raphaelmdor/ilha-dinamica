@@ -662,10 +662,13 @@ function registrarAtalhos() {
 // Teclado sob demanda: a ilha só "pega" o teclado quando você clica num campo
 // ---------------------------------------------------------------------------
 let tecladoAtivo = false;
+let tecladoDesde = 0;
 function ativarTeclado(sim) {
   if (!janela) return;
   if (sim) {
     tecladoAtivo = true;
+    tecladoDesde = Date.now();
+    log('Teclado: ligado');
     janela.setFocusable(true);
     janela.setIgnoreMouseEvents(false);
     // sem isso o Windows não deixa a ilha pegar o teclado e o que você digita vai para o outro app
@@ -1326,9 +1329,20 @@ if (copiaDeTeste) {
     iniciarAjudanteMidia();
 
     registrarAtalhos();
+    // Perdeu o foco: espera um instante. Ao pegar o teclado, o Windows às vezes manda um "blur"
+    // de passagem; se a ilha recuperou o foco (ou acabou de pedir), não fecha nada.
     janela.on('blur', () => {
-      if (lancadorAberto) fecharLancador();
-      if (tecladoAtivo) ativarTeclado(false);
+      setTimeout(() => {
+        if (!janela || janela.isDestroyed() || janela.isFocused()) return;
+        if (tecladoAtivo && Date.now() - tecladoDesde < 700) {
+          janelasWin.trazerParaFrente(janela.getNativeWindowHandle());
+          janela.focus();
+          janela.webContents.focus();
+          return;
+        }
+        if (lancadorAberto) fecharLancador();
+        if (tecladoAtivo) { log('Teclado: a ilha perdeu o foco'); ativarTeclado(false); }
+      }, 160);
     });
     vigiarCopiados();
     servicos.configurarLog(log);
