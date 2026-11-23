@@ -265,6 +265,7 @@ function caminhoScriptMidia() {
 }
 
 let tentativasMidia = 0;
+let capaGuardada = { chave: '', capa: null };
 
 function iniciarAjudanteMidia() {
   if (process.platform !== 'win32' || encerrando) return;
@@ -299,6 +300,12 @@ function iniciarAjudanteMidia() {
           lancador.atualizarEstadoSistema(dados);
           janela?.webContents.send('sistema', dados);
         } else {
+          // guarda a capa da música atual e manda junto sempre (a interface pode ter recarregado)
+          if (dados.ativo) {
+            const chave = `${dados.titulo}|${dados.artista}`;
+            if (dados.capa) capaGuardada = { chave, capa: dados.capa };
+            else if (capaGuardada.chave === chave) dados.capa = capaGuardada.capa;
+          }
           janela?.webContents.send('midia', dados);
         }
         tentativasMidia = 0;

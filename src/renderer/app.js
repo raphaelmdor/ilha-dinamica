@@ -328,10 +328,18 @@ function atualizarMidia(m) {
   // a capa só chega quando a música muda; mantém a anterior enquanto for a mesma
   const chave = m.ativo ? `${m.titulo}|${m.artista}` : '';
   if (m.ativo && m.capa) {
-    $('capaGrande').style.backgroundImage = `url("${m.capa}")`;
+    if (m.capa !== estado.capaUrl) {
+      estado.capaUrl = m.capa;
+      $('capaGrande').style.backgroundImage = `url("${m.capa}")`;
+      $('capaMini').style.backgroundImage = `url("${m.capa}")`;
+    }
+    ilha.classList.add('com-capa');
     estado.chaveCapa = chave;
   } else if (chave !== estado.chaveCapa) {
     $('capaGrande').style.backgroundImage = '';
+    $('capaMini').style.backgroundImage = '';
+    estado.capaUrl = '';
+    ilha.classList.remove('com-capa');
     estado.chaveCapa = '';
   }
   estado.midia.recebido = Date.now();

@@ -341,6 +341,7 @@ $ultimoEstado = ''
 $script:chaveCapaEnviada = ''
 $ultimaChaveCapa = ''
 $capaAtual = $null
+$capaTentativas = 0
 $rajada = 0
 $tocando = $false
 $ultimoNivel = -1.0
@@ -451,7 +452,13 @@ function Enviar-Estado {
             $chaveCapa = "$($props.Title)|$($props.Artist)"
             if ($chaveCapa -ne $script:ultimaChaveCapa) {
                 $script:ultimaChaveCapa = $chaveCapa
+                $script:capaTentativas = 0
                 $script:capaAtual = Ler-Capa $props
+            } elseif (-not $script:capaAtual -and $script:capaTentativas -lt 12) {
+                # o player (ex.: Spotify) costuma mandar a capa uns segundos depois do nome: tenta de novo
+                $script:capaTentativas++
+                $script:capaAtual = Ler-Capa $props
+                if ($script:capaAtual) { $script:chaveCapaEnviada = '' }
             }
         }
     }

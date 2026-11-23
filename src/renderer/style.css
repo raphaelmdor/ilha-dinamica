@@ -1049,3 +1049,11 @@ body.sem-olhos .olhos { display: none; }
   display: grid; place-items: center; line-height: 1;
 }
 .medidor .det, .sistema-box .medidor .det { margin-top: 5px; }
+
+/* capa da música: pequena na pílula (ao lado do equalizador) e maior no painel */
+.capa-mini { display: none; flex: none; width: calc(18px * var(--escala)); height: calc(18px * var(--escala)); border-radius: 5px;
+  background: #222 center / cover no-repeat; margin-right: 6px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.ilha.com-capa.tocando[data-estado="compacta"] .capa-mini { display: block; }
+.ilha.colada .capa-mini { width: calc(16px * var(--escala)); height: calc(16px * var(--escala)); border-radius: 4px; }
+.capa-grande { background-repeat: no-repeat; background-position: center; background-size: cover; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
+.pagina[data-widget="inicio"] .capa-grande { width: calc(52px * var(--escala)); height: calc(52px * var(--escala)); }
