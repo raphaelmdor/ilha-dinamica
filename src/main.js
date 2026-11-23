@@ -873,12 +873,27 @@ function recursos() {
 // Janela de configurações
 // ---------------------------------------------------------------------------
 let janelaConfig = null;
+// O Windows não deixa um app "de fundo" (a ilha não pega o foco) jogar uma janela para a frente:
+// ela abria ATRÁS do programa aberto e parecia que não tinha aberto. Fica por cima um instante e pega o foco.
+function trazerParaFrente(j) {
+  if (!j || j.isDestroyed()) return;
+  if (j.isMinimized()) j.restore();
+  j.setAlwaysOnTop(true, 'pop-up-menu');
+  j.show();
+  j.moveTop();
+  j.focus();
+  j.webContents.focus();
+  setTimeout(() => { if (!j.isDestroyed()) j.setAlwaysOnTop(false); }, 1200);
+}
+
 function abrirConfiguracoes() {
+  log('Abrindo configurações');
   if (janelaConfig && !janelaConfig.isDestroyed()) {
-    if (janelaConfig.isMinimized()) janelaConfig.restore();
-    janelaConfig.show();
-    janelaConfig.moveTop();
-    janelaConfig.focus();
+    // página travada ou em branco: recarrega
+    if (janelaConfig.webContents.isCrashed() || !janelaConfig.webContents.getURL()) {
+      janelaConfig.loadURL(`http://127.0.0.1:${PORTA}/configuracoes.html`);
+    }
+    trazerParaFrente(janelaConfig);
     return;
   }
   janelaConfig = new BrowserWindow({
@@ -886,16 +901,33 @@ function abrirConfiguracoes() {
     height: 720,
     minWidth: 520,
     minHeight: 480,
+    show: false,
     title: 'Ilha Dinâmica — Configurações',
     autoHideMenuBar: true,
     backgroundColor: '#0b0b0d',
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
-  janelaConfig.loadURL(`http://127.0.0.1:${PORTA}/configuracoes.html`);
-  janelaConfig.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  janelaConfig.once('ready-to-show', () => { janelaConfig?.moveTop(); janelaConfig?.focus(); });
-  janelaConfig.on('closed', () => { janelaConfig = null; });
+  const j = janelaConfig;
+  // sempre na tela onde está o mouse, centralizada (nunca fora da tela)
+  try {
+    const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+    const largura = Math.min(600, area.width - 40);
+    const altura = Math.min(720, area.height - 40);
+    j.setBounds({ x: Math.round(area.x + (area.width - largura) / 2), y: Math.round(area.y + (area.height - altura) / 2), width: largura, height: altura });
+  } catch { /* usa o padrão */ }
+  j.loadURL(`http://127.0.0.1:${PORTA}/configuracoes.html`);
+  j.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  let mostrou = false;
+  const mostrar = () => { if (!mostrou) { mostrou = true; trazerParaFrente(j); } };
+  j.once('ready-to-show', mostrar);
+  setTimeout(mostrar, 1500); // se a página demorar, mostra mesmo assim
+  j.webContents.on('did-fail-load', (_e, codigo, desc) => {
+    log('Configurações não carregaram:', codigo, desc);
+    setTimeout(() => { if (!j.isDestroyed()) j.loadURL(`http://127.0.0.1:${PORTA}/configuracoes.html`); }, 800);
+  });
+  j.webContents.on('render-process-gone', (_e, d) => log('Configurações travaram:', d.reason));
+  j.on('closed', () => { if (janelaConfig === j) janelaConfig = null; });
 }
 
 const VALIDADORES = {
