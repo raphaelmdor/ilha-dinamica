@@ -450,15 +450,17 @@ function Diagnosticar {
 
 function Escolher-Sessao {
     if (-not $gerente) { return $null }
+    # Leve: o status de cada player é rápido de ler; o nome (para filtrar ligação/notificação)
+    # só é lido de quem está TOCANDO, e não de todos os players abertos a cada olhada
     $todas = @()
-    try { $todas = @($gerente.GetSessions() | Where-Object { -not (Eh-Ruido $_) }) } catch { }
+    try { $todas = @($gerente.GetSessions()) } catch { }
     if ($todas.Count -eq 0) { $script:sessaoFixa = $null; return $null }
     $tocandoAgora = @{}
     $tocando = New-Object System.Collections.Generic.List[object]
     foreach ($x in $todas) {
         $st = ''
         try { $st = [string]$x.GetPlaybackInfo().PlaybackStatus } catch { }
-        if ($st -eq 'Playing') { $tocando.Add($x); $tocandoAgora[[string]$x.SourceAppUserModelId] = $true }
+        if ($st -eq 'Playing' -and -not (Eh-Ruido $x)) { $tocando.Add($x); $tocandoAgora[[string]$x.SourceAppUserModelId] = $true }
     }
     $escolhida = $null
     if ($tocando.Count -gt 0) {
@@ -478,8 +480,10 @@ function Escolher-Sessao {
                 return $null
             }
             $escolhida = $gerente.GetCurrentSession()
+            if ($escolhida -and (Eh-Ruido $escolhida)) { $escolhida = $null }
         }
-        if (-not $escolhida) { $escolhida = $todas[0] }
+        if (-not $escolhida) { $escolhida = $todas | Where-Object { -not (Eh-Ruido $_) } | Select-Object -First 1 }
+        if (-not $escolhida) { $script:tocandoAntes = $tocandoAgora; return $null }
     }
     $script:tocandoAntes = $tocandoAgora
     if ($escolhida) {
@@ -708,7 +712,7 @@ while ($true) {
     }
     $ciclo++
     $cicloDiag++
-    if ($cicloDiag % 60 -eq 0) { Diagnosticar }   # ~5 s, só registra quando muda
+    if ($cicloDiag % 375 -eq 0) { Diagnosticar }   # ~30 s, só registra quando muda
     if ($ciclo -ge 10) {   # mídia: ~1 vez por segundo
         $ciclo = 0
         try { Enviar-Estado } catch { }
