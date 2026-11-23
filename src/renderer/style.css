@@ -365,6 +365,22 @@ body {
   height: calc(4px * var(--e));
   border-radius: calc(4px * var(--e)) calc(4px * var(--e)) calc(1px * var(--e)) calc(1px * var(--e));
 }
+/* Com o som de verdade chegando: pulam na batida e a cabeça balança no ritmo */
+.olhos[data-humor="musica"].com-ritmo {
+  animation: none;
+  transform: translateY(calc(var(--batida, 0) * -2.2px * var(--e))) rotate(var(--giro, 0deg));
+  transition: transform 0.16s cubic-bezier(.3, 1.6, .5, 1);
+}
+.olhos[data-humor="musica"].com-ritmo .olho {
+  height: calc((3px + var(--batida, 0) * 4px) * var(--e));
+  transition: height 0.08s ease-out, transform 0.14s ease-out;
+}
+.olhos[data-humor="musica"].pulo .olho { animation: pulinho 0.24s ease-out; }
+@keyframes pulinho {
+  0% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(calc(-2px * var(--e))) scale(1.15, 1.25); }
+  100% { transform: translateY(0) scale(1); }
+}
 @keyframes balancar {
   0%, 100% { transform: translateY(0) rotate(-6deg); }
   50% { transform: translateY(-2px) rotate(6deg); }
@@ -857,6 +873,7 @@ body.sem-olhos .olhos { display: none; }
 }
 .aviso-botoes button:first-child { background: var(--destaque); color: #04121f; }
 .aviso-botoes button:hover { filter: brightness(1.15); }
+.ilha.trocando-faixa #titulo, .ilha.trocando-faixa #artista, .ilha.trocando-faixa .progresso { opacity: 0.35; transition: opacity 0.2s; }
 .aviso-botoes button.fechar-aviso {
   width: 24px; height: 24px; padding: 0; border-radius: 50%;
   background: rgba(255, 255, 255, 0.08) !important; color: var(--suave) !important;

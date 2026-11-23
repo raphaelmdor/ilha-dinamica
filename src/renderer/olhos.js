@@ -22,6 +22,36 @@ export class Olhos {
     for (const g of this.grupos) g.dataset.humor = humor;
   }
 
+  /**
+   * Nível do som que está tocando (0–1, ~12x por segundo): os olhinhos pulam na batida
+   * e a cabecinha balança de um lado pro outro, como quem está curtindo a música.
+   */
+  nivelMusica(v) {
+    const agora = Date.now();
+    this.media = this.media == null ? v : this.media * 0.88 + v * 0.12;
+    this.envelope = Math.max(v, (this.envelope || 0) * 0.8);
+    const batida = Math.min(1, this.envelope * 1.5);
+    const pulou = v > 0.12 && v > this.media * 1.3 && agora - (this.ultimoPulo || 0) > 280;
+    if (pulou) {
+      this.ultimoPulo = agora;
+      this.lado = -(this.lado || 1); // balança pro outro lado a cada batida
+    }
+    for (const g of this.grupos) {
+      g.classList.add('com-ritmo');
+      g.style.setProperty('--batida', batida.toFixed(2));
+      g.style.setProperty('--giro', (this.lado || 1) * (3 + batida * 6) + 'deg');
+      if (pulou) {
+        g.classList.remove('pulo');
+        void g.offsetWidth; // reinicia a animação
+        g.classList.add('pulo');
+      }
+    }
+    clearTimeout(this.semRitmo);
+    this.semRitmo = setTimeout(() => {
+      for (const g of this.grupos) { g.classList.remove('com-ritmo', 'pulo'); g.style.removeProperty('--batida'); }
+    }, 1500);
+  }
+
   /** Humor de fundo: continua até ser trocado */
   definirBase(humor) {
     this.base = humor;
@@ -91,7 +121,8 @@ export class Olhos {
   }
 
   vigiarSono() {
-    const ocioso = Date.now() - this.ultimoMovimento > SONO_MS;
+    // curtindo música ninguém dorme
+    const ocioso = Date.now() - this.ultimoMovimento > SONO_MS && this.base !== 'musica';
     const podeDormir = this.base === 'normal' && !this.temporario;
     if (ocioso && podeDormir && !this.dormindo) {
       this.dormindo = true;

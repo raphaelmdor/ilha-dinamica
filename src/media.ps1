@@ -105,7 +105,30 @@ interface IMMDeviceEnumeratorIlha {
 }
 [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorIlha { }
 
+[ComImport, Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioMeterInformationIlha { int GetPeakValue(out float peak); }
+
 public static class AudioIlha {
+    static IAudioMeterInformationIlha medidor;
+    static DateTime medidorDesde = DateTime.MinValue;
+    // Nível do som que está tocando agora (0 a 1). Refaz o medidor a cada 5 s (troca de fone/caixa).
+    public static float Pico() {
+        try {
+            if (medidor == null || (DateTime.Now - medidorDesde).TotalSeconds > 5) {
+                var en = (IMMDeviceEnumeratorIlha)(new MMDeviceEnumeratorIlha());
+                IMMDeviceIlha dev;
+                Marshal.ThrowExceptionForHR(en.GetDefaultAudioEndpoint(0, 1, out dev));
+                Guid iid = typeof(IAudioMeterInformationIlha).GUID;
+                object o;
+                Marshal.ThrowExceptionForHR(dev.Activate(ref iid, 23, IntPtr.Zero, out o));
+                medidor = (IAudioMeterInformationIlha)o;
+                medidorDesde = DateTime.Now;
+            }
+            float p;
+            Marshal.ThrowExceptionForHR(medidor.GetPeakValue(out p));
+            return p;
+        } catch { medidor = null; return 0; }
+    }
     static IAudioEndpointVolumeIlha Ponto() {
         var en = (IMMDeviceEnumeratorIlha)(new MMDeviceEnumeratorIlha());
         IMMDeviceIlha dev;
@@ -318,6 +341,9 @@ $ultimoEstado = ''
 $script:chaveCapaEnviada = ''
 $ultimaChaveCapa = ''
 $capaAtual = $null
+$rajada = 0
+$tocando = $false
+$ultimoNivel = -1.0
 
 function Ler-Capa($props) {
     try {
@@ -365,6 +391,7 @@ function Enviar-Estado {
         }
     }
 
+    $script:tocando = ($estado.status -eq 'Playing')
     $json = $estado | ConvertTo-Json -Compress
     # tocando: manda sempre (posição da música); parado: só quando algo muda
     if ($json -ne $script:ultimoEstado -or $estado.status -eq 'Playing') {
@@ -401,14 +428,17 @@ function Executar($comando) {
         'estado' { Enviar-Sistema }
         'toggle' {
             if ($sessao) { $null = Aguardar ($sessao.TryTogglePlayPauseAsync()) ([bool]) }
+            $script:rajada = 45
             else { [TeclasIlha]::Apertar(0xB3) }
         }
         'next' {
             if ($sessao) { $null = Aguardar ($sessao.TrySkipNextAsync()) ([bool]) }
+            $script:rajada = 45
             else { [TeclasIlha]::Apertar(0xB0) }
         }
         'prev' {
             if ($sessao) { $null = Aguardar ($sessao.TrySkipPreviousAsync()) ([bool]) }
+            $script:rajada = 45
             else { [TeclasIlha]::Apertar(0xB1) }
         }
         'seek'    {
@@ -492,6 +522,21 @@ while ($true) {
     if ($cicloVigia % 3 -eq 0) { Vigiar-Volume }                 # ~4x por segundo
     if ($cicloVigia % 18 -eq 0) { try { Vigiar-Brilho } catch { } }   # ~1,5 s
     if ($cicloVigia % 12 -eq 0) { try { Vigiar-Saida } catch { } }    # ~1 s
+    # Depois de passar a música: confere a cada ~240 ms por uns 3,5 s (o player demora a trocar)
+    if ($script:rajada -gt 0) {
+        $script:rajada--
+        if ($script:rajada % 3 -eq 0) { try { Enviar-Estado } catch { } }
+    }
+    # Tocando: manda o nível do som ~12x por segundo (olhinhos curtindo a música)
+    if ($script:tocando) {
+        $v = 0.0
+        try { $v = [Math]::Round([double][AudioIlha]::Pico(), 2) } catch { }
+        if ($v -ne $script:ultimoNivel) {
+            $script:ultimoNivel = $v
+            [Console]::Out.WriteLine('{"tipo":"nivel","v":' + $v.ToString([Globalization.CultureInfo]::InvariantCulture) + '}')
+            [Console]::Out.Flush()
+        }
+    }
     $ciclo++
     if ($ciclo -ge 10) {   # mídia: ~1 vez por segundo
         $ciclo = 0

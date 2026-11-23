@@ -282,7 +282,30 @@ async function iniciarBateria() {
 // Mídia
 // ---------------------------------------------------------------------------
 function atualizarMidia(m) {
-  estado.midia = m || { ativo: false };
+  m = m || { ativo: false };
+  // Música nova: alguns players (Spotify) mandam o tempo da música anterior por um tempinho.
+  // Enquanto o tempo for "velho", conta do zero a partir da troca.
+  const chaveFaixa = m.ativo ? `${m.titulo}|${m.artista}` : '';
+  const antes = estado.midia;
+  if (chaveFaixa !== estado.chaveFaixa) {
+    if (estado.chaveFaixa !== undefined && m.ativo) {
+      estado.inicioFaixa = Date.now();
+      estado.quandoVelho = antes?.quando;
+    } else {
+      estado.inicioFaixa = 0;
+    }
+    estado.chaveFaixa = chaveFaixa;
+    ilha.classList.remove('trocando-faixa');
+    clearTimeout(estado.timeoutTroca);
+  }
+  if (estado.inicioFaixa && m.dur && m.quando
+      && (m.quando === estado.quandoVelho || m.quando < estado.inicioFaixa - 1500)) {
+    m.pos = 0;
+    m.quando = estado.inicioFaixa;
+  } else if (m.quando && m.quando !== estado.quandoVelho) {
+    estado.inicioFaixa = 0; // o player já mandou o tempo certo da música nova
+  }
+  estado.midia = m;
   const tocando = m.ativo && m.status === 'Playing';
   ilha.classList.toggle('com-midia', !!m.ativo && tocando);
   ilha.classList.toggle('tocando', tocando);
@@ -315,8 +338,18 @@ function nomeApp(id = '') {
 }
 
 document.querySelectorAll('[data-midia]').forEach((botao) => {
-  botao.addEventListener('click', () => api.acao({ tipo: 'midia', cmd: botao.dataset.midia }));
+  botao.addEventListener('click', () => {
+    const cmd = botao.dataset.midia;
+    api.acao({ tipo: 'midia', cmd });
+    if (cmd === 'next' || cmd === 'prev') {
+      // apaga o nome um instante até a música nova chegar (sem mostrar a antiga como se fosse a atual)
+      ilha.classList.add('trocando-faixa');
+      clearTimeout(estado.timeoutTroca);
+      estado.timeoutTroca = setTimeout(() => ilha.classList.remove('trocando-faixa'), 3500);
+    }
+  });
 });
+api.on('nivel', (v) => { if (estado.midia?.status === 'Playing') olhos.nivelMusica(Number(v) || 0); });
 
 // ---------------------------------------------------------------------------
 // Timer

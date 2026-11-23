@@ -283,6 +283,10 @@ function iniciarAjudanteMidia() {
       if (!linha.startsWith('{')) continue;
       try {
         const dados = JSON.parse(linha);
+        if (dados.tipo === 'nivel') {
+          if (visivel && !ocultaPorJogo) janela?.webContents.send('nivel', dados.v);
+          continue;
+        }
         if (dados.tipo === 'osd' || dados.tipo === 'saida') {
           janela?.webContents.send(dados.tipo, dados);
         } else if (dados.tipo === 'sistema') {
