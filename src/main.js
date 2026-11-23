@@ -1226,10 +1226,18 @@ function limparInicioAntigo() {
 }
 
 let reforcoTopo = 0;
-function reforcarTopo() {
+function reforcarTopo(forcar = false) {
   if (!janela || janela.isDestroyed() || encerrando || !janela.isVisible()) return;
+  // Nunca mexe na janela com o mouse em cima dela ou com o botão apertado:
+  // tirar e pôr "por cima" no meio de um clique/arrastar faz o Windows cancelar o clique
   try {
-    janela.setAlwaysOnTop(false);
+    const p = screen.getCursorScreenPoint();
+    const b = janela.getBounds();
+    const emCima = p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
+    if (emCima || janelasWin.botaoMouseApertado() || tecladoAtivo || lancadorAberto) return;
+  } catch { /* segue */ }
+  try {
+    if (forcar) janela.setAlwaysOnTop(false);
     janela.setAlwaysOnTop(true, 'screen-saver');
     janela.moveTop();
   } catch { /* ignora */ }
@@ -1339,7 +1347,7 @@ if (copiaDeTeste) {
     criarJanela();
     criarBandeja();
     // Abrindo junto com o Windows, a área de trabalho ainda está carregando: reforça o "por cima" depois
-    for (const ms of [3000, 10000, 30000]) setTimeout(reforcarTopo, ms);
+    for (const ms of [3000, 10000, 30000]) setTimeout(() => reforcarTopo(true), ms);
     aplicarInicioAutomatico();
     iniciarAjudanteMidia();
 
@@ -1427,7 +1435,8 @@ if (copiaDeTeste) {
         // O Windows às vezes tira o "sempre por cima" (ex.: quando a ilha abre junto com o Windows):
         // reforça ao mudar de modo e, com app maximizado, a cada ~3 s
         reforcoTopo = (reforcoTopo + 1) % 12;
-        if (modo !== modoAtual || (modo !== 'normal' && reforcoTopo === 0)) reforcarTopo();
+        if (modo !== modoAtual) reforcarTopo(true);
+        else if (modo !== 'normal' && reforcoTopo === 0) reforcarTopo(false);
         if (modo === modoAtual) return;
         modoAtual = modo;
         log('Modo:', modo, nomeApp ? `(${nomeApp})` : '');
