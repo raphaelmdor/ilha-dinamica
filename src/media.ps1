@@ -364,6 +364,8 @@ function Ler-Capa($props) {
 # - se o mostrado pausar, continua nele (para dar play de novo pela ilha).
 $sessaoFixa = $null
 $tocandoAntes = @{}
+$fixaTocouEm = [DateTime]::MinValue
+$segurar = $false
 function Escolher-Sessao {
     if (-not $gerente) { return $null }
     $todas = @()
@@ -385,22 +387,38 @@ function Escolher-Sessao {
         if ($novo) { $escolhida = $novo } elseif ($fixa) { $escolhida = $fixa } else { $escolhida = $tocando[0] }
     } else {
         $escolhida = $todas | Where-Object { [string]$_.SourceAppUserModelId -eq $script:sessaoFixa } | Select-Object -First 1
-        if (-not $escolhida) { $escolhida = $gerente.GetCurrentSession() }
+        if (-not $escolhida) {
+            # O player que estava tocando sumiu por um instante (trocando de música): segura a tela
+            # como está em vez de pular para outro player que está pausado
+            if ($script:sessaoFixa -and ((Get-Date) - $script:fixaTocouEm).TotalSeconds -lt 8) {
+                $script:tocandoAntes = $tocandoAgora
+                $script:segurar = $true
+                return $null
+            }
+            $escolhida = $gerente.GetCurrentSession()
+        }
         if (-not $escolhida) { $escolhida = $todas[0] }
     }
     $script:tocandoAntes = $tocandoAgora
-    if ($escolhida) { $script:sessaoFixa = [string]$escolhida.SourceAppUserModelId }
+    if ($escolhida) {
+        $script:sessaoFixa = [string]$escolhida.SourceAppUserModelId
+        if ($tocandoAgora.ContainsKey($script:sessaoFixa)) { $script:fixaTocouEm = Get-Date }
+    }
     return $escolhida
 }
 
 function Enviar-Estado {
+    $script:segurar = $false
     $sessao = Escolher-Sessao
+    if ($script:segurar) { return }   # player trocando de música: não mostra o de outro app
     $estado = [ordered]@{ ativo = $false }
 
     if ($sessao) {
         $props = Aguardar ($sessao.TryGetMediaPropertiesAsync()) `
             ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
         $info = $sessao.GetPlaybackInfo()
+        # sem título no meio da troca de música: espera a música nova em vez de piscar "nada tocando"
+        if (-not ($props -and $props.Title) -and ((Get-Date) - $script:fixaTocouEm).TotalSeconds -lt 8) { return }
         if ($props -and $props.Title) {
             $estado.ativo = $true
             $estado.titulo = [string]$props.Title
