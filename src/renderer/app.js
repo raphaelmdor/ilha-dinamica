@@ -47,6 +47,7 @@ function mostrar(vista) {
 
 function vistaPadrao() {
   if (voz.escutandoComando) return 'escuta';
+  if (estado.esperarSair) return 'compacta'; // acabou de fechar um aviso: fica no notch
   return estado.hover || estado.fixada ? 'expandida' : 'compacta';
 }
 
@@ -107,7 +108,12 @@ function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = f
     ilha.style.removeProperty('--altura-aviso');
   }
   // com botões, espera o mouse sair antes de sumir
-  const fechar = () => { if (botoes.length && estado.hover) { timeoutAviso = setTimeout(fechar, 1000); return; } voltarAoPadrao(); };
+  const fechar = () => {
+    if (botoes.length && estado.hover) { timeoutAviso = setTimeout(fechar, 1000); return; }
+    // aviso sumindo com o mouse em cima: volta ao notch, não abre o painel
+    if (estado.hover && !estado.fixada) estado.esperarSair = true;
+    voltarAoPadrao();
+  };
   timeoutAviso = setTimeout(fechar, ms);
 }
 

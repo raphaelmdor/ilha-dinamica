@@ -1,4 +1,4 @@
-## Novidades da 4.8.1
+## Novidades da 4.8.2
 
-- **Fechar notificação volta ao notch:** fechar um aviso pelo ×, por um dos botões ou clicando nele agora leva a ilha de volta ao notch normal, sem abrir o painel. O painel só volta a abrir ao passar o mouse depois que você afastar o mouse da ilha.
-- Inclui a 4.8.0: exceções do modo discreto, como o WhatsApp Web.
+- **Avisos voltam ao notch:** ao fechar um aviso no ×, clicar num botão dele (como Abrir) ou clicar no próprio aviso, a ilha faz a ação e volta ao notch, sem abrir o painel. O mesmo vale quando o aviso some sozinho com o mouse em cima. O painel só volta a abrir quando você tirar o mouse e passar de novo.
+- Inclui a 4.8.0: exceções do modo discreto pelo título da janela (ex.: WhatsApp Web).
