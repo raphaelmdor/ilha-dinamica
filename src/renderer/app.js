@@ -139,6 +139,25 @@ ilha.addEventListener('mouseenter', () => {
   }
   if (Math.random() < 0.35) olhos.reagir('surpreso', 500);
 });
+// volta depois de um jogo: estado limpo (nada "preso" de antes de esconder)
+api.on('janela:reexibida', () => {
+  estado.hover = false;
+  estado.fixada = false;
+  estado.jogo = false;
+  estado.esperarSair = false;
+  apertou = null;
+  interativoAgora = null;
+  definirInterativo(false);
+  if (estado.vista === 'expandida') mostrar('compacta');
+});
+// diagnóstico: o que acontece com cada clique (vai para o log por alguns minutos)
+for (const tipo of ['pointerdown', 'pointerup', 'click']) {
+  document.addEventListener(tipo, (e) => {
+    const alvo = e.target?.id || e.target?.className?.toString?.().slice(0, 30) || e.target?.tagName;
+    api.diagClique?.(`${tipo} em ${alvo} | vista=${estado.vista} hover=${estado.hover} interativo=${interativoAgora} botoes=${e.buttons} tipo=${e.pointerType || ''}`);
+  }, true);
+}
+document.addEventListener('mouseleave', () => api.diagClique?.(`saiu da janela | vista=${estado.vista}`));
 ilha.addEventListener('mousemove', () => {
   if (interativoAgora === false && !(ilha.classList.contains('discreta') && estado.vista === 'compacta')) {
     estado.hover = true;

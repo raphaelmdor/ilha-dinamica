@@ -752,8 +752,19 @@ function aplicarVisibilidadeReal() {
   if (!janela) return;
   const mostrar = visivel && (!ocultaPorJogo || mostrarMesmoEmJogo || vozEmJogo);
   if (mostrar) {
+    const estavaEscondida = !janela.isVisible();
     janela.showInactive();
     janela.setAlwaysOnTop(true, 'screen-saver');
+    if (estavaEscondida) {
+      // voltando (ex.: depois de um jogo): o Windows às vezes "esquece" o modo de clique da janela.
+      // Recomeça do zero: clicável só com o mouse em cima, e a interface volta ao estado normal.
+      janela.setIgnoreMouseEvents(false);
+      janela.setIgnoreMouseEvents(true, { forward: true });
+      janela.setFocusable(false);
+      janela.webContents.send('janela:reexibida');
+      log('Ilha reexibida: modo de clique reiniciado');
+      ligarDiagClique();
+    }
   } else {
     if (lancadorAberto) fecharLancador();
     janela.hide();
@@ -1445,7 +1456,12 @@ function aplicarInicioAutomatico() {
 // ---------------------------------------------------------------------------
 ipcMain.on('interativo', (_e, sim) => {
   janela?.setIgnoreMouseEvents(!sim, { forward: true });
+  if (diagClique) log('Clique-diag: interativo', !!sim);
 });
+// Diagnóstico de cliques (por 10 minutos depois de abrir, ou depois de um jogo)
+let diagClique = false;
+function ligarDiagClique() { diagClique = true; setTimeout(() => { diagClique = false; }, 10 * 60 * 1000); }
+ipcMain.on('diag:clique', (_e, msg) => { if (diagClique) log('Clique-diag:', String(msg).slice(0, 300)); });
 ipcMain.handle('acao', (_e, acao) => executarAcao(acao));
 ipcMain.handle('lancador:buscar', (_e, texto) => lancador.buscar(texto));
 ipcMain.handle('lancador:executar', (_e, id) => {
@@ -1562,6 +1578,7 @@ if (copiaDeTeste) {
       }, 160);
     });
     vigiarCopiados();
+    ligarDiagClique();
     servicos.configurarLog(log);
     iniciarAtualizacoes();
     janela.webContents.once('did-finish-load', avisarSeAtualizou);
