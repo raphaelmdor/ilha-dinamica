@@ -341,6 +341,7 @@ $ultimoEstado = ''
 $script:chaveCapaEnviada = ''
 $ultimaChaveCapa = ''
 $capaAtual = $null
+$cicloDiag = 0
 $capaTentativas = 0
 $rajada = 0
 $tocando = $false
@@ -379,6 +380,28 @@ function Eh-Ruido($x) {
         if (-not $a -and $t -match '^(?i)(https?://)?[a-z0-9-]+(\.[a-z0-9-]+)+(/\S*)?$') { return $true }
     } catch { }
     return $false
+}
+
+$ultimoDiag = ''
+function Diagnosticar {
+    try {
+        $partes = @()
+        foreach ($x in @($gerente.GetSessions())) {
+            $st = ''; $t = ''; $a = ''; $th = ''
+            try { $st = [string]$x.GetPlaybackInfo().PlaybackStatus } catch { $st = 'erro' }
+            try {
+                $p = Aguardar ($x.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
+                if ($p) { $t = [string]$p.Title; $a = [string]$p.Artist; $th = if ($p.Thumbnail) { 'capa' } else { 'sem capa' } } else { $t = '(sem props)' }
+            } catch { $t = '(erro props)' }
+            $partes += "$([string]$x.SourceAppUserModelId) [$st] '$t' / '$a' ($th) ruido=$(Eh-Ruido $x)"
+        }
+        $txt = 'sessões: ' + ($partes -join ' | ') + " || fixa=$script:sessaoFixa"
+        if ($txt -ne $script:ultimoDiag) {
+            $script:ultimoDiag = $txt
+            [Console]::Out.WriteLine((@{ tipo = 'log'; msg = $txt } | ConvertTo-Json -Compress))
+            [Console]::Out.Flush()
+        }
+    } catch { }
 }
 
 function Escolher-Sessao {
@@ -640,6 +663,8 @@ while ($true) {
         }
     }
     $ciclo++
+    $cicloDiag++
+    if ($cicloDiag % 60 -eq 0) { Diagnosticar }   # ~5 s, só registra quando muda
     if ($ciclo -ge 10) {   # mídia: ~1 vez por segundo
         $ciclo = 0
         try { Enviar-Estado } catch { }

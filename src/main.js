@@ -267,6 +267,7 @@ function caminhoScriptMidia() {
 let tentativasMidia = 0;
 let capaGuardada = { chave: '', capa: null };
 let medidorAvisado = false;
+let ultimoResumoMidia = '';
 
 function iniciarAjudanteMidia() {
   if (process.platform !== 'win32' || encerrando) return;
@@ -286,6 +287,7 @@ function iniciarAjudanteMidia() {
       if (!linha.startsWith('{')) continue;
       try {
         const dados = JSON.parse(linha);
+        if (dados.tipo === 'log') { log('[mídia]', String(dados.msg).slice(0, 1500)); continue; }
         if (dados.tipo === 'hw') {
           hw = { ...hw, cpuTemp: dados.cpuTemp, cpuFonte: dados.cpuFonte, ...(dados.gpuUso != null ? { gpuUso: dados.gpuUso } : {}) };
           continue;
@@ -308,6 +310,8 @@ function iniciarAjudanteMidia() {
             if (dados.capa) capaGuardada = { chave, capa: dados.capa };
             else if (capaGuardada.chave === chave) dados.capa = capaGuardada.capa;
           }
+          const resumo = `${dados.ativo ? 'ativo' : 'nada'} ${dados.status || ''} '${dados.titulo || ''}' capa=${dados.capa ? 'sim' : 'não'}`;
+          if (resumo.replace(/ capa=.*/, '') !== ultimoResumoMidia) { ultimoResumoMidia = resumo.replace(/ capa=.*/, ''); log('Mídia mostrada:', resumo); }
           janela?.webContents.send('midia', dados);
         }
         tentativasMidia = 0;
