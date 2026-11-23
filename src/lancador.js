@@ -1,5 +1,5 @@
 // Buscador da ilha: apps instalados, arquivos, configurações do Windows e comandos.
-const { app, shell } = require('electron');
+const { app, shell, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn, execFile } = require('child_process');
@@ -29,9 +29,49 @@ function indexarApps() {
         apps = lista
           .filter((a) => a && a.Name && a.AppID)
           .filter((a) => !/^(uninstall|desinstalar)/i.test(a.Name))
-          .map((a) => ({ nome: a.Name, appId: a.AppID, lnk: lnks.get(norm(a.Name)) || null, n: norm(a.Name) }));
+          .map((a) => {
+            const lnk = lnks.get(norm(a.Name)) || null;
+            return { nome: a.Name, appId: a.AppID, lnk, ic: lnk, n: norm(a.Name) };
+          });
         log(`Apps indexados: ${apps.length}`);
+        iconesDaLoja();
       } catch (e) { log('Lista de apps inválida:', e.message); }
+    });
+}
+
+// Apps da Microsoft Store (WhatsApp, Spotify da Store...) não têm atalho .lnk:
+// o ícone vem do logo declarado no pacote do app
+function iconesDaLoja() {
+  const semIcone = apps.filter((a) => !a.ic && a.appId.includes('!'));
+  if (!semIcone.length) return;
+  const script = [
+    '[Console]::OutputEncoding=[Text.Encoding]::UTF8',
+    '$r=@{}',
+    'foreach($p in Get-AppxPackage){ try {',
+    '  $m=[xml](Get-Content (Join-Path $p.InstallLocation "AppxManifest.xml") -Raw -ErrorAction Stop)',
+    '  foreach($a in @($m.Package.Applications.Application)){',
+    '    $ve=$a.VisualElements; $logo=$ve.Square44x44Logo; if(-not $logo){$logo=$ve.Square150x150Logo}; if(-not $logo){continue}',
+    '    $base=Join-Path $p.InstallLocation $logo; $dir=Split-Path $base',
+    '    $nome=[IO.Path]::GetFileNameWithoutExtension($base); $ext=[IO.Path]::GetExtension($base)',
+    '    $cands=@(Get-ChildItem -LiteralPath $dir -Filter "$nome*$ext" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch "contrast|unplated_light|lightunplated" })',
+    '    $c=($cands | Where-Object { $_.Name -match "targetsize-48" } | Select-Object -First 1)',
+    '    if(-not $c){ $c=($cands | Sort-Object Length -Descending | Select-Object -First 1) }',
+    '    if(-not $c -and (Test-Path -LiteralPath $base)){ $c=Get-Item -LiteralPath $base }',
+    '    if($c){ $r["$($p.PackageFamilyName)!$($a.Id)"]=$c.FullName }',
+    '  } } catch {} }',
+    '$r | ConvertTo-Json -Compress',
+  ].join('\n');
+  execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script],
+    { windowsHide: true, maxBuffer: 20 * 1024 * 1024, encoding: 'utf8', timeout: 60000 }, (erro, saida) => {
+      if (erro) { log('Ícones da Loja: falhou', erro.message); return; }
+      try {
+        const mapa = JSON.parse(saida.trim() || '{}');
+        let n = 0;
+        for (const a of apps) {
+          if (!a.ic && mapa[a.appId]) { a.ic = mapa[a.appId]; n++; }
+        }
+        log(`Ícones da Loja: ${n} apps`);
+      } catch (e) { log('Ícones da Loja: resposta inválida', e.message); }
     });
 }
 
@@ -286,7 +326,7 @@ function converter(textoNorm) {
 }
 
 function listarApps() {
-  return apps.map((a) => ({ nome: a.nome, appId: a.appId, lnk: a.lnk }));
+  return apps.map((a) => ({ nome: a.nome, appId: a.appId, lnk: a.ic || a.lnk }));
 }
 
 // ---------------------------------------------------------------------------
@@ -343,7 +383,7 @@ function buscar(texto) {
   const candidatos = [];
   for (const a of apps) {
     const s = pontuar(q, a.n);
-    if (s) candidatos.push({ s: s + 120, r: { titulo: a.nome, sub: 'Aplicativo', tipo: 'app', iconeArquivo: a.lnk, icone: '▢', acao: { tipo: 'app', appId: a.appId } } });
+    if (s) candidatos.push({ s: s + 120, r: { titulo: a.nome, sub: 'Aplicativo', tipo: 'app', iconeArquivo: a.ic, icone: '▢', acao: { tipo: 'app', appId: a.appId } } });
   }
   for (const c of COMANDOS) {
     const s = pontuar(q, c.n, c.p);
@@ -393,8 +433,23 @@ async function icone(caminho) {
   if (!caminho) return null;
   if (icones.has(caminho)) return icones.get(caminho);
   try {
-    const img = await app.getFileIcon(caminho, { size: 'normal' });
-    const url = img.isEmpty() ? null : img.toDataURL();
+    let img = null;
+    if (/\.(png|jpe?g)$/i.test(caminho)) {
+      // logo de app da Loja: a própria imagem
+      img = nativeImage.createFromPath(caminho);
+      if (!img.isEmpty()) img = img.resize({ width: 32, height: 32, quality: 'best' });
+    } else {
+      // atalho .lnk: o ícone do programa de verdade (o do atalho às vezes vem genérico)
+      if (/\.lnk$/i.test(caminho)) {
+        try {
+          const alvo = shell.readShortcutLink(caminho);
+          const origem = alvo.icon && fs.existsSync(alvo.icon) ? alvo.icon : alvo.target;
+          if (origem && fs.existsSync(origem)) img = await app.getFileIcon(origem, { size: 'large' });
+        } catch { /* usa o do atalho */ }
+      }
+      if (!img || img.isEmpty()) img = await app.getFileIcon(caminho, { size: 'large' });
+    }
+    const url = !img || img.isEmpty() ? null : img.toDataURL();
     icones.set(caminho, url);
     return url;
   } catch {

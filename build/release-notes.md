@@ -1,4 +1,4 @@
-## Novidades da 4.9.7
+## Novidades da 4.9.8
 
-- **Clicar e arrastar no painel de novo:** com um programa maximizado, a ilha reforçava o "sempre por cima" a cada 3 segundos, tirando e recolocando a janela por cima. Quando isso acontecia no meio de um clique, o Windows cancelava o clique. Por isso as setas, as barras e os botões falhavam com o mouse, e só o scroll funcionava. Agora o reforço nunca acontece com o mouse em cima da ilha, com o botão apertado ou enquanto você digita.
-- Inclui a 4.9.6: barras de volume e brilho arrastáveis.
+- **Ícones dos apps na busca (Alt+Espaço) e nos Favoritos:** os apps da Microsoft Store, como WhatsApp e Spotify da Store, agora mostram o logo deles. Os outros programas mostram o ícone do programa de verdade, e não o ícone genérico do atalho.
+- Inclui a 4.9.7: clicar e arrastar no painel volta a funcionar com programa maximizado.
