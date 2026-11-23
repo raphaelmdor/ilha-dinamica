@@ -98,7 +98,7 @@ export class Olhos {
       const n = document.createElement('span');
       n.className = 'nota-musical';
       n.textContent = Math.random() < 0.5 ? '♪' : '♫';
-      n.style.setProperty('--dx', ((Math.random() < 0.5 ? -1 : 1) * (6 + Math.random() * 6)).toFixed(1) + 'px');
+      n.style.setProperty('--dx', (8 + Math.random() * 10).toFixed(1) + 'px'); // sempre pro lado de dentro da pílula
       n.style.setProperty('--rot', (Math.random() * 40 - 20).toFixed(0) + 'deg');
       n.addEventListener('animationend', () => n.remove());
       g.appendChild(n);

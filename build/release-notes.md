@@ -1,4 +1,4 @@
-## Novidades da 4.8.2
+## Novidades da 4.8.3
 
-- **Avisos voltam ao notch:** ao fechar um aviso no ×, clicar num botão dele (como Abrir) ou clicar no próprio aviso, a ilha faz a ação e volta ao notch, sem abrir o painel. O mesmo vale quando o aviso some sozinho com o mouse em cima. O painel só volta a abrir quando você tirar o mouse e passar de novo.
-- Inclui a 4.8.0: exceções do modo discreto pelo título da janela (ex.: WhatsApp Web).
+- **Notinhas aparecendo de verdade:** com a ilha encostada no topo da tela (modo notch), as notinhas ♪ ♫ subiam para fora da tela e não dava para ver. Agora elas nascem ao lado dos olhinhos e sobem na diagonal dentro da ilha, um pouco maiores.
+- Inclui a 4.8.2: fechar um aviso volta ao notch sem abrir o painel.
