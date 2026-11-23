@@ -496,12 +496,15 @@ voz.addEventListener('parcial', (e) => {
   voz.reiniciarTimeout(4000); // ainda falando: dá mais tempo
 });
 voz.addEventListener('silencio', () => {
+  api.vozFim?.();
   olhos.reagir('confuso', 1800);
   aviso('Não ouvi nada', 'Tente de novo: Ctrl+Alt+Espaço', { icone: '…', tipo: 'info', ms: 2000 });
 });
 voz.addEventListener('comando', async (e) => {
-  const d = e.detail;
-  if (typeof d === 'string') { executarFrase(d); return; }
+  try { await tratarComando(e.detail); } finally { api.vozFim?.(); } // no jogo, a ilha some de novo depois
+});
+async function tratarComando(d) {
+  if (typeof d === 'string') { await executarFrase(d); return; }
   // Whisper: entende muito melhor que o reconhecimento rápido; se não estiver pronto, usa o rápido
   if (d.audio && api.transcrever && estado.whisper !== false) {
     $('transcricao').textContent = 'Entendendo…';
@@ -519,8 +522,8 @@ voz.addEventListener('comando', async (e) => {
       }
     } catch { /* usa o rápido */ }
   }
-  executarFrase(d.texto, d.alternativa);
-});
+  await executarFrase(d.texto, d.alternativa);
+}
 api.on('whisper:status', (s) => {
   if (s.fase === 'baixando') {
     estado.whisperBaixando = Math.round((s.progresso || 0) * 100);

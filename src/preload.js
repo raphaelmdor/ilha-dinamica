@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('ilhaAPI', {
   garantirModelo: () => ipcRenderer.invoke('modelo:garantir'),
   garantirWhisper: () => ipcRenderer.invoke('whisper:garantir'),
   transcrever: (wav) => ipcRenderer.invoke('voz:transcrever', wav),
+  vozFim: () => ipcRenderer.send('voz:fim'),
   buscar: (texto) => ipcRenderer.invoke('lancador:buscar', texto),
   executarBusca: (id) => ipcRenderer.invoke('lancador:executar', id),
   iconeArquivo: (caminho) => ipcRenderer.invoke('lancador:icone', caminho),

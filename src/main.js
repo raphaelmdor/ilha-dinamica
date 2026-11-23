@@ -107,6 +107,7 @@ let ajudanteMidia = null;
 let visivel = true;
 let atalhoBuscaAtivo = null;
 let ocultaPorJogo = false;      // sumiu porque um jogo está aberto
+let vozEmJogo = false;           // Ctrl+Alt+Espaço durante o jogo: aparece só para o comando de voz
 let mostrarMesmoEmJogo = false; // você pediu para mostrar (Ctrl+Alt+I) durante o jogo
 let jogoAtual = '';             // motivo/nome do jogo detectado
 let ultimoAppGrande = '';       // último app maximizado/tela cheia (para marcar como jogo pelo menu)
@@ -674,7 +675,7 @@ function alternarVisibilidade(forcar) {
 
 function aplicarVisibilidadeReal() {
   if (!janela) return;
-  const mostrar = visivel && (!ocultaPorJogo || mostrarMesmoEmJogo);
+  const mostrar = visivel && (!ocultaPorJogo || mostrarMesmoEmJogo || vozEmJogo);
   if (mostrar) {
     janela.showInactive();
     janela.setAlwaysOnTop(true, 'screen-saver');
@@ -695,7 +696,7 @@ function definirJogo(ativo, motivo) {
   if (ativo === ocultaPorJogo) return;
   ocultaPorJogo = ativo;
   jogoAtual = ativo ? motivo : '';
-  if (!ativo) mostrarMesmoEmJogo = false;
+  if (!ativo) { mostrarMesmoEmJogo = false; vozEmJogo = false; }
   log(ativo ? `Jogo detectado: ${motivo} — ilha escondida` : 'Jogo fechado — ilha de volta');
   aplicarVisibilidadeReal();
   atualizarMenuBandeja();
@@ -734,6 +735,19 @@ function fecharLancador() {
 // ---------------------------------------------------------------------------
 // Atalhos de teclado (podem ser trocados nas configurações)
 // ---------------------------------------------------------------------------
+let timerVozEmJogo = null;
+function encerrarVozEmJogo() {
+  clearTimeout(timerVozEmJogo);
+  if (!vozEmJogo) return;
+  vozEmJogo = false;
+  aplicarVisibilidadeReal();
+}
+ipcMain.on('voz:fim', () => {
+  if (!vozEmJogo) return;
+  clearTimeout(timerVozEmJogo);
+  timerVozEmJogo = setTimeout(encerrarVozEmJogo, 3000); // dá tempo de ver a resposta
+});
+
 function registrarAtalhos() {
   globalShortcut.unregisterAll();
   const erros = {};
@@ -746,7 +760,17 @@ function registrarAtalhos() {
     return null;
   };
   const foraDeJogo = (fn) => () => { if (!ocultaPorJogo || mostrarMesmoEmJogo) fn(); };
-  tentar('atalhoVoz', config.atalhoVoz, foraDeJogo(() => janela?.webContents.send('voz:ativar')));
+  // Voz funciona até no jogo: a ilha aparece só enquanto ouve e responde, sem tirar o foco do jogo
+  tentar('atalhoVoz', config.atalhoVoz, () => {
+    if (ocultaPorJogo && !mostrarMesmoEmJogo) {
+      vozEmJogo = true;
+      clearTimeout(timerVozEmJogo);
+      timerVozEmJogo = setTimeout(encerrarVozEmJogo, 30000); // segurança
+      aplicarVisibilidadeReal();
+      log('Voz durante o jogo');
+    }
+    janela?.webContents.send('voz:ativar');
+  });
   tentar('atalhoMostrar', config.atalhoMostrar, () => alternarVisibilidade());
   atalhoBuscaAtivo = tentar('atalhoBusca', config.atalhoBusca, foraDeJogo(abrirLancador));
   tentar('atalhoPainel', config.atalhoPainel, foraDeJogo(alternarPainel));
@@ -1474,7 +1498,7 @@ if (copiaDeTeste) {
     // Manda a posição do mouse para os olhinhos seguirem (só quando muda)
     let ultimoCursor = '';
     setInterval(() => {
-      if (!janela || encerrando || janela.isDestroyed() || !visivel || (ocultaPorJogo && !mostrarMesmoEmJogo)) return;
+      if (!janela || encerrando || janela.isDestroyed() || !visivel || (ocultaPorJogo && !mostrarMesmoEmJogo && !vozEmJogo)) return;
       const p = screen.getCursorScreenPoint();
       const b = janela.getBounds();
       const pos = { x: p.x - b.x, y: p.y - b.y, botao: janelasWin.botaoMouseApertado() };

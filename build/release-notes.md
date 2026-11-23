@@ -1,7 +1,4 @@
-## Novidades da 5.0.0
+## Novidades da 5.0.1
 
-- **Voz com Whisper:** a ilha agora entende o que você fala com o Whisper, um reconhecimento de voz muito mais preciso em português. Ele roda offline, no seu próprio PC, e é grátis.
-  - O reconhecimento rápido continua percebendo quando você começa e termina de falar. Depois, o áudio do comando vai para o Whisper, que acerta muito mais nomes de apps, números e frases longas.
-  - O Whisper recebe como dica os comandos da ilha e o nome dos apps instalados no seu PC.
-  - Na primeira vez, a ilha baixa o modelo, de 190 MB, uma vez só. Enquanto isso, continua usando o reconhecimento rápido.
-  - Se o Whisper não entender, a ilha usa o que o reconhecimento rápido ouviu.
+- **Comando de voz dentro do jogo:** Ctrl+Alt+Espaço agora funciona com um jogo aberto. A ilha aparece só enquanto ouve e responde, sem tirar o foco do jogo, e some sozinha uns 3 segundos depois. Em jogos com tela cheia exclusiva, a ilha pode não aparecer por cima, mas o comando funciona do mesmo jeito: pausar, próxima música, volume e outros.
+- Inclui a 5.0.0: reconhecimento de voz com Whisper.
