@@ -131,6 +131,7 @@ ilha.addEventListener('mouseenter', () => {
   if (Math.random() < 0.35) olhos.reagir('surpreso', 500);
 });
 ilha.addEventListener('mouseleave', () => {
+  if (estado.jogo) return; // aberta por cima do jogo: só fecha com Esc, Ctrl+Alt+I ou clicando no jogo
   estado.hover = false;
   estado.fixada = false;
   api.interativo(false);
@@ -158,6 +159,22 @@ function abrirPainel() {
 
 // Atalho do painel: abre (fica aberto até você passar o mouse e sair, ou apertar de novo)
 let timeoutPainelTeclado = null;
+// Ctrl+Alt+I durante um jogo: painel aberto e pegando mouse e teclado até você sair
+api.on('jogo:interagir', (sim) => {
+  estado.jogo = !!sim;
+  if (sim) {
+    estado.hover = true;
+    estado.fixada = true;
+    abrirPainel();
+  } else {
+    estado.fixada = false;
+    estado.hover = false;
+    mostrar('compacta');
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && estado.jogo && estado.vista !== 'busca') { e.preventDefault(); api.sairDoJogo?.(); }
+});
 api.on('painel:alternar', () => {
   clearTimeout(timeoutPainelTeclado);
   if (estado.vista === 'expandida') {

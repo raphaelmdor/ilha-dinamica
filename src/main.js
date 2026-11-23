@@ -673,14 +673,41 @@ function criarJanela() {
 function alternarVisibilidade(forcar) {
   if (!janela) return;
   if (ocultaPorJogo && typeof forcar !== 'boolean') {
-    // Ctrl+Alt+I durante o jogo: mostra só até o jogo fechar
-    mostrarMesmoEmJogo = !mostrarMesmoEmJogo;
-    aplicarVisibilidadeReal();
+    // Ctrl+Alt+I durante o jogo: mostra a ilha JÁ com o painel aberto e pegando o mouse/teclado
+    // (o jogo solta o cursor quando perde o foco). De novo, Esc ou clicar no jogo: some e o foco volta ao jogo.
+    if (!mostrarMesmoEmJogo) entrarNaIlhaNoJogo(); else sairDaIlhaNoJogo();
     return;
   }
   visivel = typeof forcar === 'boolean' ? forcar : !visivel;
   aplicarVisibilidadeReal();
   atualizarMenuBandeja();
+}
+
+let jogoInterativo = false;
+let janelaDoJogo = 0;
+function entrarNaIlhaNoJogo() {
+  janelaDoJogo = janelasWin.janelaDaFrente();
+  mostrarMesmoEmJogo = true;
+  jogoInterativo = true;
+  aplicarVisibilidadeReal();
+  janela.setFocusable(true);
+  janela.setIgnoreMouseEvents(false);
+  janelasWin.trazerParaFrente(janela.getNativeWindowHandle());
+  janela.focus();
+  janela.webContents.focus();
+  janela.webContents.send('jogo:interagir', true);
+  log('Jogo: ilha aberta por cima (Ctrl+Alt+I)');
+}
+function sairDaIlhaNoJogo() {
+  if (!jogoInterativo && !mostrarMesmoEmJogo) return;
+  jogoInterativo = false;
+  mostrarMesmoEmJogo = false;
+  janela.webContents.send('jogo:interagir', false);
+  janela.setIgnoreMouseEvents(true, { forward: true });
+  janela.setFocusable(false);
+  aplicarVisibilidadeReal();
+  if (janelaDoJogo) janelasWin.focarJanela(janelaDoJogo); // devolve o foco (e o mouse) ao jogo
+  log('Jogo: ilha fechada, foco de volta ao jogo');
 }
 
 function aplicarVisibilidadeReal() {
@@ -706,7 +733,7 @@ function definirJogo(ativo, motivo) {
   if (ativo === ocultaPorJogo) return;
   ocultaPorJogo = ativo;
   jogoAtual = ativo ? motivo : '';
-  if (!ativo) { mostrarMesmoEmJogo = false; vozEmJogo = false; }
+  if (!ativo) { mostrarMesmoEmJogo = false; vozEmJogo = false; jogoInterativo = false; }
   log(ativo ? `Jogo detectado: ${motivo} — ilha escondida` : 'Jogo fechado — ilha de volta');
   aplicarVisibilidadeReal();
   atualizarMenuBandeja();
@@ -1397,6 +1424,7 @@ ipcMain.handle('agendas', () => servicos.buscarAgendas(config.agendasIcs || []))
 ipcMain.handle('apps:listar', () => lancador.listarApps());
 ipcMain.on('foco:silenciar', (_e, sim) => silenciarNoFoco(!!sim));
 ipcMain.on('atualizar:agora', () => instalarAtualizacaoAgora());
+ipcMain.on('jogo:sair', () => { if (jogoInterativo) sairDaIlhaNoJogo(); });
 // Arrastar um arquivo da bandeja da ilha para outro app
 ipcMain.on('arrastar', async (e, caminho) => {
   caminho = String(caminho || '');
@@ -1491,6 +1519,8 @@ if (copiaDeTeste) {
         }
         if (lancadorAberto) fecharLancador();
         if (tecladoAtivo) { log('Teclado: a ilha perdeu o foco'); ativarTeclado(false); }
+        // clicou de volta no jogo: a ilha some sozinha
+        if (jogoInterativo && ocultaPorJogo) sairDaIlhaNoJogo();
       }, 160);
     });
     vigiarCopiados();

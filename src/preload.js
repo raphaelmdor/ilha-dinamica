@@ -1,7 +1,7 @@
 // Ponte segura entre a interface e o processo principal
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
-const CANAIS = ['whisper:status', 'nivel', 'config', 'tela', 'midia', 'modelo:status', 'voz:ativar', 'cursor', 'modoApp', 'sistema', 'lancador:abrir', 'lancador:fechar', 'copiados', 'teclado:fim', 'painel:alternar',
+const CANAIS = ['jogo:interagir', 'whisper:status', 'nivel', 'config', 'tela', 'midia', 'modelo:status', 'voz:ativar', 'cursor', 'modoApp', 'sistema', 'lancador:abrir', 'lancador:fechar', 'copiados', 'teclado:fim', 'painel:alternar',
   'osd', 'saida', 'download', 'privacidade', 'agendas:recarregar', 'atualizacao', 'atualizado'];
 
 // Qualquer erro da interface vai para o ilha-log.txt
@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('ilhaAPI', {
   lerConfig: () => ipcRenderer.invoke('config:ler'),
   garantirModelo: () => ipcRenderer.invoke('modelo:garantir'),
   garantirWhisper: () => ipcRenderer.invoke('whisper:garantir'),
+  sairDoJogo: () => ipcRenderer.send('jogo:sair'),
   transcrever: (wav) => ipcRenderer.invoke('voz:transcrever', wav),
   vozFim: () => ipcRenderer.send('voz:fim'),
   buscar: (texto) => ipcRenderer.invoke('lancador:buscar', texto),

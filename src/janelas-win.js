@@ -218,4 +218,22 @@ function trazerParaFrente(handle) {
   } catch { return false; }
 }
 
-module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, trazerParaFrente };
+// Janela da frente agora (para devolver o foco ao jogo depois)
+function janelaDaFrente() {
+  try { return w?.GetForegroundWindowI ? Number(w.GetForegroundWindowI()) : 0; } catch { return 0; }
+}
+// Devolve o foco para uma janela (ex.: o jogo), do mesmo jeito que trazerParaFrente
+function focarJanela(hwnd) {
+  if (!w || !hwnd) return false;
+  try {
+    const frente = w.GetForegroundWindowI();
+    const nossa = w.GetCurrentThreadId();
+    const dela = frente ? w.GetWindowThreadProcessIdI(frente, null) : 0;
+    const ligou = dela && dela !== nossa ? w.AttachThreadInput(nossa, dela, true) : false;
+    const ok = w.SetForegroundWindowI(hwnd);
+    if (ligou) w.AttachThreadInput(nossa, dela, false);
+    return ok;
+  } catch { return false; }
+}
+
+module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, trazerParaFrente, janelaDaFrente, focarJanela };
