@@ -194,7 +194,16 @@ function iniciarServidor() {
 // ---------------------------------------------------------------------------
 const WHISPER_MODELO = 'ggml-small-q5_1.bin';
 const WHISPER_URL = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/${WHISPER_MODELO}`;
-const ARQ_WHISPER = path.join(DIR_MODELO, WHISPER_MODELO);
+// O whisper-cli não abre arquivos em caminhos com acento ("Ilha Dinâmica"): fica numa pasta sem acento
+const DIR_WHISPER = path.join(process.env.LOCALAPPDATA || app.getPath('temp'), 'IlhaDinamica', 'whisper');
+const ARQ_WHISPER = path.join(DIR_WHISPER, WHISPER_MODELO);
+try {
+  const antigo = path.join(DIR_MODELO, WHISPER_MODELO);
+  if (fs.existsSync(antigo) && !fs.existsSync(ARQ_WHISPER)) {
+    fs.mkdirSync(DIR_WHISPER, { recursive: true });
+    fs.renameSync(antigo, ARQ_WHISPER);
+  }
+} catch { /* baixa de novo se precisar */ }
 function exeWhisper() {
   const opcoes = [
     path.join(process.resourcesPath || '', 'whisper', 'whisper-cli.exe'),
@@ -210,7 +219,7 @@ function garantirWhisper() {
   try { if (fs.statSync(ARQ_WHISPER).size > 100 * 1024 * 1024) { whisperPronto = true; return Promise.resolve(true); } } catch { /* baixa */ }
   if (!promessaWhisper) {
     promessaWhisper = (async () => {
-      fs.mkdirSync(DIR_MODELO, { recursive: true });
+      fs.mkdirSync(DIR_WHISPER, { recursive: true });
       log('Whisper: baixando o modelo', WHISPER_MODELO);
       janela?.webContents.send('whisper:status', { fase: 'baixando', progresso: 0 });
       const resp = await net.fetch(WHISPER_URL);
@@ -248,7 +257,8 @@ function garantirWhisper() {
 
 // Dica de vocabulário para o Whisper: comandos e nomes dos apps instalados
 function dicaWhisper() {
-  const apps = lancador.listarApps().map((a) => a.nome).filter((n) => n.length <= 30).slice(0, 70);
+  const apps = lancador.listarApps().map((a) => a.nome)
+    .filter((n) => n.length <= 24 && !/(help|ajuda|uninstall|desinstal|odbc|config|legal|error|reporter|recovery|documents)/i.test(n)).slice(0, 40);
   return 'Comandos para a ilha: abrir Google Chrome, abrir Spotify, pausar, próxima música, volume 50, brilho 70, '
     + 'ligar wi-fi, desligar bluetooth, modo escuro, nova tarefa, anotar, marcar, timer de 5 minutos, pesquisar. Apps: '
     + apps.join(', ') + '.';
@@ -258,7 +268,7 @@ async function transcreverWhisper(wav) {
   // ainda baixando o modelo: não espera (o reconhecimento rápido resolve enquanto isso)
   if (!whisperPronto) { garantirWhisper(); return { ok: false, motivo: 'indisponível' }; }
   const exe = exeWhisper();
-  const tmp = path.join(app.getPath('temp'), `ilha-voz-${Date.now()}.wav`);
+  const tmp = path.join(DIR_WHISPER, `voz-${Date.now()}.wav`);
   fs.writeFileSync(tmp, wav);
   const fios = Math.max(2, Math.min(8, os.cpus().length - 1));
   const inicio = Date.now();
@@ -266,7 +276,7 @@ async function transcreverWhisper(wav) {
     execFile(exe, ['-m', ARQ_WHISPER, '-f', tmp, '-l', 'pt', '-nt', '-np', '-t', String(fios), '--prompt', dicaWhisper()],
       { windowsHide: true, timeout: 25000, maxBuffer: 1024 * 1024, encoding: 'utf8' }, (erro, saida, errs) => {
         fs.rm(tmp, { force: true }, () => {});
-        if (erro) { log('Whisper: falhou', erro.message, String(errs || '').slice(0, 300)); resolve({ ok: false }); return; }
+        if (erro) { log('Whisper: falhou (código', erro.code, ')', String(errs || '').trim().split(/\r?\n/).slice(-6).join(' | ').slice(0, 700)); resolve({ ok: false }); return; }
         const texto = String(saida || '').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
         log(`Whisper (${Date.now() - inicio} ms): "${texto}"`);
         resolve({ ok: !!texto, texto });

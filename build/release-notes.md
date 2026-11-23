@@ -1,4 +1,4 @@
-## Novidades da 5.0.1
+## Novidades da 5.0.2
 
-- **Comando de voz dentro do jogo:** Ctrl+Alt+Espaço agora funciona com um jogo aberto. A ilha aparece só enquanto ouve e responde, sem tirar o foco do jogo, e some sozinha uns 3 segundos depois. Em jogos com tela cheia exclusiva, a ilha pode não aparecer por cima, mas o comando funciona do mesmo jeito: pausar, próxima música, volume e outros.
-- Inclui a 5.0.0: reconhecimento de voz com Whisper.
+- **Whisper funcionando:** o programa do Whisper não conseguia abrir o modelo porque a pasta de dados da ilha tem acento ("Ilha Dinâmica"). O modelo passou para uma pasta sem acento, e a ilha move sozinha o modelo que já foi baixado, sem baixar de novo.
+- Inclui a 5.0.1: comando de voz dentro do jogo com Ctrl+Alt+Espaço.
