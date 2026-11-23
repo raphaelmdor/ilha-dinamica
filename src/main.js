@@ -94,6 +94,10 @@ function log(...partes) {
   } catch { /* sem log */ }
 }
 
+// Um erro inesperado não pode virar janela de erro na cara do usuário: registra e segue
+process.on('uncaughtException', (e) => log('Erro inesperado (ignorado):', e?.stack || e));
+process.on('unhandledRejection', (e) => log('Promessa rejeitada (ignorada):', e?.stack || e));
+
 let config = carregarConfig();
 let janela = null;
 let bandeja = null;
@@ -290,8 +294,12 @@ function iniciarAjudanteMidia() {
   log('Ajudante de mídia iniciado:', caminhoScriptMidia());
   ajudanteMidia.stderr.on('data', (d) => log('[ajudante ERRO]', String(d).trim().slice(0, 800)));
   ajudanteMidia.on('error', (e) => log('[ajudante falhou ao abrir]', e.message));
+  // Se o PowerShell fechar, escrever nele dá EPIPE: só registra, o ajudante é reaberto no 'exit'
+  ajudanteMidia.stdin.on('error', (e) => log('Ajudante: entrada fechada', e.code || e.message));
+  const este = ajudanteMidia;
   ajudanteMidia.on('exit', (codigo) => {
     log('Ajudante de mídia encerrou, código', codigo);
+    if (ajudanteMidia !== este) return;
     ajudanteMidia = null;
     if (encerrando) return;
     tentativasMidia += 1;
@@ -300,10 +308,17 @@ function iniciarAjudanteMidia() {
   });
 }
 
+// Manda um comando ao ajudante sem derrubar o app se ele tiver acabado de fechar
+function escreverAjudante(linha) {
+  const entrada = ajudanteMidia?.stdin;
+  if (!entrada || entrada.destroyed || !entrada.writable) return false;
+  try { entrada.write(linha + '\n'); return true; } catch (e) { log('Ajudante indisponível:', e.message); return false; }
+}
+
 function comandoMidia(cmd, vezes = 1) {
   const validos = ['toggle', 'next', 'prev', 'volup', 'voldown', 'mute'];
   if (!validos.includes(cmd) || !ajudanteMidia) return false;
-  for (let i = 0; i < Math.min(vezes, 20); i++) ajudanteMidia.stdin.write(cmd + '\n');
+  for (let i = 0; i < Math.min(vezes, 20); i++) escreverAjudante(cmd);
   return true;
 }
 
@@ -323,7 +338,7 @@ function enviarSistema(cmd) {
     if (!timersSistema[tipo]) {
       const enviar = () => {
         if (pendentes[tipo]) {
-          ajudanteMidia?.stdin.write(pendentes[tipo] + '\n');
+          escreverAjudante(pendentes[tipo]);
           pendentes[tipo] = null;
           timersSistema[tipo] = setTimeout(enviar, tipo === 'vol' ? 70 : 180);
         } else {
@@ -334,8 +349,7 @@ function enviarSistema(cmd) {
     }
     return true;
   }
-  ajudanteMidia.stdin.write(cmd + '\n');
-  return true;
+  return escreverAjudante(cmd);
 }
 
 // Modo escuro/claro do Windows (registro do usuário)
@@ -404,7 +418,7 @@ function executarAcao(acao) {
       if (acao.cmd === 'seek') {
         const seg = Number(acao.valor);
         if (!Number.isFinite(seg) || seg < 0 || seg > 86400 || !ajudanteMidia) return false;
-        ajudanteMidia.stdin.write(`seek ${seg.toFixed(1)}\n`);
+        escreverAjudante(`seek ${seg.toFixed(1)}`);
         return true;
       }
       return comandoMidia(acao.cmd, acao.vezes);
