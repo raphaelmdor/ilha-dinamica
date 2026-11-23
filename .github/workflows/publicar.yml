@@ -24,6 +24,22 @@ jobs:
       - name: Instalar dependências
         run: npm install --no-audit --no-fund
 
+      # Reconhecimento de voz preciso (Whisper, offline): compila o whisper.cpp aqui mesmo
+      - name: Compilar o Whisper (whisper.cpp)
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch v1.7.4 https://github.com/ggml-org/whisper.cpp wcpp
+          cmake -S wcpp -B wcpp/build -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_SDL2=OFF `
+            -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON
+          cmake --build wcpp/build --config Release --target whisper-cli -j 4
+          if ($LASTEXITCODE -ne 0) { cmake --build wcpp/build --config Release --target main -j 4 }
+          New-Item -ItemType Directory -Force build/whisper | Out-Null
+          $exe = Get-ChildItem wcpp/build -Recurse -Include whisper-cli.exe, main.exe | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1
+          if (-not $exe) { throw 'whisper-cli.exe não foi gerado' }
+          Copy-Item $exe.FullName build/whisper/whisper-cli.exe
+          Get-ChildItem (Split-Path $exe.FullName) -Filter *.dll | Copy-Item -Destination build/whisper/
+          Get-ChildItem build/whisper
+
       - name: Gerar e publicar o instalador
         run: npx electron-builder --win nsis --publish always
         env:

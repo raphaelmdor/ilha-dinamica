@@ -7,3 +7,4 @@ instalar-log.txt
 gerar-instalador-log.txt
 *.tgz
 package-lock.json
+build/whisper/

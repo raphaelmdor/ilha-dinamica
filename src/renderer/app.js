@@ -499,10 +499,35 @@ voz.addEventListener('silencio', () => {
   olhos.reagir('confuso', 1800);
   aviso('Não ouvi nada', 'Tente de novo: Ctrl+Alt+Espaço', { icone: '…', tipo: 'info', ms: 2000 });
 });
-voz.addEventListener('comando', (e) => {
+voz.addEventListener('comando', async (e) => {
   const d = e.detail;
-  if (typeof d === 'string') executarFrase(d);
-  else executarFrase(d.texto, d.alternativa);
+  if (typeof d === 'string') { executarFrase(d); return; }
+  // Whisper: entende muito melhor que o reconhecimento rápido; se não estiver pronto, usa o rápido
+  if (d.audio && api.transcrever && estado.whisper !== false) {
+    $('transcricao').textContent = 'Entendendo…';
+    olhos.reagir('pensando', 4000);
+    try {
+      const r = await api.transcrever(d.audio);
+      if (r?.ok && r.texto) {
+        const { intencao } = escolherIntencao(r.texto, '');
+        // o Whisper vale mais; se ele não virou comando, tenta o que o reconhecimento rápido achou
+        if (intencao && intencao.tipo !== 'nao-entendi') { executarFrase(r.texto); return; }
+        const rapido = escolherIntencao(d.texto, d.alternativa).intencao;
+        if (rapido && rapido.tipo !== 'nao-entendi') { executarFrase(d.texto, d.alternativa); return; }
+        executarFrase(r.texto); // mostra o que o Whisper ouviu no "não entendi"
+        return;
+      }
+    } catch { /* usa o rápido */ }
+  }
+  executarFrase(d.texto, d.alternativa);
+});
+api.on('whisper:status', (s) => {
+  if (s.fase === 'baixando') {
+    estado.whisperBaixando = Math.round((s.progresso || 0) * 100);
+    if (s.progresso === 0) aviso('Baixando voz aprimorada', 'Whisper · 190 MB · só na primeira vez', { icone: '↓', tipo: 'info', ms: 5000 });
+  } else if (s.fase === 'pronto') {
+    aviso('Voz aprimorada pronta', 'Agora a ilha entende bem melhor o que você fala', { icone: '🎙', tipo: 'info', ms: 4000 });
+  }
 });
 
 // Ensina ao reconhecimento os comandos e os nomes dos apps instalados (acerta muito mais "abrir X")
@@ -543,6 +568,7 @@ async function iniciarVoz() {
     await voz.carregar(r.url);
     ilha.classList.remove('voz-indisponivel');
     await prepararVocabulario();
+    api.garantirWhisper?.().then((ok) => { estado.whisper = ok; });
     await voz.definirContinua(estado.config.escutaContinua, estado.config.palavraAtivacao);
     aviso('Voz pronta', 'Ctrl+Alt+Espaço e fale um comando', { icone: '🎙', tipo: 'info', ms: 3000 });
   } catch (erro) {

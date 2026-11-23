@@ -1,4 +1,7 @@
-## Novidades da 4.9.8
+## Novidades da 5.0.0
 
-- **Ícones dos apps na busca (Alt+Espaço) e nos Favoritos:** os apps da Microsoft Store, como WhatsApp e Spotify da Store, agora mostram o logo deles. Os outros programas mostram o ícone do programa de verdade, e não o ícone genérico do atalho.
-- Inclui a 4.9.7: clicar e arrastar no painel volta a funcionar com programa maximizado.
+- **Voz com Whisper:** a ilha agora entende o que você fala com o Whisper, um reconhecimento de voz muito mais preciso em português. Ele roda offline, no seu próprio PC, e é grátis.
+  - O reconhecimento rápido continua percebendo quando você começa e termina de falar. Depois, o áudio do comando vai para o Whisper, que acerta muito mais nomes de apps, números e frases longas.
+  - O Whisper recebe como dica os comandos da ilha e o nome dos apps instalados no seu PC.
+  - Na primeira vez, a ilha baixa o modelo, de 190 MB, uma vez só. Enquanto isso, continua usando o reconhecimento rápido.
+  - Se o Whisper não entender, a ilha usa o que o reconhecimento rápido ouviu.

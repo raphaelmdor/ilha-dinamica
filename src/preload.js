@@ -1,7 +1,7 @@
 // Ponte segura entre a interface e o processo principal
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
-const CANAIS = ['nivel', 'config', 'tela', 'midia', 'modelo:status', 'voz:ativar', 'cursor', 'modoApp', 'sistema', 'lancador:abrir', 'lancador:fechar', 'copiados', 'teclado:fim', 'painel:alternar',
+const CANAIS = ['whisper:status', 'nivel', 'config', 'tela', 'midia', 'modelo:status', 'voz:ativar', 'cursor', 'modoApp', 'sistema', 'lancador:abrir', 'lancador:fechar', 'copiados', 'teclado:fim', 'painel:alternar',
   'osd', 'saida', 'download', 'privacidade', 'agendas:recarregar', 'atualizacao', 'atualizado'];
 
 // Qualquer erro da interface vai para o ilha-log.txt
@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('ilhaAPI', {
   acao: (acao) => ipcRenderer.invoke('acao', acao),
   lerConfig: () => ipcRenderer.invoke('config:ler'),
   garantirModelo: () => ipcRenderer.invoke('modelo:garantir'),
+  garantirWhisper: () => ipcRenderer.invoke('whisper:garantir'),
+  transcrever: (wav) => ipcRenderer.invoke('voz:transcrever', wav),
   buscar: (texto) => ipcRenderer.invoke('lancador:buscar', texto),
   executarBusca: (id) => ipcRenderer.invoke('lancador:executar', id),
   iconeArquivo: (caminho) => ipcRenderer.invoke('lancador:icone', caminho),

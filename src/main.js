@@ -187,6 +187,93 @@ function iniciarServidor() {
 }
 
 // ---------------------------------------------------------------------------
+// Whisper (reconhecimento de voz preciso, offline e grátis): o Vosk percebe quando
+// você fala; o áudio do comando vai para o Whisper, que entende muito melhor.
+// O programa vem no instalador; o modelo (190 MB) é baixado uma vez.
+// ---------------------------------------------------------------------------
+const WHISPER_MODELO = 'ggml-small-q5_1.bin';
+const WHISPER_URL = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/${WHISPER_MODELO}`;
+const ARQ_WHISPER = path.join(DIR_MODELO, WHISPER_MODELO);
+function exeWhisper() {
+  const opcoes = [
+    path.join(process.resourcesPath || '', 'whisper', 'whisper-cli.exe'),
+    path.join(__dirname, '..', 'build', 'whisper', 'whisper-cli.exe'),
+  ];
+  return opcoes.find((p) => fs.existsSync(p)) || null;
+}
+let whisperPronto = false;
+let promessaWhisper = null;
+function garantirWhisper() {
+  if (whisperPronto) return Promise.resolve(true);
+  if (process.platform !== 'win32' || !exeWhisper()) return Promise.resolve(false);
+  try { if (fs.statSync(ARQ_WHISPER).size > 100 * 1024 * 1024) { whisperPronto = true; return Promise.resolve(true); } } catch { /* baixa */ }
+  if (!promessaWhisper) {
+    promessaWhisper = (async () => {
+      fs.mkdirSync(DIR_MODELO, { recursive: true });
+      log('Whisper: baixando o modelo', WHISPER_MODELO);
+      janela?.webContents.send('whisper:status', { fase: 'baixando', progresso: 0 });
+      const resp = await net.fetch(WHISPER_URL);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const total = Number(resp.headers.get('content-length')) || 0;
+      const parcial = ARQ_WHISPER + '.parcial';
+      const saida = fs.createWriteStream(parcial);
+      const leitor = resp.body.getReader();
+      let recebido = 0; let ultimo = 0;
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) break;
+        recebido += value.length;
+        if (!saida.write(Buffer.from(value))) await new Promise((r) => saida.once('drain', r));
+        if (total && Date.now() - ultimo > 1000) {
+          ultimo = Date.now();
+          janela?.webContents.send('whisper:status', { fase: 'baixando', progresso: recebido / total });
+        }
+      }
+      await new Promise((r, j) => saida.end((e) => (e ? j(e) : r())));
+      fs.renameSync(parcial, ARQ_WHISPER);
+      whisperPronto = true;
+      log('Whisper: modelo pronto');
+      janela?.webContents.send('whisper:status', { fase: 'pronto' });
+      return true;
+    })().catch((e) => {
+      log('Whisper: falha ao baixar o modelo', e.message);
+      promessaWhisper = null;
+      janela?.webContents.send('whisper:status', { fase: 'erro' });
+      return false;
+    });
+  }
+  return promessaWhisper;
+}
+
+// Dica de vocabulário para o Whisper: comandos e nomes dos apps instalados
+function dicaWhisper() {
+  const apps = lancador.listarApps().map((a) => a.nome).filter((n) => n.length <= 30).slice(0, 70);
+  return 'Comandos para a ilha: abrir Google Chrome, abrir Spotify, pausar, próxima música, volume 50, brilho 70, '
+    + 'ligar wi-fi, desligar bluetooth, modo escuro, nova tarefa, anotar, marcar, timer de 5 minutos, pesquisar. Apps: '
+    + apps.join(', ') + '.';
+}
+
+async function transcreverWhisper(wav) {
+  // ainda baixando o modelo: não espera (o reconhecimento rápido resolve enquanto isso)
+  if (!whisperPronto) { garantirWhisper(); return { ok: false, motivo: 'indisponível' }; }
+  const exe = exeWhisper();
+  const tmp = path.join(app.getPath('temp'), `ilha-voz-${Date.now()}.wav`);
+  fs.writeFileSync(tmp, wav);
+  const fios = Math.max(2, Math.min(8, os.cpus().length - 1));
+  const inicio = Date.now();
+  return new Promise((resolve) => {
+    execFile(exe, ['-m', ARQ_WHISPER, '-f', tmp, '-l', 'pt', '-nt', '-np', '-t', String(fios), '--prompt', dicaWhisper()],
+      { windowsHide: true, timeout: 25000, maxBuffer: 1024 * 1024, encoding: 'utf8' }, (erro, saida, errs) => {
+        fs.rm(tmp, { force: true }, () => {});
+        if (erro) { log('Whisper: falhou', erro.message, String(errs || '').slice(0, 300)); resolve({ ok: false }); return; }
+        const texto = String(saida || '').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
+        log(`Whisper (${Date.now() - inicio} ms): "${texto}"`);
+        resolve({ ok: !!texto, texto });
+      });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Modelo de voz: baixa o .zip oficial na 1ª execução e converte para .tar.gz
 // ---------------------------------------------------------------------------
 let promessaModelo = null;
@@ -1296,6 +1383,11 @@ ipcMain.handle('config:salvar', (_e, parcial) => salvarConfigParcial(parcial));
 ipcMain.handle('config:padrao', () => CONFIG_PADRAO);
 ipcMain.handle('tema:alternar', () => alternarTema());
 ipcMain.handle('config:ler', () => config);
+ipcMain.handle('voz:transcrever', (_e, wav) => {
+  if (!(wav instanceof ArrayBuffer || ArrayBuffer.isView(wav)) || wav.byteLength > 8 * 1024 * 1024) return { ok: false };
+  return transcreverWhisper(ArrayBuffer.isView(wav) ? Buffer.from(wav.buffer, wav.byteOffset, wav.byteLength) : Buffer.from(wav));
+});
+ipcMain.handle('whisper:garantir', () => garantirWhisper());
 ipcMain.handle('modelo:garantir', async () => {
   try {
     await garantirModelo();

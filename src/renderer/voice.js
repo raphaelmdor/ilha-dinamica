@@ -76,6 +76,10 @@ export class Voz extends EventTarget {
     this.processador.onaudioprocess = (e) => {
       if (this.escutandoComando || this.continua) {
         try { this.reconhecedor.acceptWaveform(e.inputBuffer); } catch { /* ignora */ }
+        // guarda o áudio do comando para o Whisper (no máximo ~12 s)
+        if (this.escutandoComando && this.gravacao && this.gravacao.length < 150) {
+          this.gravacao.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+        }
         if (this.escutandoComando && this.comandos) {
           try { this.comandos.acceptWaveform(e.inputBuffer); } catch { /* ignora */ }
         }
@@ -83,6 +87,30 @@ export class Voz extends EventTarget {
     };
     fonte.connect(this.processador);
     this.processador.connect(this.contexto.destination);
+  }
+
+  /** Junta os pedaços gravados, reamostra para 16 kHz mono e monta um .wav (PCM 16 bits) */
+  wav16k(pedacos, taxa) {
+    const total = pedacos.reduce((n, p) => n + p.length, 0);
+    const junto = new Float32Array(total);
+    let o = 0;
+    for (const p of pedacos) { junto.set(p, o); o += p.length; }
+    const passo = taxa / 16000;
+    const n = Math.floor(total / passo);
+    const dados = new DataView(new ArrayBuffer(44 + n * 2));
+    const esc = (pos, txt) => { for (let i = 0; i < txt.length; i++) dados.setUint8(pos + i, txt.charCodeAt(i)); };
+    esc(0, 'RIFF'); dados.setUint32(4, 36 + n * 2, true); esc(8, 'WAVE'); esc(12, 'fmt ');
+    dados.setUint32(16, 16, true); dados.setUint16(20, 1, true); dados.setUint16(22, 1, true);
+    dados.setUint32(24, 16000, true); dados.setUint32(28, 32000, true); dados.setUint16(32, 2, true); dados.setUint16(34, 16, true);
+    esc(36, 'data'); dados.setUint32(40, n * 2, true);
+    for (let i = 0; i < n; i++) {
+      // média do trecho (filtro simples contra chiado ao reduzir a taxa)
+      const ini = Math.floor(i * passo); const fim = Math.min(total, Math.floor((i + 1) * passo));
+      let soma = 0; for (let k = ini; k < fim; k++) soma += junto[k];
+      const v = Math.max(-1, Math.min(1, soma / Math.max(1, fim - ini)));
+      dados.setInt16(44 + i * 2, v < 0 ? v * 0x8000 : v * 0x7fff, true);
+    }
+    return dados.buffer;
   }
 
   fecharMicrofone() {
@@ -114,6 +142,7 @@ export class Voz extends EventTarget {
     if (this.contexto.state === 'suspended') await this.contexto.resume();
     this.escutandoComando = true;
     this.ultimoComando = '';
+    this.gravacao = [];
     this.emitir('ouvindo', true);
     this.reiniciarTimeout(8000);
   }
@@ -155,7 +184,9 @@ export class Voz extends EventTarget {
       const fim = () => {
         const bruto = this.ultimoComando || '';
         const alternativa = /\[unk\]/.test(bruto) ? '' : bruto.trim();
-        this.emitir('comando', { texto, alternativa });
+        const audio = this.gravacao?.length ? this.wav16k(this.gravacao, this.contexto?.sampleRate || 48000) : null;
+        this.gravacao = null;
+        this.emitir('comando', { texto, alternativa, audio });
         this.fecharMicrofone();
       };
       if (comandos) { try { comandos.retrieveFinalResult(); } catch { /* ignora */ } setTimeout(fim, 300); } else fim();
