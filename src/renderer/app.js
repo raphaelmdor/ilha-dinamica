@@ -54,6 +54,13 @@ function voltarAoPadrao() {
   clearTimeout(timeoutAviso);
   mostrar(vistaPadrao());
 }
+// Fechou um aviso com o mouse em cima: volta ao notch e só abre o painel de novo
+// depois que o mouse sair de perto da ilha (senão "fechar" abria o painel)
+function fecharAvisoPeloUsuario() {
+  estado.esperarSair = true;
+  clearTimeout(timeoutRecolher);
+  voltarAoPadrao();
+}
 
 function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = false, botoes = [] } = {}) {
   clearTimeout(timeoutAviso);
@@ -62,7 +69,7 @@ function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = f
   for (const b of botoes) {
     const bt = document.createElement('button');
     bt.textContent = b.texto;
-    bt.addEventListener('click', (e) => { e.stopPropagation(); b.acao(); voltarAoPadrao(); });
+    bt.addEventListener('click', (e) => { e.stopPropagation(); b.acao(); fecharAvisoPeloUsuario(); });
     caixa.appendChild(bt);
   }
   // avisos com ações (download, atualização, novidades...) ganham um × para fechar
@@ -72,7 +79,7 @@ function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = f
     x.textContent = '×';
     x.title = 'Fechar';
     x.setAttribute('aria-label', 'Fechar aviso');
-    x.addEventListener('click', (e) => { e.stopPropagation(); clearTimeout(timeoutAviso); voltarAoPadrao(); });
+    x.addEventListener('click', (e) => { e.stopPropagation(); fecharAvisoPeloUsuario(); });
     caixa.appendChild(x);
   }
   ilha.classList.toggle('com-botoes', botoes.length > 0 || alto);
@@ -112,7 +119,7 @@ ilha.addEventListener('mouseenter', () => {
   clearTimeout(timeoutRecolher);
   if (estado.config.abrirAoPassar !== false) {
     timeoutRecolher = setTimeout(() => {
-      if (estado.vista === 'compacta') abrirPainel();
+      if (estado.vista === 'compacta' && !estado.esperarSair) abrirPainel();
     }, estado.config.atrasoAbrir ?? 140);
   }
   if (Math.random() < 0.35) olhos.reagir('surpreso', 500);
@@ -130,7 +137,7 @@ ilha.addEventListener('mouseleave', () => {
 ilha.addEventListener('click', (e) => {
   if (e.target.closest('button, input, textarea, .resultados, .controles-rapidos, .carrossel')) return;
   if (estado.vista === 'busca') return;
-  if (estado.vista === 'aviso') { voltarAoPadrao(); return; }
+  if (estado.vista === 'aviso') { fecharAvisoPeloUsuario(); return; }
   if (estado.vista === 'escuta') { voz.pararComando(); return; }
   if (e.target.closest('.olhos')) olhos.reagir('feliz', 1400); // carinho nos olhinhos
   // Clique na pílula abre o painel; ele fecha sozinho quando o mouse sai
@@ -1128,7 +1135,7 @@ api.on('midia', atualizarMidia);
 // Tracinho do modo discreto: depois de meio segundo parado, abre o painel e passa a aceitar cliques
 let ultimoCursor = { x: -1, y: -1, botao: false };
 function verificarParado() {
-  if (!parado || !ilha.classList.contains('discreta') || estado.vista !== 'compacta') return;
+  if (!parado || !ilha.classList.contains('discreta') || estado.vista !== 'compacta' || estado.esperarSair) return;
   if (ultimoCursor.botao || Date.now() - parado.desde < 500) return;
   if (Math.abs(ultimoCursor.x - parado.x) + Math.abs(ultimoCursor.y - parado.y) > 8) return;
   parado = null;
@@ -1146,6 +1153,10 @@ let parado = null; // { x, y, desde } enquanto o mouse está em cima do tracinho
 api.on('cursor', (pos) => {
   olhos.seguir(pos);
   const r = ilha.getBoundingClientRect();
+  if (estado.esperarSair) {
+    const perto = pos.x >= r.left - 24 && pos.x <= r.right + 24 && pos.y >= -6 && pos.y <= r.bottom + 24;
+    if (!perto) estado.esperarSair = false;
+  }
 
   // Modo discreto: abre só se o mouse ficar meio segundo parado sobre o tracinho, sem botão apertado
   if (ilha.classList.contains('discreta') && estado.vista === 'compacta') {
