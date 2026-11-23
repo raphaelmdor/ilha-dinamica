@@ -1,4 +1,3 @@
-## Novidades da 4.9.4
+## Novidades da 4.9.5
 
-- **Capa da música corrigida:** o Spotify e o YouTube mandavam a capa, mas a ilha não conseguia ler a imagem que vem do Windows. Agora ela lê de outro jeito, mais compatível, e a capa aparece no painel e pequenininha na ilha.
-- Se a leitura da capa ainda falhar em algum PC, o motivo fica registrado no log.
+- **Capa da música (de novo):** o Windows entrega a imagem num formato que o PowerShell não consegue abrir pelo caminho normal. Agora a ilha chama os métodos do Windows diretamente para ler a capa do Spotify, do YouTube Music e de outros players.

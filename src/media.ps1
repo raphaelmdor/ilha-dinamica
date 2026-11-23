@@ -62,6 +62,8 @@ $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaPro
 $null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType = WindowsRuntime]
 $null = [Windows.Storage.Streams.DataReader, Windows.Storage.Streams, ContentType = WindowsRuntime]
 $null = [Windows.Storage.Streams.IInputStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$null = [Windows.Storage.Streams.IRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$null = [Windows.Storage.Streams.IContentTypeProvider, Windows.Storage.Streams, ContentType = WindowsRuntime]
 
 $gerente = Aguardar ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) `
     ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
@@ -364,33 +366,37 @@ function Ler-Capa($props) {
         return $null
     }
     if (-not $stream) { return $null }
+    $cru = $stream.psobject.BaseObject   # o objeto do Windows de verdade (sem o "invólucro" do PowerShell)
+    # O PowerShell recebe o stream como __ComObject "cru": as chamadas vão por reflexão
+    # (o .NET faz a conversão para a interface do Windows, que o PowerShell não faz sozinho)
     $tipo = 'image/png'
-    try { if ($stream.ContentType) { $tipo = [string]$stream.ContentType } } catch { }
+    try { $tipo = [string]([Windows.Storage.Streams.IContentTypeProvider].GetProperty('ContentType').GetValue($cru, $null)) } catch { }
     $bytes = $null
-    # 1) DataReader (WinRT puro: funciona no PowerShell do Windows sem conversões de stream)
+    # 1) Conversão para stream do .NET por reflexão
     try {
-        $tam = [uint32]$stream.Size
-        if ($tam -gt 0 -and $tam -lt 8MB) {
-            $leitor = [Windows.Storage.Streams.DataReader]::new($stream.GetInputStreamAt(0))
+        $metodo = [System.IO.WindowsRuntimeStreamExtensions].GetMethod('AsStreamForRead', [Type[]]@([Windows.Storage.Streams.IInputStream]))
+        $netStream = $metodo.Invoke($null, [object[]]@($cru))
+        $memoria = New-Object System.IO.MemoryStream
+        $netStream.CopyTo($memoria)
+        $bytes = $memoria.ToArray()
+        $netStream.Dispose(); $memoria.Dispose()
+    } catch {
+        $bytes = $null
+        if (-not $script:capaErroAvisado) { $script:capaErroAvisado = $true; Avisar-Log ("capa: AsStreamForRead falhou: " + $_.Exception.InnerException.Message + ' ' + $_.Exception.Message) }
+    }
+    # 2) DataReader por reflexão
+    if (-not $bytes -or $bytes.Length -eq 0) {
+        try {
+            $tam = [uint32]([Windows.Storage.Streams.IRandomAccessStream].GetProperty('Size').GetValue($cru, $null))
+            $entrada = [Windows.Storage.Streams.IRandomAccessStream].GetMethod('GetInputStreamAt').Invoke($cru, [object[]]@([uint64]0))
+            $leitor = [Windows.Storage.Streams.DataReader]::new($entrada)
             $n = Aguardar ($leitor.LoadAsync($tam)) ([uint32])
             $bytes = New-Object byte[] $n
             $leitor.ReadBytes($bytes)
             $leitor.Dispose()
-        }
-    } catch {
-        $bytes = $null
-        if (-not $script:capaErroAvisado) { $script:capaErroAvisado = $true; Avisar-Log ("capa: DataReader falhou: " + $_.Exception.Message) }
-    }
-    # 2) Conversão para stream do .NET
-    if (-not $bytes -or $bytes.Length -eq 0) {
-        try {
-            $netStream = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead([Windows.Storage.Streams.IInputStream]$stream.GetInputStreamAt(0))
-            $memoria = New-Object System.IO.MemoryStream
-            $netStream.CopyTo($memoria)
-            $bytes = $memoria.ToArray()
-            $netStream.Dispose(); $memoria.Dispose()
         } catch {
-            if (-not $script:capaErroAvisado) { $script:capaErroAvisado = $true; Avisar-Log ("capa: stream falhou: " + $_.Exception.Message) }
+            $bytes = $null
+            Avisar-Log ("capa: DataReader falhou: " + $_.Exception.InnerException.Message + ' ' + $_.Exception.Message)
         }
     }
     try { $stream.Dispose() } catch { }
