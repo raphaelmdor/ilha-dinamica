@@ -71,6 +71,7 @@
 
     <!-- Comportamento -->
     <section data-painel="comportamento">
+      <label class="chave destaque"><input type="checkbox" data-chave="iniciarComWindows"><span></span>Abrir a ilha junto com o Windows <small>(liga sozinha quando o PC iniciar)</small></label>
       <label class="chave"><input type="checkbox" data-chave="abrirAoPassar"><span></span>Abrir o painel ao passar o mouse <small>(desligado: só com clique)</small></label>
       <div class="campo">
         <label>Atraso para abrir <small id="atrasoValor"></small></label>
@@ -79,7 +80,7 @@
       <label class="chave"><input type="checkbox" data-chave="modoNotch"><span></span>Virar "notch" quando um app estiver maximizado</label>
       <label class="chave"><input type="checkbox" data-chave="modoMini"><span></span>Encolher em tela cheia (vídeos e jogos)</label>
       <div class="campo">
-        <label>Modo discreto <small>(a ilha vira um tracinho que não bloqueia cliques; abre parando o mouse nele por meio segundo)</small></label>
+        <label>Modo discreto <small>(a ilha vira um notch pequenininho só com os olhinhos, que não bloqueia cliques; abre parando o mouse nele por meio segundo)</small></label>
         <div class="opcoes" data-chave="modoDiscreto">
           <button data-valor="abas">Em apps com abas</button>
           <button data-valor="sempre">Em todo app maximizado</button>
@@ -92,7 +93,6 @@
         <ul class="tags" id="listaAbas"></ul>
       </div>
       <label class="chave"><input type="checkbox" data-chave="historicoCopiados"><span></span>Guardar histórico de textos copiados <small>(só na memória, some ao fechar)</small></label>
-      <label class="chave"><input type="checkbox" data-chave="iniciarComWindows"><span></span>Iniciar com o Windows</label>
       <div class="campo">
         <button class="perigo" id="restaurar">Restaurar tudo ao padrão</button>
       </div>

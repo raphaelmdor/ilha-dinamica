@@ -1,5 +1,4 @@
-- Modo discreto novo: em apps com abas (Chrome, VS Code…) aparecem só os olhinhos no topo, sem atrapalhar cliques
-- Os olhinhos mudam de cor com atividade (Pomodoro, timer) e mostram o pontinho de microfone/câmera
-- Avisos de atualização: quando encontra, quando está pronta e um botão ⬆ Atualizar no painel
-- Depois de atualizar, a ilha mostra o que mudou
-- Setas do painel não pulam mais para a Bandeja ao clicar
+## Novidades da 4.2.1
+
+- **Modo discreto em notch:** no Chrome e em outros apps com abas, os olhinhos agora ficam dentro de um notch pequenininho colado no topo, em vez de soltos na tela.
+- **Abrir com o Windows:** a opção agora fica em destaque no começo da aba Comportamento das configurações. Também dá para ligar pelo menu do ícone perto do relógio.

@@ -986,7 +986,10 @@ function aplicarInicioAutomatico() {
   if (process.platform !== 'win32') return;
   // Sem instalador, o electron.exe precisa receber a pasta do app como argumento
   const args = app.isPackaged ? [] : [app.getAppPath()];
-  app.setLoginItemSettings({ openAtLogin: config.iniciarComWindows, path: process.execPath, args });
+  try {
+    app.setLoginItemSettings({ openAtLogin: config.iniciarComWindows, path: process.execPath, args, name: 'Ilha Dinâmica' });
+    log(`Iniciar com o Windows: ${config.iniciarComWindows ? 'ligado' : 'desligado'}`);
+  } catch (e) { log('Iniciar com o Windows: falhou - ' + e.message); }
 }
 
 // ---------------------------------------------------------------------------

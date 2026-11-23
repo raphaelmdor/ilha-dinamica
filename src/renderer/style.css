@@ -933,27 +933,23 @@ body.sem-olhos .olhos { display: none; }
 .lista .google .txt::after { content: " · Google"; color: var(--suave); font-size: 10.5px; }
 
 /* ---------- Modo discreto (app maximizado com abas no topo) ---------- */
-/* Só os olhinhos flutuando no topo: sem fundo, sem bloquear cliques */
+/* Notch pequenininho colado no topo, só com os olhinhos dentro */
 .ilha.discreta[data-estado="compacta"] {
-  width: calc(44px * var(--escala));
-  height: calc(18px * var(--escala));
-  margin-top: 1px;
-  background: transparent !important;
-  border: 0;
-  box-shadow: none;
-  overflow: visible;
+  width: calc(50px * var(--escala));
+  height: calc(20px * var(--escala));
+  margin-top: 0;
+  background: var(--fundo) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 0;
+  border-radius: 0 0 calc(10px * var(--escala)) calc(10px * var(--escala)) !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
   pointer-events: none;
 }
 .ilha.discreta[data-estado="compacta"] .vista-compacta { padding: 0; justify-content: center; gap: 0; }
 .ilha.discreta[data-estado="compacta"] .centro,
 .ilha.discreta[data-estado="compacta"] .lado.dir { display: none; }
 .ilha.discreta[data-estado="compacta"] .lado.esq { min-width: 0; }
-.ilha.discreta[data-estado="compacta"] .olhos { padding-left: 0; --e: calc(var(--escala) * 0.85); }
-/* contorno escuro: aparecem tanto em abas claras quanto escuras */
-.ilha.discreta[data-estado="compacta"] .olho {
-  box-shadow: 0 0 0 1.8px rgba(10, 10, 12, 0.85), 0 1px 5px rgba(0, 0, 0, 0.5);
-}
-.ilha.discreta[data-estado="compacta"] .olhos[data-humor="feliz"] .olho { box-shadow: none; filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.8)); }
+.ilha.discreta[data-estado="compacta"] .olhos { padding-left: 0; --e: calc(var(--escala) * 0.7); }
 /* atividade muda a cor dos olhos */
 .ilha.discreta.com-ativ[data-estado="compacta"] { --cor-olhos: #f87171; }
 .ilha.discreta.com-timer[data-estado="compacta"] { --cor-olhos: var(--laranja); }
