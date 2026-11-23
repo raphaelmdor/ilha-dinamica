@@ -6,7 +6,7 @@ const api = window.ilhaAPI || {
     mostrarSegundos: false, mostrarOlhos: true, formatoOlhos: 'pilula', abrirAoPassar: true, atrasoAbrir: 140, modoNotch: true,
     modoMini: true, widgets: ['inicio', 'agenda', 'tarefas', 'foco', 'dock', 'bandeja', 'notas', 'clima', 'clipboard', 'sistema'], cidade: '', agendasIcs: [], focoSilencia: true,
     focoMin: 25, pausaMin: 5, pausaLongaMin: 15, focoAuto: false, historicoCopiados: true, escutaContinua: false,
-    respostaFalada: true, palavraAtivacao: 'ilha', iniciarComWindows: false, esconderEmJogos: true, jogosExtras: ['meujogo.exe'], naoJogos: [], modoDiscreto: 'abas', appsComAbas: ['chrome.exe', 'msedge.exe', 'code.exe'],
+    respostaFalada: true, palavraAtivacao: 'ilha', iniciarComWindows: false, esconderEmJogos: true, jogosExtras: ['meujogo.exe'], naoJogos: [], modoDiscreto: 'abas', semDiscreto: ['WhatsApp'], appsComAbas: ['chrome.exe', 'msedge.exe', 'code.exe'],
     atalhoBusca: 'Alt+Space', atalhoVoz: 'Control+Alt+Space', atalhoMostrar: 'Control+Alt+I',
   }),
   salvarConfig: async (p) => ({ ok: true, config: { ...cfg, ...p }, erros: {} }),
@@ -291,6 +291,19 @@ function ligarAdicionar(idCampo, idBotao, chave, outra) {
 ligarAdicionar('novoJogo', 'addJogo', 'jogosExtras', 'naoJogos');
 ligarAdicionar('novoNaoJogo', 'addNaoJogo', 'naoJogos', 'jogosExtras');
 ligarAdicionar('novoAppAbas', 'addAppAbas', 'appsComAbas');
+// exceções do modo discreto: palavras do título da janela (não são .exe)
+{
+  const add = () => {
+    const v = $('novoSemDiscreto').value.trim().replace(/\s+/g, ' ');
+    if (v.length < 2) { toast('Digite pelo menos 2 letras', true); return; }
+    const lista = cfg.semDiscreto || [];
+    if (lista.some((x) => x.toLowerCase() === v.toLowerCase())) { toast('Já está na lista', true); return; }
+    $('novoSemDiscreto').value = '';
+    salvar({ semDiscreto: [...lista, v] }, `"${v}" nunca usa o modo discreto`);
+  };
+  $('addSemDiscreto').addEventListener('click', add);
+  $('novoSemDiscreto').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+}
 
 // ---------------------------------------------------------------------------
 // Google Agenda (links iCal)
@@ -348,8 +361,10 @@ function desenhar() {
   desenharTags('listaJogos', 'jogosExtras');
   desenharTags('listaNaoJogos', 'naoJogos');
   desenharTags('listaAbas', 'appsComAbas');
+  desenharTags('listaSemDiscreto', 'semDiscreto');
   desenharAgendas();
   $('campoAbas').style.display = cfg.modoDiscreto === 'abas' ? '' : 'none';
+  $('campoSemDiscreto').style.display = cfg.modoDiscreto === 'nunca' ? 'none' : '';
 
   // prévia
   const ilha = document.querySelector('.previa-ilha');

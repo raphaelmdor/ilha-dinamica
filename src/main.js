@@ -77,6 +77,7 @@ const CONFIG_PADRAO = {
   focoSilencia: true,             // pausa as notificações do Windows durante o Pomodoro
   // Apps com abas no topo (navegador, VS Code...): a ilha vira um tracinho que não bloqueia cliques
   modoDiscreto: 'abas',           // abas | sempre (todo app maximizado) | nunca
+  semDiscreto: ['WhatsApp'],          // títulos de janela que nunca usam o modo discreto
   appsComAbas: ['chrome.exe', 'msedge.exe', 'firefox.exe', 'opera.exe', 'opera_gx.exe', 'brave.exe', 'vivaldi.exe',
     'arc.exe', 'zen.exe', 'code.exe', 'cursor.exe', 'windowsterminal.exe', 'explorer.exe', 'notepad.exe',
     'notepad++.exe', 'devenv.exe', 'idea64.exe', 'pycharm64.exe', 'webstorm64.exe', 'postman.exe'],
@@ -1015,6 +1016,7 @@ const VALIDADORES = {
   agendasIcs: (v) => Array.isArray(v) && v.length <= 3 && v.every((x) => typeof x === 'string' && x.length <= 2000 && /^(https|webcal):\/\//i.test(x)),
   focoSilencia: (v) => typeof v === 'boolean',
   modoDiscreto: (v) => ['abas', 'sempre', 'nunca'].includes(v),
+  semDiscreto: (v) => Array.isArray(v) && v.length <= 60 && v.every((x) => typeof x === 'string' && x.trim().length >= 2 && x.length <= 60),
   appsComAbas: (v) => Array.isArray(v) && v.length <= 80 && v.every((x) => typeof x === 'string' && /^[^\\/:*?"<>|]{1,80}\.exe$/i.test(x)),
   jogosExtras: (v) => Array.isArray(v) && v.length <= 60 && v.every((x) => typeof x === 'string' && /^[^\\/:*?"<>|]{1,80}\.exe$/i.test(x)),
   naoJogos: (v) => Array.isArray(v) && v.length <= 60 && v.every((x) => typeof x === 'string' && /^[^\\/:*?"<>|]{1,80}\.exe$/i.test(x)),
@@ -1404,7 +1406,10 @@ if (copiaDeTeste) {
         let modo = info.modo;
         if (modo === 'maximizada') {
           const comAbas = (config.appsComAbas || []).includes(nomeApp.toLowerCase());
-          if (config.modoDiscreto === 'sempre' || (config.modoDiscreto !== 'nunca' && comAbas)) modo = 'maximizada-abas';
+          // exceção pelo título: ex. "WhatsApp" dentro do Chrome fica com a ilha normal
+          const tituloJanela = String(info.titulo || '').toLowerCase();
+          const excecao = (config.semDiscreto || []).some((t) => t && tituloJanela.includes(String(t).toLowerCase()));
+          if (!excecao && (config.modoDiscreto === 'sempre' || (config.modoDiscreto !== 'nunca' && comAbas))) modo = 'maximizada-abas';
         }
         // O Windows às vezes tira o "sempre por cima" (ex.: quando a ilha abre junto com o Windows):
         // reforça ao mudar de modo e, com app maximizado, a cada ~3 s

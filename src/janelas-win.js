@@ -32,6 +32,7 @@ function iniciar(log = () => {}, handlePropria = null) {
       MonitorFromWindow: user32.func('__stdcall', 'MonitorFromWindow', 'void *', ['void *', 'uint32']),
       GetMonitorInfoW: user32.func('__stdcall', 'GetMonitorInfoW', 'bool', ['void *', koffi.inout(koffi.pointer(MONITORINFO))]),
       GetClassNameW: user32.func('__stdcall', 'GetClassNameW', 'int', ['void *', 'void *', 'int']),
+      GetWindowTextW: user32.func('__stdcall', 'GetWindowTextW', 'int', ['void *', 'void *', 'int']),
       IsZoomed: user32.func('__stdcall', 'IsZoomed', 'bool', ['void *']),
       IsWindowVisible: user32.func('__stdcall', 'IsWindowVisible', 'bool', ['void *']),
       IsIconic: user32.func('__stdcall', 'IsIconic', 'bool', ['void *']),
@@ -79,6 +80,15 @@ function classe(h) {
   const buf = Buffer.alloc(512);
   const n = w.GetClassNameW(h, buf, 256);
   return buf.toString('utf16le', 0, Math.max(0, n) * 2);
+}
+
+// Título da janela (ex.: "WhatsApp - Google Chrome"), para exceções do modo discreto
+function titulo(h) {
+  try {
+    const buf = Buffer.alloc(1024);
+    const n = w.GetWindowTextW(h, buf, 512);
+    return buf.toString('utf16le', 0, Math.max(0, n) * 2);
+  } catch { return ''; }
 }
 
 function ehPropria(h) {
@@ -154,7 +164,7 @@ function telaCheiaExclusiva() {
 
 function resultado(modo, h) {
   const r = { modo, exe: '', protegido: false, d3d: telaCheiaExclusiva() };
-  if (h && modo !== 'normal') Object.assign(r, infoProcesso(h));
+  if (h && modo !== 'normal') Object.assign(r, infoProcesso(h), { titulo: titulo(h) });
   return r;
 }
 

@@ -1,4 +1,4 @@
-## Novidades da 4.7.4
+## Novidades da 4.8.0
 
-- **Notinhas o tempo todo:** enquanto toca música, as notinhas ♪ ♫ ficam aparecendo e sumindo sem parar, mais ou menos a cada duas batidas e no ritmo da música, não só nas batidas fortes.
-- Inclui a 4.7.3: com dois players abertos, a ilha não mostra mais a música do player pausado ao passar a música.
+- **Exceções do modo discreto:** em Configurações → Comportamento, a lista "Nunca usar o modo discreto em" recebe palavras do título da janela ou da aba. Exemplo: com "WhatsApp" na lista, o WhatsApp Web no Chrome fica com a ilha normal, enquanto as outras abas do Chrome continuam no modo discreto. O "WhatsApp" já vem na lista.
+- Inclui a 4.7.4: notinhas musicais aparecendo o tempo todo.
