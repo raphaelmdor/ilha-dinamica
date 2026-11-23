@@ -403,7 +403,6 @@ body {
   70% { opacity: 0.8; }
   100% { opacity: 0; transform: translate(calc(var(--dx, 12px) * var(--e)), calc(-50% - 7px * var(--e))) scale(1) rotate(var(--rot, 10deg)); }
 }
-@media (prefers-reduced-motion: reduce) { .nota-musical { display: none; } }
 @keyframes balancar {
   0%, 100% { transform: translateY(0) rotate(-5deg); }
   25% { transform: translateY(calc(1.2px * var(--e))) rotate(0deg); }
@@ -1043,10 +1042,6 @@ body.sem-olhos .olhos { display: none; }
 .ilha.colada.mini:not(.com-timer)[data-estado="compacta"] .lado.dir { display: none; }
 .ilha.colada.mini[data-estado="compacta"] .lado { min-width: 0; }
 
-@media (prefers-reduced-motion: reduce) {
-  .ilha, .vista { transition-duration: 0.01s !important; }
-  .equalizador i { animation: none; height: 60%; }
-}
 .disco small { min-width: calc(74px * var(--escala)); text-align: right; font-variant-numeric: tabular-nums; }
 
 /* número dentro do anel e o nome embaixo, sem encostar no círculo */

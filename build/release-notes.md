@@ -1,3 +1,4 @@
-## Novidades da 4.9.2
+## Novidades da 4.9.3
 
-- **Diagnóstico da música:** a ilha registra no log o que o Windows informa sobre cada player (tocando ou pausado, nome, se tem capa) e o que ela decidiu mostrar. Isso serve para achar por que a capa e as notinhas não aparecem em alguns PCs.
+- **Equalizador e notinhas se mexendo:** com as animações do Windows desligadas (Acessibilidade → Efeitos visuais), a ilha parava as listras verdes do equalizador e escondia as notinhas. Agora elas funcionam de qualquer jeito.
+- Inclui a 4.9.2: diagnóstico da música no log, para achar o problema da capa.
