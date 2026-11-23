@@ -78,8 +78,8 @@ body {
   border-radius: calc(30px * var(--escala));
 }
 .ilha[data-estado="aviso"].alto {
-  width: min(calc(380px * var(--escala)), calc(100vw - 24px));
-  height: calc(262px * var(--escala));
+  width: min(calc(420px * var(--escala)), calc(100vw - 24px));
+  height: var(--altura-aviso, calc(262px * var(--escala)));
   border-radius: calc(32px * var(--escala));
 }
 .ilha.pulsar { animation: pulsar 0.9s ease-in-out 4; }
@@ -553,6 +553,12 @@ body {
 .icone-bt:active { transform: scale(0.9); }
 .icone-bt svg { width: 16px; height: 16px; fill: currentColor; }
 #botaoConfig:hover svg { animation: girar 1.2s linear infinite; }
+.bt-atualizar {
+  border: 0; border-radius: 999px; padding: 3px 9px; margin-right: 2px; font: inherit; font-size: 11px; font-weight: 700;
+  background: var(--destaque); color: #04121f; cursor: pointer; animation: pulsoAtualizar 2s ease-in-out infinite;
+}
+.bt-atualizar[hidden] { display: none; }
+@keyframes pulsoAtualizar { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--destaque) 30%, transparent); } }
 @keyframes girar { to { transform: rotate(360deg); } }
 .bateria-mini { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--suave); margin-right: 4px; font-variant-numeric: tabular-nums; }
 .bateria-mini[hidden] { display: none; }
@@ -876,9 +882,7 @@ body.sem-olhos .olhos { display: none; }
 .ilha.priv-mic::before { opacity: 1; background: #fb923c; box-shadow: 0 0 6px #fb923c; }
 .ilha.priv-cam::before { opacity: 1; background: #34d399; box-shadow: 0 0 6px #34d399; }
 .ilha[data-estado="expandida"]::before, .ilha[data-estado="busca"]::before { top: 5px; margin-top: 0; right: auto; left: calc(50% - 3.5px); width: 6px; height: 6px; }
-.ilha.discreta[data-estado="compacta"]::before { top: 0; margin-top: -1px; right: -11px; width: 6px; height: 6px; }
-.ilha.discreta.priv-mic[data-estado="compacta"] { background: #fb923c; }
-.ilha.discreta.priv-cam[data-estado="compacta"] { background: #34d399; }
+.ilha.discreta[data-estado="compacta"]::before { top: 50%; margin-top: -3px; right: -8px; width: 6px; height: 6px; }
 
 /* ---------- Dock de favoritos ---------- */
 .dock { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; align-content: start; }
@@ -929,20 +933,31 @@ body.sem-olhos .olhos { display: none; }
 .lista .google .txt::after { content: " · Google"; color: var(--suave); font-size: 10.5px; }
 
 /* ---------- Modo discreto (app maximizado com abas no topo) ---------- */
-/* Só um tracinho: não cobre abas e deixa todos os cliques passarem */
+/* Só os olhinhos flutuando no topo: sem fundo, sem bloquear cliques */
 .ilha.discreta[data-estado="compacta"] {
-  width: calc(64px * var(--escala));
-  height: 6px;
-  border-radius: 0 0 4px 4px !important;
+  width: calc(44px * var(--escala));
+  height: calc(18px * var(--escala));
+  margin-top: 1px;
+  background: transparent !important;
   border: 0;
-  background: rgba(130, 130, 140, 0.55);
   box-shadow: none;
+  overflow: visible;
   pointer-events: none;
 }
-.ilha.discreta[data-estado="compacta"] .vista-compacta { opacity: 0; }
-.ilha.discreta.com-ativ[data-estado="compacta"] { width: calc(84px * var(--escala)); background: #f87171; }
-.ilha.discreta.tocando[data-estado="compacta"]:not(.com-ativ) { background: color-mix(in srgb, var(--verde) 70%, transparent); }
-.ilha.discreta.com-timer[data-estado="compacta"] { width: calc(84px * var(--escala)); background: var(--laranja); }
+.ilha.discreta[data-estado="compacta"] .vista-compacta { padding: 0; justify-content: center; gap: 0; }
+.ilha.discreta[data-estado="compacta"] .centro,
+.ilha.discreta[data-estado="compacta"] .lado.dir { display: none; }
+.ilha.discreta[data-estado="compacta"] .lado.esq { min-width: 0; }
+.ilha.discreta[data-estado="compacta"] .olhos { padding-left: 0; --e: calc(var(--escala) * 0.85); }
+/* contorno escuro: aparecem tanto em abas claras quanto escuras */
+.ilha.discreta[data-estado="compacta"] .olho {
+  box-shadow: 0 0 0 1.8px rgba(10, 10, 12, 0.85), 0 1px 5px rgba(0, 0, 0, 0.5);
+}
+.ilha.discreta[data-estado="compacta"] .olhos[data-humor="feliz"] .olho { box-shadow: none; filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.8)); }
+/* atividade muda a cor dos olhos */
+.ilha.discreta.com-ativ[data-estado="compacta"] { --cor-olhos: #f87171; }
+.ilha.discreta.com-timer[data-estado="compacta"] { --cor-olhos: var(--laranja); }
+.ilha.discreta[data-estado="compacta"]::after { display: none; }
 
 /* ---------- Modo mini (app em tela cheia) ---------- */
 .ilha.colada.mini[data-estado="compacta"] {

@@ -1,0 +1,5 @@
+- Modo discreto novo: em apps com abas (Chrome, VS Code…) aparecem só os olhinhos no topo, sem atrapalhar cliques
+- Os olhinhos mudam de cor com atividade (Pomodoro, timer) e mostram o pontinho de microfone/câmera
+- Avisos de atualização: quando encontra, quando está pronta e um botão ⬆ Atualizar no painel
+- Depois de atualizar, a ilha mostra o que mudou
+- Setas do painel não pulam mais para a Bandeja ao clicar

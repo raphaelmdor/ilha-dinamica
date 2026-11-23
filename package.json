@@ -1,7 +1,7 @@
 {
   "name": "ilha-dinamica",
   "productName": "Ilha Dinâmica",
-  "version": "4.1.1",
+  "version": "4.2.0",
   "description": "Dynamic Island para Windows 11 com comandos de voz offline em português",
   "main": "src/main.js",
   "author": "Raphael",
@@ -26,10 +26,11 @@
     "productName": "Ilha Dinâmica",
     "executableName": "IlhaDinamica",
     "files": [
-      "src/**/*",
-      "build/icon.png",
       "build/icon.ico",
-      "package.json"
+      "build/icon.png",
+      "build/release-notes.md",
+      "package.json",
+      "src/**/*"
     ],
     "asarUnpack": [
       "src/media.ps1",
@@ -60,7 +61,10 @@
         "repo": "ilha-dinamica",
         "releaseType": "release"
       }
-    ]
+    ],
+    "releaseInfo": {
+      "releaseNotesFile": "build/release-notes.md"
+    }
   },
   "repository": {
     "type": "git",

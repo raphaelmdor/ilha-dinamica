@@ -82,6 +82,13 @@ function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = f
   ic.className = 'aviso-icone ' + tipo;
   mostrar('aviso');
   ilha.classList.toggle('alto', alto);
+  // painel alto do tamanho da lista (ajuda, novidades da versão...)
+  if (alto && Array.isArray(sub)) {
+    const e = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--escala')) || 1;
+    ilha.style.setProperty('--altura-aviso', Math.min(window.innerHeight - 10, (62 + sub.length * 21) * e) + 'px');
+  } else {
+    ilha.style.removeProperty('--altura-aviso');
+  }
   // com botões, espera o mouse sair antes de sumir
   const fechar = () => { if (botoes.length && estado.hover) { timeoutAviso = setTimeout(fechar, 1000); return; } voltarAoPadrao(); };
   timeoutAviso = setTimeout(fechar, ms);
@@ -924,14 +931,30 @@ api.on('osd', (o) => {
 });
 
 // Nova versão da ilha (atualização automática pelo GitHub)
-api.on('atualizacao', ({ fase, versao }) => {
-  if (fase === 'pronta') {
-    aviso(`Versão ${versao} pronta`, 'Instala sozinha quando a ilha fechar', {
-      icone: '⬆', tipo: 'info', ms: 9000,
+$('botaoAtualizar').addEventListener('click', () => api.atualizarAgora());
+api.on('atualizacao', ({ fase, versao, notas }) => {
+  if (fase === 'baixando') {
+    aviso('Atualização encontrada', `Versão ${versao} · baixando…`, { icone: '⬇', tipo: 'info', ms: 4000 });
+    olhos.reagir('surpreso', 1200);
+  } else if (fase === 'pronta') {
+    $('botaoAtualizar').hidden = false;
+    $('botaoAtualizar').title = `Instalar a versão ${versao} agora`;
+    const primeira = (notas || [])[0];
+    aviso(`Versão ${versao} pronta`, primeira || 'Instala sozinha quando a ilha fechar', {
+      icone: '⬆', tipo: 'info', ms: 12000,
       botoes: [{ texto: 'Atualizar agora', acao: () => api.atualizarAgora() }, { texto: 'Depois', acao: () => {} }],
     });
     olhos.reagir('feliz', 2000);
+    bipar(1);
   }
+});
+// Acabou de atualizar: mostra o que mudou
+api.on('atualizado', ({ versao, notas }) => {
+  const lista = (notas || []).slice(0, 7);
+  aviso(`✨ Ilha atualizada para a versão ${versao}`, lista.length ? lista : 'Tudo pronto!', {
+    icone: '🎉', tipo: 'info', ms: lista.length ? 11000 : 4000, alto: lista.length > 0,
+  });
+  olhos.reagir('feliz', 3000);
 });
 
 // Fone/caixa de som conectado (o Windows troca a saída de áudio)

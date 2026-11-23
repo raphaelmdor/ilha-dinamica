@@ -648,7 +648,7 @@ function ativarTeclado(sim) {
 // ---------------------------------------------------------------------------
 // Dados dos widgets (tarefas, eventos, notas...) — salvos em dados.json
 // ---------------------------------------------------------------------------
-const CHAVES_DADOS = ['tarefas', 'eventos', 'notas', 'foco', 'paginaAtual', 'bandeja', 'dock', 'silenciouNotif'];
+const CHAVES_DADOS = ['tarefas', 'eventos', 'notas', 'foco', 'paginaAtual', 'bandeja', 'dock', 'silenciouNotif', 'versaoAnterior'];
 let dados = {};
 try { dados = JSON.parse(fs.readFileSync(ARQ_DADOS, 'utf8')); } catch { dados = {}; }
 let tSalvarDados = null;
@@ -854,12 +854,12 @@ function iniciarAtualizacoes() {
   atualizador.autoInstallOnAppQuit = true;
   atualizador.on('update-available', (i) => {
     log('Nova versão encontrada:', i.version, '— baixando');
-    janela?.webContents.send('atualizacao', { fase: 'baixando', versao: i.version });
+    janela?.webContents.send('atualizacao', { fase: 'baixando', versao: i.version, notas: notasDe(i.releaseNotes) });
   });
   atualizador.on('update-downloaded', (i) => {
     atualizacaoPronta = i.version;
     log('Nova versão pronta para instalar:', i.version);
-    janela?.webContents.send('atualizacao', { fase: 'pronta', versao: i.version });
+    janela?.webContents.send('atualizacao', { fase: 'pronta', versao: i.version, notas: notasDe(i.releaseNotes) });
     atualizarMenuBandeja();
   });
   atualizador.on('error', (e) => log('Atualização: falhou ao verificar/baixar —', String(e?.message || e).slice(0, 200)));
@@ -867,6 +867,29 @@ function iniciarAtualizacoes() {
   setTimeout(verificar, 15000);
   setInterval(verificar, 4 * 60 * 60 * 1000);
 }
+// Notas da versão (texto/HTML do GitHub) -> lista de itens curtos
+function notasDe(texto) {
+  if (Array.isArray(texto)) texto = texto.map((n) => n?.note || '').join('\n');
+  return String(texto || '')
+    .replace(/<\/(li|p|h\d)>/gi, '\n').replace(/<[^>]+>/g, '')
+    .split(/\r?\n/).map((l) => l.replace(/^[\s*•-]+/, '').trim())
+    .filter((l) => l && !/^#/.test(l)).slice(0, 8);
+}
+
+// Primeira vez abrindo uma versão nova: avisa na ilha com o que mudou
+function avisarSeAtualizou() {
+  const atual = app.getVersion();
+  const anterior = dados.versaoAnterior;
+  if (anterior === atual) return;
+  salvarDados('versaoAnterior', atual);
+  // sem versão anterior registrada: só é atualização se a ilha já tinha sido usada (versões até 4.1.1)
+  if (!anterior && dados.paginaAtual === undefined) return;
+  let notas = [];
+  try { notas = notasDe(fs.readFileSync(path.join(__dirname, '..', 'build', 'release-notes.md'), 'utf8')); } catch { /* sem notas */ }
+  log(`Atualizada de ${anterior} para ${atual}`);
+  setTimeout(() => janela?.webContents.send('atualizado', { versao: atual, notas }), 4000);
+}
+
 function instalarAtualizacaoAgora() {
   if (!atualizador || !atualizacaoPronta) return;
   log('Instalando a versão', atualizacaoPronta);
@@ -1056,6 +1079,7 @@ if (!app.requestSingleInstanceLock()) {
     vigiarCopiados();
     servicos.configurarLog(log);
     iniciarAtualizacoes();
+    janela.webContents.once('did-finish-load', avisarSeAtualizou);
     if (dados.silenciouNotif) silenciarNoFoco(false); // a ilha fechou no meio de um foco: devolve as notificações
     servicos.vigiarDownloads((d) => janela?.webContents.send('download', d));
     servicos.vigiarPrivacidade((p) => janela?.webContents.send('privacidade', p));
