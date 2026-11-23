@@ -669,14 +669,33 @@ export function iniciarWidgets(ctx) {
     const tGpu = graus(r.gpuTemp);
     const temGpu = Number.isFinite(r.gpuUso);
     const quente = (t) => (t >= 85 ? ' 🔥' : '');
-    box.classList.toggle('cinco', temGpu);
+    box.classList.remove('cinco');
+    desenharDiscos(r.discos || [{ letra: 'C', total: r.discoTotal, usado: r.discoUsado }]);
     box.append(
       medidor('CPU', r.cpu, `${r.cpu}%`, tCpu ? `${tCpu}${quente(r.cpuTemp)}` : `${r.nucleos} núcleos`, true, tarefas),
       ...(temGpu ? [medidor('GPU', r.gpuUso, `${Math.round(r.gpuUso)}%`, tGpu ? `${tGpu}${quente(r.gpuTemp)}` : (r.gpuNome || 'placa de vídeo'), true, tarefas)] : []),
       medidor('Memória', (r.ramUsada / r.ramTotal) * 100, `${Math.round((r.ramUsada / r.ramTotal) * 100)}%`, `${gb(r.ramUsada)} de ${gb(r.ramTotal)} GB`, true, tarefas),
-      medidor('Disco C:', r.discoTotal ? (r.discoUsado / r.discoTotal) * 100 : 0, r.discoTotal ? `${Math.round((r.discoUsado / r.discoTotal) * 100)}%` : '—', r.discoTotal ? `${gb(r.discoTotal - r.discoUsado)} GB livres` : '', true, { titulo: 'Abrir Armazenamento (limpar espaço)', acao: { tipo: 'abrir', app: 'armazenamento' } }),
       medidor('Ligado há', Math.min(100, (r.uptime / 86400) * 100), r.uptime >= 86400 ? `${Math.floor(r.uptime / 86400)}d` : `${Math.floor(r.uptime / 3600)}h`, `${Math.floor((r.uptime % 3600) / 60)} min`, false),
     );
+  }
+  function desenharDiscos(discos = []) {
+    const box = $('discos');
+    if (!box) return;
+    box.innerHTML = '';
+    for (const d of discos) {
+      const pct = d.total ? (d.usado / d.total) * 100 : 0;
+      const b = document.createElement('button');
+      b.className = 'disco' + (pct >= 90 ? ' critico' : pct >= 75 ? ' alto' : '');
+      b.title = `Abrir o disco ${d.letra}:`;
+      const nome = document.createElement('b'); nome.textContent = d.letra + ':';
+      const barra = document.createElement('span'); barra.className = 'barra';
+      const cheio = document.createElement('i'); cheio.style.width = pct.toFixed(1) + '%';
+      barra.appendChild(cheio);
+      const livre = document.createElement('small'); livre.textContent = `${gb(d.total - d.usado)} GB livres`;
+      b.append(nome, barra, livre);
+      b.addEventListener('click', () => api.acao({ tipo: 'abrirDisco', letra: d.letra }));
+      box.appendChild(b);
+    }
   }
   setInterval(() => {
     const painelAberto = document.getElementById('ilha').dataset.estado === 'expandida';

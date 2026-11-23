@@ -23,32 +23,41 @@ export class Olhos {
   }
 
   /**
-   * Nível do som que está tocando (0–1, ~12x por segundo): os olhinhos pulam na batida
-   * e a cabecinha balança de um lado pro outro, como quem está curtindo a música.
+   * Nível do som que está tocando (0–1, ~12x por segundo): a cabecinha balança devagar
+   * de um lado pro outro a cada batida e dá um "sim" suave com a cabeça, como quem curte a música.
    */
   nivelMusica(v) {
     const agora = Date.now();
-    this.media = this.media == null ? v : this.media * 0.88 + v * 0.12;
-    this.envelope = Math.max(v, (this.envelope || 0) * 0.8);
-    const batida = Math.min(1, this.envelope * 1.5);
-    const pulou = v > 0.12 && v > this.media * 1.3 && agora - (this.ultimoPulo || 0) > 280;
-    if (pulou) {
+    this.media = this.media == null ? v : this.media * 0.92 + v * 0.08;
+    const subiu = v - (this.anterior || 0);
+    this.anterior = v;
+    // batida: subida forte acima da média, no máximo ~3 por segundo
+    if (v > 0.1 && subiu > 0.06 && v > this.media * 1.2 && agora - (this.ultimoPulo || 0) > 330) {
       this.ultimoPulo = agora;
-      this.lado = -(this.lado || 1); // balança pro outro lado a cada batida
+      this.lado = -(this.lado || 1);
+      this.impulso = Math.min(1, 0.55 + v);
+      for (const g of this.grupos) g.style.setProperty('--giro', (this.lado * 5) + 'deg');
     }
-    for (const g of this.grupos) {
-      g.classList.add('com-ritmo');
-      g.style.setProperty('--batida', batida.toFixed(2));
-      g.style.setProperty('--giro', (this.lado || 1) * (3 + batida * 6) + 'deg');
-      if (pulou) {
-        g.classList.remove('pulo');
-        void g.offsetWidth; // reinicia a animação
-        g.classList.add('pulo');
-      }
+    if (!this.ritmoLigado) {
+      this.ritmoLigado = true;
+      for (const g of this.grupos) g.classList.add('com-ritmo');
+      const passo = () => {
+        if (!this.ritmoLigado) return;
+        this.impulso = (this.impulso || 0) * 0.86; // o "sim" volta suave
+        const bob = (this.impulso || 0).toFixed(3);
+        for (const g of this.grupos) g.style.setProperty('--bob', bob);
+        requestAnimationFrame(passo);
+      };
+      requestAnimationFrame(passo);
     }
     clearTimeout(this.semRitmo);
     this.semRitmo = setTimeout(() => {
-      for (const g of this.grupos) { g.classList.remove('com-ritmo', 'pulo'); g.style.removeProperty('--batida'); }
+      this.ritmoLigado = false;
+      for (const g of this.grupos) {
+        g.classList.remove('com-ritmo');
+        g.style.removeProperty('--bob');
+        g.style.removeProperty('--giro');
+      }
     }, 1500);
   }
 

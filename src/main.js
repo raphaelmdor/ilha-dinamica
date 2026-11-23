@@ -451,6 +451,12 @@ function executarAcao(acao) {
         return enviarSistema(`${acao.id} ${acao.valor}`);
       }
       return lancador.executarSistema(acao.id, acao.valor, enviarSistema, EXTRAS_LANCADOR);
+    case 'abrirDisco': {
+      const letra = String(acao.letra || '').toUpperCase();
+      if (!/^[A-Z]$/.test(letra)) return false;
+      shell.openPath(letra + ':\\');
+      return true;
+    }
     case 'abrirBusca':
       setTimeout(abrirLancador, 50);
       return true;
@@ -878,6 +884,27 @@ function atualizarHardware() {
     });
 }
 
+// Todos os discos do computador (C:, D:, pendrive...), com espaço usado e livre
+let discosCache = { quando: 0, letras: [] };
+function listarDiscos() {
+  if (process.platform !== 'win32') {
+    try { const st = fs.statfsSync('/'); const t = st.blocks * st.bsize; return [{ letra: '/', total: t, usado: t - st.bavail * st.bsize }]; } catch { return []; }
+  }
+  // quais letras existem: confere a cada 20 s (pendrive entra e sai)
+  if (Date.now() - discosCache.quando > 20000) {
+    discosCache = { quando: Date.now(), letras: 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter((l) => { try { return fs.existsSync(l + ':\\'); } catch { return false; } }) };
+  }
+  const lista = [];
+  for (const letra of discosCache.letras) {
+    try {
+      const st = fs.statfsSync(letra + ':\\');
+      const total = st.blocks * st.bsize;
+      if (total > 0) lista.push({ letra, total, usado: total - st.bavail * st.bsize });
+    } catch { /* drive sem mídia */ }
+  }
+  return lista;
+}
+
 function recursos() {
   atualizarHardware();
   const agora = os.cpus();
@@ -889,12 +916,9 @@ function recursos() {
     total += tt; ocioso += t.idle - a.idle;
   });
   cpuAnterior = agora;
-  let discoTotal = 0; let discoUsado = 0;
-  try {
-    const st = fs.statfsSync(process.platform === 'win32' ? 'C:\\' : '/');
-    discoTotal = st.blocks * st.bsize;
-    discoUsado = discoTotal - st.bavail * st.bsize;
-  } catch { /* sem informação de disco */ }
+  const discos = listarDiscos();
+  const c = discos.find((d) => d.letra === 'C') || discos[0] || { total: 0, usado: 0 };
+  const discoTotal = c.total; const discoUsado = c.usado;
   return {
     cpu: total ? Math.round(100 * (1 - ocioso / total)) : 0,
     nucleos: agora.length,
@@ -902,6 +926,7 @@ function recursos() {
     ramUsada: os.totalmem() - os.freemem(),
     discoTotal,
     discoUsado,
+    discos,
     uptime: os.uptime(),
     ...hw,
   };
