@@ -1,0 +1,69 @@
+{
+  "name": "ilha-dinamica",
+  "productName": "Ilha Dinâmica",
+  "version": "4.1.0",
+  "description": "Dynamic Island para Windows 11 com comandos de voz offline em português",
+  "main": "src/main.js",
+  "author": "Raphael",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "tar": "^7.4.3",
+    "vosk-browser": "0.0.8",
+    "koffi": "2.16.4",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "br.raphael.ilhadinamica",
+    "productName": "Ilha Dinâmica",
+    "executableName": "IlhaDinamica",
+    "files": [
+      "src/**/*",
+      "build/icon.png",
+      "build/icon.ico",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "src/media.ps1",
+      "node_modules/koffi/**"
+    ],
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Ilha Dinâmica",
+      "runAfterFinish": true
+    },
+    "artifactName": "IlhaDinamica-Setup-${version}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "raphaelmdor",
+        "repo": "ilha-dinamica",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/raphaelmdor/ilha-dinamica.git"
+  }
+}

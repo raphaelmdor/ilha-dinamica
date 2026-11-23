@@ -1,0 +1,29 @@
+# Gera o instalador do Windows e publica no GitHub Releases quando uma versão nova (tag v*) é enviada.
+# O app instalado confere essas publicações e se atualiza sozinho.
+name: Publicar versão
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+
+      - name: Gerar e publicar o instalador
+        run: npx electron-builder --win nsis --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+  <title>Ilha Dinâmica — Configurações</title>
+  <link rel="stylesheet" href="configuracoes.css">
+</head>
+<body>
+  <header>
+    <div class="previa" id="previa">
+      <div class="previa-ilha">
+        <div class="p-olhos"><i></i><i></i></div>
+        <span class="p-hora" id="pHora">21:30</span>
+        <span class="p-ponto"></span>
+      </div>
+    </div>
+    <div>
+      <h1>Configurações</h1>
+      <p class="sub">As mudanças valem na hora. <span id="versao"></span></p>
+    </div>
+  </header>
+
+  <nav class="abas" id="abas">
+    <button data-aba="aparencia" class="ativa">Aparência</button>
+    <button data-aba="comportamento">Comportamento</button>
+    <button data-aba="atalhos">Atalhos</button>
+    <button data-aba="widgets">Widgets</button>
+    <button data-aba="jogos">Jogos</button>
+    <button data-aba="voz">Voz</button>
+  </nav>
+
+  <main>
+    <!-- Aparência -->
+    <section data-painel="aparencia" class="ativo">
+      <div class="campo">
+        <label>Cor dos olhinhos</label>
+        <div class="cores" data-chave="corOlhos"></div>
+      </div>
+      <div class="campo">
+        <label>Cor do relógio</label>
+        <div class="cores" data-chave="corRelogio"></div>
+      </div>
+      <div class="campo">
+        <label>Cor de destaque <small>(botões ligados, barras, seleção)</small></label>
+        <div class="cores" data-chave="corDestaque"></div>
+      </div>
+      <div class="campo">
+        <label>Fundo da ilha</label>
+        <div class="opcoes" data-chave="fundo">
+          <button data-valor="preto">Preto</button>
+          <button data-valor="grafite">Grafite</button>
+          <button data-valor="translucido">Translúcido</button>
+        </div>
+      </div>
+      <div class="campo">
+        <label>Tamanho <small id="tamanhoValor"></small></label>
+        <input type="range" id="tamanho" min="0.8" max="1.3" step="0.05">
+      </div>
+      <div class="campo">
+        <label>Formato dos olhinhos</label>
+        <div class="opcoes" data-chave="formatoOlhos">
+          <button data-valor="pilula">Pílula ▮▮</button>
+          <button data-valor="redondo">Redondo ●●</button>
+        </div>
+      </div>
+      <label class="chave"><input type="checkbox" data-chave="mostrarOlhos"><span></span>Mostrar os olhinhos</label>
+      <label class="chave"><input type="checkbox" data-chave="relogio24h"><span></span>Relógio de 24 horas</label>
+      <label class="chave"><input type="checkbox" data-chave="mostrarSegundos"><span></span>Mostrar os segundos</label>
+    </section>
+
+    <!-- Comportamento -->
+    <section data-painel="comportamento">
+      <label class="chave"><input type="checkbox" data-chave="abrirAoPassar"><span></span>Abrir o painel ao passar o mouse <small>(desligado: só com clique)</small></label>
+      <div class="campo">
+        <label>Atraso para abrir <small id="atrasoValor"></small></label>
+        <input type="range" id="atrasoAbrir" min="0" max="1000" step="20">
+      </div>
+      <label class="chave"><input type="checkbox" data-chave="modoNotch"><span></span>Virar "notch" quando um app estiver maximizado</label>
+      <label class="chave"><input type="checkbox" data-chave="modoMini"><span></span>Encolher em tela cheia (vídeos e jogos)</label>
+      <div class="campo">
+        <label>Modo discreto <small>(a ilha vira um tracinho que não bloqueia cliques; abre parando o mouse nele por meio segundo)</small></label>
+        <div class="opcoes" data-chave="modoDiscreto">
+          <button data-valor="abas">Em apps com abas</button>
+          <button data-valor="sempre">Em todo app maximizado</button>
+          <button data-valor="nunca">Nunca</button>
+        </div>
+      </div>
+      <div class="campo" id="campoAbas">
+        <label>Apps com abas no topo</label>
+        <div class="linha-add"><input class="texto" id="novoAppAbas" placeholder="ex.: programa.exe" maxlength="84"><button class="bt-add" id="addAppAbas">Adicionar</button></div>
+        <ul class="tags" id="listaAbas"></ul>
+      </div>
+      <label class="chave"><input type="checkbox" data-chave="historicoCopiados"><span></span>Guardar histórico de textos copiados <small>(só na memória, some ao fechar)</small></label>
+      <label class="chave"><input type="checkbox" data-chave="iniciarComWindows"><span></span>Iniciar com o Windows</label>
+      <div class="campo">
+        <button class="perigo" id="restaurar">Restaurar tudo ao padrão</button>
+      </div>
+    </section>
+
+    <!-- Atalhos -->
+    <section data-painel="atalhos">
+      <p class="dica">Clique no campo e aperte a combinação desejada (ex.: Ctrl + Shift + K). <kbd>Esc</kbd> cancela.</p>
+      <div class="atalho"><span>Abrir o painel <small>(opcional)</small></span><input readonly data-atalho="atalhoPainel"><em></em></div>
+      <div class="atalho"><span>Abrir a busca</span><input readonly data-atalho="atalhoBusca"><em></em></div>
+      <div class="atalho"><span>Falar um comando</span><input readonly data-atalho="atalhoVoz"><em></em></div>
+      <div class="atalho"><span>Mostrar / esconder a ilha</span><input readonly data-atalho="atalhoMostrar"><em></em></div>
+      <p class="dica">No campo do painel, aperte <kbd>Backspace</kbd> para deixar sem atalho. Combinações com a tecla Windows
+        (como <kbd>Win</kbd>+<kbd>Espaço</kbd>) quase sempre são reservadas pelo próprio Windows.</p>
+    </section>
+
+    <!-- Widgets -->
+    <section data-painel="widgets">
+      <p class="dica">Ligue, desligue e reordene os widgets do painel (use as setas).</p>
+      <ul class="lista-widgets" id="listaWidgets"></ul>
+      <div class="campo">
+        <label>Cidade do clima</label>
+        <input class="texto" id="cidade" type="text" maxlength="80" placeholder="Niterói">
+      </div>
+      <div class="grade">
+        <div class="campo"><label>Foco (min)</label><input class="texto" type="number" min="1" max="180" data-num="focoMin"></div>
+        <div class="campo"><label>Pausa (min)</label><input class="texto" type="number" min="1" max="60" data-num="pausaMin"></div>
+        <div class="campo"><label>Pausa longa (min)</label><input class="texto" type="number" min="1" max="120" data-num="pausaLongaMin"></div>
+      </div>
+      <label class="chave"><input type="checkbox" data-chave="focoAuto"><span></span>Começar a próxima fase do Pomodoro sozinho</label>
+      <label class="chave"><input type="checkbox" data-chave="focoSilencia"><span></span>Pausar as notificações do Windows durante o foco <small>(voltam sozinhas na pausa)</small></label>
+      <div class="campo">
+        <label>Google Agenda <small>(só leitura — os compromissos aparecem na Agenda da ilha, com lembretes)</small></label>
+        <p class="dica">No computador, abra calendar.google.com › ⚙ Configurações › clique na sua agenda (à esquerda) ›
+          role até <b>"Endereço secreto no formato iCal"</b> › copie e cole aqui. Funciona também com o Outlook (link .ics).</p>
+        <div class="linha-add"><input class="texto" id="novoIcs" type="password" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" autocomplete="off"><button class="bt-add" id="addIcs">Ligar</button></div>
+        <ul class="tags" id="listaIcs"></ul>
+      </div>
+    </section>
+
+    <!-- Jogos -->
+    <section data-painel="jogos">
+      <label class="chave"><input type="checkbox" data-chave="esconderEmJogos"><span></span>Sumir enquanto um jogo estiver aberto</label>
+      <p class="dica">A ilha reconhece sozinha jogos da Steam, Epic, Riot, Xbox, Battle.net, EA, Ubisoft, GOG e Rockstar,
+        os que a Xbox Game Bar conhece, jogos em tela cheia exclusiva e jogos com anti-cheat. Ela volta assim que você sai do jogo.
+        Durante a partida, <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>I</kbd> mostra a ilha se precisar.</p>
+      <div class="campo">
+        <label>Sempre tratar como jogo <small>(nome do .exe)</small></label>
+        <div class="linha-add"><input class="texto" id="novoJogo" placeholder="ex.: meujogo.exe" maxlength="84"><button class="bt-add" id="addJogo">Adicionar</button></div>
+        <ul class="tags" id="listaJogos"></ul>
+      </div>
+      <div class="campo">
+        <label>Nunca tratar como jogo</label>
+        <div class="linha-add"><input class="texto" id="novoNaoJogo" placeholder="ex.: programa.exe" maxlength="84"><button class="bt-add" id="addNaoJogo">Adicionar</button></div>
+        <ul class="tags" id="listaNaoJogos"></ul>
+      </div>
+      <p class="dica">Dica: com o app aberto, o menu do ícone da ilha (perto do relógio) também oferece "Tratar como jogo".</p>
+    </section>
+
+    <!-- Voz -->
+    <section data-painel="voz">
+      <label class="chave"><input type="checkbox" data-chave="respostaFalada"><span></span>Responder em voz</label>
+      <label class="chave"><input type="checkbox" data-chave="escutaContinua"><span></span>Escuta contínua (sempre ouvindo a palavra de ativação)</label>
+      <div class="campo">
+        <label>Palavra de ativação</label>
+        <input class="texto" id="palavraAtivacao" type="text" maxlength="20" placeholder="ilha">
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="configuracoes.js"></script>
+</body>
+</html>

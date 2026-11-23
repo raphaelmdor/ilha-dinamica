@@ -1,0 +1,9 @@
+node_modules/
+dist/
+_to_delete/
+*.log
+ilha-log.txt
+instalar-log.txt
+gerar-instalador-log.txt
+*.tgz
+package-lock.json
