@@ -649,7 +649,7 @@ export function iniciarWidgets(ctx) {
       div.addEventListener('click', () => api.acao(abrir.acao));
     }
     const classe = !colorir ? '' : pct >= 90 ? 'critico' : pct >= 75 ? 'alto' : '';
-    div.innerHTML = `<svg viewBox="0 0 80 80"><circle class="fundo" cx="40" cy="40" r="32"/><circle class="valor ${classe}" cx="40" cy="40" r="32"/></svg><div class="num"></div><div class="det"></div>`;
+    div.innerHTML = `<div class="roda"><svg viewBox="0 0 80 80"><circle class="fundo" cx="40" cy="40" r="32"/><circle class="valor ${classe}" cx="40" cy="40" r="32"/></svg><div class="num"></div></div><div class="det"></div>`;
     // (a página não aceita style escrito no HTML: o valor do anel vai pelo JavaScript)
     div.querySelector('.valor').style.strokeDashoffset = (201 * (1 - Math.min(100, Math.max(0, pct)) / 100)).toFixed(1) + 'px';
     div.querySelector('.num').textContent = valor;

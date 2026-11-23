@@ -1018,3 +1018,11 @@ body.sem-olhos .olhos { display: none; }
   .equalizador i { animation: none; height: 60%; }
 }
 .disco small { min-width: calc(74px * var(--escala)); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* número dentro do anel e o nome embaixo, sem encostar no círculo */
+.medidor .roda { position: relative; line-height: 0; }
+.medidor .roda .num, .sistema-box .medidor .roda .num, .medidores.cinco .medidor .roda .num {
+  position: absolute; inset: 0; margin: 0; height: auto;
+  display: grid; place-items: center; line-height: 1;
+}
+.medidor .det, .sistema-box .medidor .det { margin-top: 5px; }
