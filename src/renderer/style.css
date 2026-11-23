@@ -365,17 +365,37 @@ body {
   height: calc(4px * var(--e));
   border-radius: calc(4px * var(--e)) calc(4px * var(--e)) calc(1px * var(--e)) calc(1px * var(--e));
 }
-/* Com o som de verdade chegando: olhinhos fechados curtindo, cabeça balança devagar no ritmo */
+/* Com o som de verdade chegando: ^ ^ curtindo, aceno com mola na batida, balanço no andamento */
 .olhos[data-humor="musica"].com-ritmo {
   animation: none;
-  transform: none;
-  rotate: var(--giro, 0deg);
-  translate: 0 calc(var(--bob, 0) * -1.6px * var(--e));
-  transition: rotate 0.42s cubic-bezier(0.45, 0, 0.25, 1);
+  transition: none;
+  transform: translateY(calc(var(--y, 0) * 1px * var(--e))) rotate(calc(var(--giro, 0) * 1deg));
 }
 .olhos[data-humor="musica"].com-ritmo .olho {
-  scale: 1 calc(1 - var(--bob, 0) * 0.18);
+  height: calc(5.5px * var(--e));
+  width: calc(8px * var(--e));
+  background: transparent;
+  border: calc(2.3px * var(--e)) solid var(--cor-olhos);
+  border-bottom: 0;
+  border-radius: calc(6px * var(--e)) calc(6px * var(--e)) 0 0;
+  box-shadow: none;
+  transform: translateX(calc(var(--lado, 0) * 1px * var(--e)));
+  filter: drop-shadow(0 0 calc(var(--brilho, 0) * 4px) var(--cor-olhos));
+  transition: none;
 }
+/* notinhas musicais que sobem nas batidas fortes */
+.nota-musical {
+  position: absolute; left: 50%; top: 20%;
+  font-size: calc(10.5px * var(--e)); line-height: 1; color: var(--cor-olhos); text-shadow: 0 0 4px rgba(255, 255, 255, 0.35);
+  pointer-events: none; opacity: 0;
+  animation: nota-sobe 1.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes nota-sobe {
+  0% { opacity: 0; transform: translate(-50%, 4px) scale(0.5) rotate(0deg); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx, 8px)), calc(-14px * var(--e))) scale(1) rotate(var(--rot, 10deg)); }
+}
+@media (prefers-reduced-motion: reduce) { .nota-musical { display: none; } }
 @keyframes balancar {
   0%, 100% { transform: translateY(0) rotate(-6deg); }
   50% { transform: translateY(-2px) rotate(6deg); }

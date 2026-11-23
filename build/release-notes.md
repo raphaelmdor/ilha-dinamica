@@ -1,4 +1,8 @@
-## Novidades da 4.6.2
+## Novidades da 4.7.0
 
-- **Widget Sistema arrumado:** a porcentagem fica centralizada dentro do anel e o nome (CPU, GPU, Memória...) aparece embaixo, sem encostar no círculo.
-- Inclui a 4.6.1: todos os discos do computador e a dança mais suave dos olhinhos.
+- **Olhinhos curtindo a música, de um jeito novo:**
+  - Viram ^ ^, como quem fecha os olhos para curtir.
+  - Acenam com a cabeça em cada batida, com um movimento de mola macio, como gente.
+  - A ilha descobre o andamento (BPM) da música, e a cabeça balança de um lado para o outro nesse ritmo: mais animada nas partes fortes, mais calma nas partes tranquilas.
+  - Brilham de leve conforme o volume do som.
+  - Nas batidas mais fortes, soltam notinhas ♪ ♫ que sobem e somem.

@@ -23,29 +23,54 @@ export class Olhos {
   }
 
   /**
-   * Nível do som que está tocando (0–1, ~12x por segundo): a cabecinha balança devagar
-   * de um lado pro outro a cada batida e dá um "sim" suave com a cabeça, como quem curte a música.
+   * Nível do som que está tocando (0–1, ~12x por segundo). Os olhinhos viram ^ ^ (curtindo),
+   * acenam com a cabeça na batida (com mola, como gente), balançam de um lado pro outro no
+   * andamento da música (a ilha estima o BPM) e soltam notinhas musicais nas batidas fortes.
    */
   nivelMusica(v) {
-    const agora = Date.now();
-    this.media = this.media == null ? v : this.media * 0.92 + v * 0.08;
-    const subiu = v - (this.anterior || 0);
-    this.anterior = v;
-    // batida: subida forte acima da média, no máximo ~3 por segundo
-    if (v > 0.1 && subiu > 0.06 && v > this.media * 1.2 && agora - (this.ultimoPulo || 0) > 330) {
-      this.ultimoPulo = agora;
-      this.lado = -(this.lado || 1);
-      this.impulso = Math.min(1, 0.55 + v);
-      for (const g of this.grupos) g.style.setProperty('--giro', (this.lado * 5) + 'deg');
+    const agora = performance.now();
+    const m = this.musica || (this.musica = { y: 0, vy: 0, fase: 0, periodo: 520, amp: 0, brilho: 0, media: 0.2, ant: 0, ultBatida: 0, ultNota: 0, intervalos: [] });
+    m.media = m.media * 0.93 + v * 0.07;
+    m.brilho = Math.max(v, m.brilho * 0.85);
+    const subiu = v - m.ant;
+    m.ant = v;
+    m.ultimoNivel = agora;
+    if (v > 0.08 && subiu > 0.05 && v > m.media * 1.18 && agora - m.ultBatida > 260) {
+      const intervalo = agora - m.ultBatida;
+      if (intervalo < 1200) {
+        m.intervalos.push(intervalo);
+        if (m.intervalos.length > 8) m.intervalos.shift();
+        const ord = [...m.intervalos].sort((x, y) => x - y);
+        m.periodo = Math.min(900, Math.max(300, ord[Math.floor(ord.length / 2)]));
+      }
+      m.ultBatida = agora;
+      const forca = Math.min(1, 0.4 + v);
+      m.vy += 1.9 * forca;           // aceno pra baixo; a mola traz de volta
+      if (forca > 0.75 && agora - m.ultNota > 1600) { m.ultNota = agora; this.soltarNota(); }
     }
     if (!this.ritmoLigado) {
       this.ritmoLigado = true;
       for (const g of this.grupos) g.classList.add('com-ritmo');
-      const passo = () => {
+      let antes = performance.now();
+      const passo = (t) => {
         if (!this.ritmoLigado) return;
-        this.impulso = (this.impulso || 0) * 0.86; // o "sim" volta suave
-        const bob = (this.impulso || 0).toFixed(3);
-        for (const g of this.grupos) g.style.setProperty('--bob', bob);
+        const dt = Math.min(50, t - antes); antes = t;
+        const k = dt / 16.7;
+        // mola amortecida: desce na batida e volta macio, com um leve "quique"
+        m.vy = (m.vy - m.y * 0.16 * k) * Math.pow(0.8, k);
+        m.y += m.vy * k;
+        // balanço: um lado por batida, seguindo o andamento; mais forte quando a música está animada
+        m.fase += (dt / m.periodo) * Math.PI;
+        const animada = performance.now() - m.ultBatida < 1500 ? 1 : 0.35;
+        m.amp += (animada - m.amp) * 0.03 * k;
+        m.brilho *= Math.pow(0.97, k);
+        const balanco = Math.sin(m.fase);
+        for (const g of this.grupos) {
+          g.style.setProperty('--y', Math.max(-1, Math.min(3, m.y)).toFixed(2));
+          g.style.setProperty('--giro', (balanco * 7 * m.amp).toFixed(2));
+          g.style.setProperty('--lado', (balanco * 1.2 * m.amp).toFixed(2));
+          g.style.setProperty('--brilho', Math.min(1, m.brilho * 1.4).toFixed(2));
+        }
         requestAnimationFrame(passo);
       };
       requestAnimationFrame(passo);
@@ -55,10 +80,24 @@ export class Olhos {
       this.ritmoLigado = false;
       for (const g of this.grupos) {
         g.classList.remove('com-ritmo');
-        g.style.removeProperty('--bob');
-        g.style.removeProperty('--giro');
+        for (const p of ['--y', '--giro', '--lado', '--brilho']) g.style.removeProperty(p);
       }
     }, 1500);
+  }
+
+  /** Uma notinha ♪ sobe e some ao lado dos olhinhos (só nos que estão aparecendo) */
+  soltarNota() {
+    for (const g of this.grupos) {
+      if (!g.getBoundingClientRect().width) continue;
+      const n = document.createElement('span');
+      n.className = 'nota-musical';
+      n.textContent = Math.random() < 0.5 ? '♪' : '♫';
+      n.style.setProperty('--dx', ((Math.random() < 0.5 ? -1 : 1) * (6 + Math.random() * 6)).toFixed(1) + 'px');
+      n.style.setProperty('--rot', (Math.random() * 40 - 20).toFixed(0) + 'deg');
+      n.addEventListener('animationend', () => n.remove());
+      g.appendChild(n);
+      setTimeout(() => n.remove(), 2000);
+    }
   }
 
   /** Humor de fundo: continua até ser trocado */
