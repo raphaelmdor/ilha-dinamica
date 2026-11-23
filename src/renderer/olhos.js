@@ -64,13 +64,6 @@ export class Olhos {
         m.amp += (animada - m.amp) * 0.03 * k;
         m.brilho *= Math.pow(0.97, k);
         const balanco = Math.sin(m.fase);
-        // notinhas o tempo todo enquanto toca: uma a cada ~2 batidas, com um pouco de variação
-        const agoraNota = performance.now();
-        if (agoraNota - m.ultNota > (m.proximaNota || 900)) {
-          m.ultNota = agoraNota;
-          m.proximaNota = Math.max(650, Math.min(1500, m.periodo * 2)) * (0.8 + Math.random() * 0.5);
-          this.soltarNota();
-        }
         for (const g of this.grupos) {
           g.style.setProperty('--y', Math.max(-1, Math.min(3, m.y)).toFixed(2));
           g.style.setProperty('--giro', (balanco * 7 * m.amp).toFixed(2));
@@ -110,6 +103,23 @@ export class Olhos {
   definirBase(humor) {
     this.base = humor;
     this.aplicar();
+    // Notinhas: saem o tempo todo enquanto toca música, mesmo sem o medidor de som
+    // (no ritmo da música quando ele funciona; senão, ~1 por segundo)
+    if (humor === 'musica' && !this.timerNotas) {
+      const proxima = () => {
+        const periodo = this.musica?.periodo || 520;
+        const ms = Math.max(650, Math.min(1500, periodo * 2)) * (0.8 + Math.random() * 0.5);
+        this.timerNotas = setTimeout(() => {
+          if (this.base !== 'musica') { this.timerNotas = null; return; }
+          if (!this.temporario && !this.dormindo) this.soltarNota();
+          proxima();
+        }, ms);
+      };
+      proxima();
+    } else if (humor !== 'musica' && this.timerNotas) {
+      clearTimeout(this.timerNotas);
+      this.timerNotas = null;
+    }
   }
 
   /** Humor passageiro: volta ao de fundo depois de `ms` */

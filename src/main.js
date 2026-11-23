@@ -266,6 +266,7 @@ function caminhoScriptMidia() {
 
 let tentativasMidia = 0;
 let capaGuardada = { chave: '', capa: null };
+let medidorAvisado = false;
 
 function iniciarAjudanteMidia() {
   if (process.platform !== 'win32' || encerrando) return;
@@ -290,6 +291,7 @@ function iniciarAjudanteMidia() {
           continue;
         }
         if (dados.tipo === 'nivel') {
+          if (!medidorAvisado && dados.v > 0) { medidorAvisado = true; log('Medidor de som funcionando (olhinhos no ritmo)'); }
           if (visivel && !ocultaPorJogo) janela?.webContents.send('nivel', dados.v);
           continue;
         }
