@@ -359,9 +359,42 @@ function Ler-Capa($props) {
     } catch { return $null }
 }
 
+# Qual player mostrar: SEMPRE o que está tocando de verdade (o "atual" do Windows pode ser um pausado).
+# - se um player começa a tocar agora, ele passa a ser o mostrado;
+# - se o mostrado pausar, continua nele (para dar play de novo pela ilha).
+$sessaoFixa = $null
+$tocandoAntes = @{}
+function Escolher-Sessao {
+    if (-not $gerente) { return $null }
+    $todas = @()
+    try { $todas = @($gerente.GetSessions()) } catch { }
+    if ($todas.Count -eq 0) { $script:sessaoFixa = $null; return $null }
+    $tocandoAgora = @{}
+    $tocando = New-Object System.Collections.Generic.List[object]
+    foreach ($x in $todas) {
+        $st = ''
+        try { $st = [string]$x.GetPlaybackInfo().PlaybackStatus } catch { }
+        if ($st -eq 'Playing') { $tocando.Add($x); $tocandoAgora[[string]$x.SourceAppUserModelId] = $true }
+    }
+    $escolhida = $null
+    if ($tocando.Count -gt 0) {
+        # 1) acabou de começar a tocar (não tocava na última olhada)
+        $novo = $tocando | Where-Object { -not $script:tocandoAntes.ContainsKey([string]$_.SourceAppUserModelId) } | Select-Object -First 1
+        # 2) a que já estava sendo mostrada, se continua tocando
+        $fixa = $tocando | Where-Object { [string]$_.SourceAppUserModelId -eq $script:sessaoFixa } | Select-Object -First 1
+        if ($novo) { $escolhida = $novo } elseif ($fixa) { $escolhida = $fixa } else { $escolhida = $tocando[0] }
+    } else {
+        $escolhida = $todas | Where-Object { [string]$_.SourceAppUserModelId -eq $script:sessaoFixa } | Select-Object -First 1
+        if (-not $escolhida) { $escolhida = $gerente.GetCurrentSession() }
+        if (-not $escolhida) { $escolhida = $todas[0] }
+    }
+    $script:tocandoAntes = $tocandoAgora
+    if ($escolhida) { $script:sessaoFixa = [string]$escolhida.SourceAppUserModelId }
+    return $escolhida
+}
+
 function Enviar-Estado {
-    $sessao = $null
-    if ($gerente) { $sessao = $gerente.GetCurrentSession() }
+    $sessao = Escolher-Sessao
     $estado = [ordered]@{ ativo = $false }
 
     if ($sessao) {
@@ -407,7 +440,10 @@ function Enviar-Estado {
 
 function Executar($comando) {
     $sessao = $null
-    if ($gerente) { $sessao = $gerente.GetCurrentSession() }
+    if ($gerente) {
+        try { $sessao = @($gerente.GetSessions()) | Where-Object { [string]$_.SourceAppUserModelId -eq $script:sessaoFixa } | Select-Object -First 1 } catch { }
+        if (-not $sessao) { $sessao = Escolher-Sessao }
+    }
     $partes = $comando.Trim() -split '\s+', 2
     $arg = if ($partes.Count -gt 1) { $partes[1] } else { '' }
     switch ($partes[0]) {
