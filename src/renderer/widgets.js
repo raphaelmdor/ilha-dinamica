@@ -516,7 +516,7 @@ export function iniciarWidgets(ctx) {
     const agora = el('div', 'clima-agora');
     agora.append(el('div', 'clima-icone', ic), el('div', 'clima-temp', `${Math.round(c.temperature_2m)}°`));
     const info = el('div', 'clima-info');
-    info.append(el('b', '', `${clima.cidade} · ${desc}`), document.createElement('br'),
+    info.append(el('b', '', `${clima.automatico ? '📍 ' : ''}${clima.cidade} · ${desc}`), document.createElement('br'),
       `Sensação ${Math.round(c.apparent_temperature)}° · Umidade ${c.relative_humidity_2m}% · Vento ${Math.round(c.wind_speed_10m)} km/h`,
       document.createElement('br'), el('span', 'clima-chuva', resumoChuva(horasDoDia(0))));
     agora.appendChild(info);

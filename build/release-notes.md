@@ -1,4 +1,4 @@
-## Novidades da 4.3.1
+## Novidades da 4.4.0
 
-- **Correção:** a ilha ficava escondida atrás dos programas maximizados depois de abrir junto com o Windows. Agora ela reforça sozinha que deve ficar sempre por cima.
-- Inclui a 4.3.0: voz mais certeira (conhece seus apps), "abrir o Google Chrome" corrigido, configurações voltando para a frente e ícone novo perto do relógio.
+- **Clima com localização automática:** a ilha descobre sozinha em que cidade você está, pela sua conexão de internet, e mostra o tempo de lá (com 📍 ao lado do nome). Funciona em qualquer PC sem configurar nada.
+- **Preferir uma cidade fixa:** é só digitar o nome em Configurações → Widgets. O botão "Automático" volta a descobrir sozinho.

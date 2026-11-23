@@ -4,7 +4,7 @@ const api = window.ilhaAPI || {
   lerConfig: async () => ({
     corOlhos: '#f5f5f7', corRelogio: '#f5f5f7', corDestaque: '#60a5fa', fundo: 'preto', tamanho: 1, relogio24h: true,
     mostrarSegundos: false, mostrarOlhos: true, formatoOlhos: 'pilula', abrirAoPassar: true, atrasoAbrir: 140, modoNotch: true,
-    modoMini: true, widgets: ['inicio', 'agenda', 'tarefas', 'foco', 'dock', 'bandeja', 'notas', 'clima', 'clipboard', 'sistema'], cidade: 'Niterói', agendasIcs: [], focoSilencia: true,
+    modoMini: true, widgets: ['inicio', 'agenda', 'tarefas', 'foco', 'dock', 'bandeja', 'notas', 'clima', 'clipboard', 'sistema'], cidade: '', agendasIcs: [], focoSilencia: true,
     focoMin: 25, pausaMin: 5, pausaLongaMin: 15, focoAuto: false, historicoCopiados: true, escutaContinua: false,
     respostaFalada: true, palavraAtivacao: 'ilha', iniciarComWindows: false, esconderEmJogos: true, jogosExtras: ['meujogo.exe'], naoJogos: [], modoDiscreto: 'abas', appsComAbas: ['chrome.exe', 'msedge.exe', 'code.exe'],
     atalhoBusca: 'Alt+Space', atalhoVoz: 'Control+Alt+Space', atalhoMostrar: 'Control+Alt+I',
@@ -100,7 +100,11 @@ $('atrasoAbrir').addEventListener('input', (e) => { $('atrasoValor').textContent
 $('atrasoAbrir').addEventListener('change', (e) => salvar({ atrasoAbrir: Number(e.target.value) }));
 
 // Textos
-$('cidade').addEventListener('change', (e) => salvar({ cidade: e.target.value.trim() || 'Niterói' }, 'Cidade do clima atualizada'));
+$('cidade').addEventListener('change', (e) => {
+  const cidade = e.target.value.trim();
+  salvar({ cidade }, cidade ? 'Cidade do clima atualizada' : 'Clima: cidade automática');
+});
+$('cidadeAuto').addEventListener('click', () => { $('cidade').value = ''; salvar({ cidade: '' }, 'Clima: cidade automática'); });
 $('palavraAtivacao').addEventListener('change', (e) => {
   const v = e.target.value.trim().toLowerCase();
   if (!/^[a-zà-ú]{2,20}$/.test(v)) { toast('Use uma palavra só, sem números', true); e.target.value = cfg.palavraAtivacao; return; }

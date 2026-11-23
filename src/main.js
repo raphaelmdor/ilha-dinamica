@@ -65,7 +65,7 @@ const CONFIG_PADRAO = {
   modoMini: true,
   // Widgets
   widgets: ['inicio', 'agenda', 'tarefas', 'foco', 'dock', 'bandeja', 'notas', 'clima', 'clipboard', 'sistema'],
-  cidade: 'Niterói',
+  cidade: '',                     // vazio = descobre a cidade sozinho (pela internet)
   focoMin: 25,
   pausaMin: 5,
   pausaLongaMin: 15,
@@ -124,9 +124,14 @@ function carregarConfig() {
       }
       c.migrouV4 = true;
     }
+    // 4.4: a cidade antiga padrão vira "automático" (quem digitou outra cidade continua com ela)
+    if (!c.migrouLocal) {
+      if (c.cidade === 'Niterói') c.cidade = '';
+      c.migrouLocal = true;
+    }
     return c;
   } catch {
-    return { ...CONFIG_PADRAO, migrouV4: true };
+    return { ...CONFIG_PADRAO, migrouV4: true, migrouLocal: true };
   }
 }
 
@@ -706,10 +711,44 @@ function silenciarNoFoco(sim) {
 // Clima (Open-Meteo: grátis e sem chave)
 // ---------------------------------------------------------------------------
 const cacheCidades = new Map();
+// Localização automática pela internet (aproximada, nível de cidade; sem chave e sem cadastro)
+let localAuto = null; // { lat, lon, nome, quando }
+async function descobrirLocal() {
+  if (localAuto && Date.now() - localAuto.quando < 60 * 60 * 1000) return localAuto;
+  const fontes = [
+    async () => {
+      const j = await (await net.fetch('https://ipwho.is/?fields=success,city,region,latitude,longitude')).json();
+      if (!j.success) throw new Error('falhou');
+      return { lat: +j.latitude, lon: +j.longitude, nome: j.city || j.region };
+    },
+    async () => {
+      const j = await (await net.fetch('https://get.geojs.io/v1/ip/geo.json')).json();
+      return { lat: +j.latitude, lon: +j.longitude, nome: j.city || j.region };
+    },
+  ];
+  for (const f of fontes) {
+    try {
+      const l = await f();
+      if (Number.isFinite(l.lat) && Number.isFinite(l.lon)) {
+        localAuto = { ...l, nome: l.nome || 'Sua região', quando: Date.now() };
+        log('Localização automática:', localAuto.nome);
+        return localAuto;
+      }
+    } catch { /* tenta a próxima */ }
+  }
+  return localAuto; // a última conhecida, se houver
+}
+
 async function buscarClima() {
   try {
-    const nome = String(config.cidade || 'Niterói').trim();
-    let local = cacheCidades.get(nome);
+    const nome = String(config.cidade || '').trim();
+    let local = null;
+    if (!nome) {
+      local = await descobrirLocal();
+      if (!local) return { ok: false, erro: 'não consegui descobrir sua cidade (digite-a nas configurações)' };
+    } else {
+      local = cacheCidades.get(nome);
+    }
     if (!local) {
       const g = await (await net.fetch(`https://geocoding-api.open-meteo.com/v1/search?count=1&language=pt&name=${encodeURIComponent(nome)}`)).json();
       const r = g?.results?.[0];
@@ -725,7 +764,7 @@ async function buscarClima() {
       + 'wind_speed_10m_max,uv_index_max,sunrise,sunset';
     const f = await (await net.fetch(url)).json();
     if (!f?.current) return { ok: false, erro: 'resposta inválida' };
-    return { ok: true, cidade: local.nome, atual: f.current, diario: f.daily, horario: f.hourly };
+    return { ok: true, cidade: local.nome, automatico: !nome, atual: f.current, diario: f.daily, horario: f.hourly };
   } catch (e) {
     return { ok: false, erro: 'sem internet' };
   }
