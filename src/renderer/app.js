@@ -789,8 +789,38 @@ function ligarSlider(el, enviar) {
     pintarSlider(el);
     enviar(el.value);
   }, { passive: false });
-  el.addEventListener('pointerdown', () => { arrastando = el; });
-  el.addEventListener('pointerup', () => { arrastando = null; });
+  // Arrastar feito à mão: a janela da ilha nunca pega o foco e, no Windows, o arrastar
+  // nativo da barra se perde. Aqui a barra segue o mouse com "pointer capture".
+  const valorDoMouse = (e) => {
+    const r = el.getBoundingClientRect();
+    const min = Number(el.min || 0); const max = Number(el.max || 100);
+    const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    return Math.round(min + pct * (max - min));
+  };
+  const aplicar = (v) => {
+    if (String(v) === el.value) return;
+    el.value = v;
+    pintarSlider(el);
+    enviar(el.value);
+  };
+  el.addEventListener('pointerdown', (e) => {
+    if (el.disabled || e.button !== 0) return;
+    e.preventDefault();
+    arrastando = el;
+    api.interativo(true);
+    try { el.setPointerCapture(e.pointerId); } catch { /* ignora */ }
+    aplicar(valorDoMouse(e));
+  });
+  el.addEventListener('pointermove', (e) => { if (arrastando === el) aplicar(valorDoMouse(e)); });
+  const soltar = (e) => {
+    if (arrastando !== el) return;
+    arrastando = null;
+    try { el.releasePointerCapture(e.pointerId); } catch { /* ignora */ }
+    enviar(el.value);
+  };
+  el.addEventListener('pointerup', soltar);
+  el.addEventListener('pointercancel', soltar);
+  el.addEventListener('lostpointercapture', () => { if (arrastando === el) arrastando = null; });
   el.addEventListener('input', () => { pintarSlider(el); enviar(el.value); });
   el.addEventListener('change', () => { arrastando = null; enviar(el.value); });
 }

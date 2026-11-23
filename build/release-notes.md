@@ -1,3 +1,4 @@
-## Novidades da 4.9.5
+## Novidades da 4.9.6
 
-- **Capa da música (de novo):** o Windows entrega a imagem num formato que o PowerShell não consegue abrir pelo caminho normal. Agora a ilha chama os métodos do Windows diretamente para ler a capa do Spotify, do YouTube Music e de outros players.
+- **Clicar e arrastar o volume e o brilho:** as barras agora seguem o mouse ao clicar e arrastar, e também mudam ao clicar em qualquer ponto delas. Antes só funcionava com a rodinha do mouse.
+- Inclui a 4.9.5: capa da música aparecendo.

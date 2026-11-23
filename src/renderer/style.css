@@ -1059,3 +1059,4 @@ body.sem-olhos .olhos { display: none; }
 .ilha.colada .capa-mini { width: calc(16px * var(--escala)); height: calc(16px * var(--escala)); border-radius: 4px; }
 .capa-grande { background-repeat: no-repeat; background-position: center; background-size: cover; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
 .pagina[data-widget="inicio"] .capa-grande { width: calc(52px * var(--escala)); height: calc(52px * var(--escala)); }
+input[type="range"] { touch-action: none; cursor: pointer; }
