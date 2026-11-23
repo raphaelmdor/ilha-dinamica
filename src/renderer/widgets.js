@@ -649,7 +649,9 @@ export function iniciarWidgets(ctx) {
       div.addEventListener('click', () => api.acao(abrir.acao));
     }
     const classe = !colorir ? '' : pct >= 90 ? 'critico' : pct >= 75 ? 'alto' : '';
-    div.innerHTML = `<svg viewBox="0 0 80 80"><circle class="fundo" cx="40" cy="40" r="32"/><circle class="valor ${classe}" cx="40" cy="40" r="32" style="stroke-dashoffset:${(201 * (1 - Math.min(100, pct) / 100)).toFixed(1)}"/></svg><div class="num"></div><div class="det"></div>`;
+    div.innerHTML = `<svg viewBox="0 0 80 80"><circle class="fundo" cx="40" cy="40" r="32"/><circle class="valor ${classe}" cx="40" cy="40" r="32"/></svg><div class="num"></div><div class="det"></div>`;
+    // (a página não aceita style escrito no HTML: o valor do anel vai pelo JavaScript)
+    div.querySelector('.valor').style.strokeDashoffset = (201 * (1 - Math.min(100, Math.max(0, pct)) / 100)).toFixed(1) + 'px';
     div.querySelector('.num').textContent = valor;
     const det = div.querySelector('.det');
     det.append(nome, document.createElement('br'), detalhe);
@@ -661,9 +663,17 @@ export function iniciarWidgets(ctx) {
     if (!r) return;
     const box = $('medidores');
     box.innerHTML = '';
+    const tarefas = { titulo: 'Abrir o Gerenciador de Tarefas', acao: { tipo: 'abrir', app: 'gerenciador de tarefas' } };
+    const graus = (t) => (Number.isFinite(t) && t > 0 && t < 130 ? `${Math.round(t)}°C` : null);
+    const tCpu = graus(r.cpuTemp);
+    const tGpu = graus(r.gpuTemp);
+    const temGpu = Number.isFinite(r.gpuUso);
+    const quente = (t) => (t >= 85 ? ' 🔥' : '');
+    box.classList.toggle('cinco', temGpu);
     box.append(
-      medidor('CPU', r.cpu, `${r.cpu}%`, `${r.nucleos} núcleos`, true, { titulo: 'Abrir o Gerenciador de Tarefas', acao: { tipo: 'abrir', app: 'gerenciador de tarefas' } }),
-      medidor('Memória', (r.ramUsada / r.ramTotal) * 100, `${Math.round((r.ramUsada / r.ramTotal) * 100)}%`, `${gb(r.ramUsada)} de ${gb(r.ramTotal)} GB`, true, { titulo: 'Abrir o Gerenciador de Tarefas', acao: { tipo: 'abrir', app: 'gerenciador de tarefas' } }),
+      medidor('CPU', r.cpu, `${r.cpu}%`, tCpu ? `${tCpu}${quente(r.cpuTemp)}` : `${r.nucleos} núcleos`, true, tarefas),
+      ...(temGpu ? [medidor('GPU', r.gpuUso, `${Math.round(r.gpuUso)}%`, tGpu ? `${tGpu}${quente(r.gpuTemp)}` : (r.gpuNome || 'placa de vídeo'), true, tarefas)] : []),
+      medidor('Memória', (r.ramUsada / r.ramTotal) * 100, `${Math.round((r.ramUsada / r.ramTotal) * 100)}%`, `${gb(r.ramUsada)} de ${gb(r.ramTotal)} GB`, true, tarefas),
       medidor('Disco C:', r.discoTotal ? (r.discoUsado / r.discoTotal) * 100 : 0, r.discoTotal ? `${Math.round((r.discoUsado / r.discoTotal) * 100)}%` : '—', r.discoTotal ? `${gb(r.discoTotal - r.discoUsado)} GB livres` : '', true, { titulo: 'Abrir Armazenamento (limpar espaço)', acao: { tipo: 'abrir', app: 'armazenamento' } }),
       medidor('Ligado há', Math.min(100, (r.uptime / 86400) * 100), r.uptime >= 86400 ? `${Math.floor(r.uptime / 86400)}d` : `${Math.floor(r.uptime / 3600)}h`, `${Math.floor((r.uptime % 3600) / 60)} min`, false),
     );

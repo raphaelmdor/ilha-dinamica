@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const os = require('os');
-const { spawn, execFileSync } = require('child_process');
+const { spawn, execFile, execFileSync } = require('child_process');
 const janelasWin = require('./janelas-win');
 const lancador = require('./lancador');
 const jogos = require('./jogos');
@@ -283,6 +283,10 @@ function iniciarAjudanteMidia() {
       if (!linha.startsWith('{')) continue;
       try {
         const dados = JSON.parse(linha);
+        if (dados.tipo === 'hw') {
+          hw = { ...hw, cpuTemp: dados.cpuTemp, cpuFonte: dados.cpuFonte, ...(dados.gpuUso != null ? { gpuUso: dados.gpuUso } : {}) };
+          continue;
+        }
         if (dados.tipo === 'nivel') {
           if (visivel && !ocultaPorJogo) janela?.webContents.send('nivel', dados.v);
           continue;
@@ -855,7 +859,27 @@ function vigiarCopiados() {
 // Monitor do sistema
 // ---------------------------------------------------------------------------
 let cpuAnterior = os.cpus();
+// GPU e temperaturas: NVIDIA pelo nvidia-smi (uso + temperatura); o resto pelo ajudante do PowerShell
+let hw = {};
+let hwPedido = 0;
+let temNvidia = null; // null = ainda não sei
+function atualizarHardware() {
+  if (process.platform !== 'win32' || Date.now() - hwPedido < 2500) return;
+  hwPedido = Date.now();
+  const depois = () => escreverAjudante(temNvidia ? 'hw semgpu' : 'hw');
+  if (temNvidia === false) { depois(); return; }
+  execFile('nvidia-smi', ['--query-gpu=utilization.gpu,temperature.gpu,name', '--format=csv,noheader,nounits'],
+    { windowsHide: true, timeout: 4000 }, (erro, saida) => {
+      if (erro) { temNvidia = false; depois(); return; }
+      const [uso, temp, ...nome] = String(saida).split(/\r?\n/)[0].split(',').map((x) => x.trim());
+      temNvidia = true;
+      hw = { ...hw, gpuUso: Number(uso), gpuTemp: Number(temp), gpuNome: nome.join(',').replace(/^NVIDIA (GeForce )?/i, '') };
+      depois();
+    });
+}
+
 function recursos() {
+  atualizarHardware();
   const agora = os.cpus();
   let ocioso = 0; let total = 0;
   agora.forEach((c, i) => {
@@ -879,6 +903,7 @@ function recursos() {
     discoTotal,
     discoUsado,
     uptime: os.uptime(),
+    ...hw,
   };
 }
 

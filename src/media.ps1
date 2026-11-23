@@ -477,6 +477,33 @@ function Executar($comando) {
             $script:rajada = 45
             else { [TeclasIlha]::Apertar(0xB1) }
         }
+        'hw'     {
+            # Temperaturas e uso da GPU (classes de desempenho do Windows: não precisam de administrador)
+            $r = [ordered]@{ tipo = 'hw' }
+            # 1) LibreHardwareMonitor aberto? É o sensor mais fiel da CPU
+            try {
+                $s = Get-CimInstance -Namespace 'root/LibreHardwareMonitor' -ClassName Sensor -ErrorAction Stop |
+                    Where-Object { $_.SensorType -eq 'Temperature' -and $_.Identifier -like '*cpu*' -and ($_.Name -like '*Package*' -or $_.Name -like '*Tctl*' -or $_.Name -like '*Tdie*' -or $_.Name -like '*Core (Average)*') } |
+                    Select-Object -First 1
+                if ($s) { $r.cpuTemp = [Math]::Round([double]$s.Value); $r.cpuFonte = 'lhm' }
+            } catch { }
+            # 2) Sensor térmico da placa (ACPI), em Kelvin
+            if (-not $r.Contains('cpuTemp')) {
+                try {
+                    $z = @(Get-CimInstance -ClassName Win32_PerfFormattedData_Counters_ThermalZoneInformation -ErrorAction Stop | Where-Object { $_.Temperature -gt 250 })
+                    if ($z.Count) { $r.cpuTemp = [Math]::Round(([double](($z | Measure-Object -Property Temperature -Maximum).Maximum)) - 273.15); $r.cpuFonte = 'acpi' }
+                } catch { }
+            }
+            # 3) Uso da GPU (motor 3D, como no Gerenciador de Tarefas) — só se não tiver NVIDIA
+            if ($arg -ne 'semgpu') {
+                try {
+                    $g = @(Get-CimInstance -ClassName Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine -ErrorAction Stop | Where-Object { $_.Name -like '*engtype_3D*' })
+                    if ($g.Count) { $r.gpuUso = [Math]::Min(100, [int](($g | Measure-Object -Property UtilizationPercentage -Sum).Sum)) }
+                } catch { }
+            }
+            [Console]::Out.WriteLine(($r | ConvertTo-Json -Compress))
+            [Console]::Out.Flush()
+        }
         'seek'    {
             if ($sessao) {
                 $ticks = [long]([double]$arg * 10000000)
