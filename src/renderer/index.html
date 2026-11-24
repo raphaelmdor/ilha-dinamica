@@ -47,6 +47,11 @@
         <div class="trilho" id="trilho">
 
           <section class="pagina" data-widget="inicio" data-titulo="Início">
+            <div class="painel-audio" id="painelAudio" hidden>
+              <div class="pa-col"><b>🔊 Saída de áudio</b><div id="listaSaidas" class="pa-lista"></div></div>
+              <div class="pa-col"><b>🎙 Microfone</b><div id="listaEntradas" class="pa-lista"></div></div>
+              <button class="pa-fechar" id="fecharAudio" aria-label="Fechar">×</button>
+            </div>
             <div class="midia" id="blocoMidia">
               <div class="capa-grande" id="capaGrande"></div>
               <div class="info">
@@ -80,6 +85,9 @@
         </button>
         <button class="toggle" id="tgTema" title="Modo escuro" aria-label="Modo escuro">
           <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2v16a8 8 0 0 1 0-16z"/></svg>
+        </button>
+        <button class="toggle" id="tgAudio" title="Saída de áudio e microfone" aria-label="Escolher saída de áudio e microfone">
+          <svg viewBox="0 0 24 24"><path d="M12 3a8 8 0 0 0-8 8v6a3 3 0 0 0 3 3h1v-7H6v-2a6 6 0 0 1 12 0v2h-2v7h1a3 3 0 0 0 3-3v-6a8 8 0 0 0-8-8z"/></svg>
         </button>
         <div class="sliders">
           <label class="slider" title="Volume">

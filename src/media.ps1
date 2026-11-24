@@ -104,10 +104,24 @@ interface IPropertyStoreIlha {
 }
 [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 interface IMMDeviceEnumeratorIlha {
-    int _EnumAudioEndpoints();
+    int EnumAudioEndpoints(int dataFlow, int stateMask, out IMMDeviceCollectionIlha devices);
     int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDeviceIlha endpoint);
 }
 [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorIlha { }
+[ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IMMDeviceCollectionIlha {
+    int GetCount(out int n);
+    int Item(int i, out IMMDeviceIlha dev);
+}
+// Interface (não documentada, a mesma que o Windows usa) para trocar o dispositivo padrão
+[ComImport, Guid("F8679F50-850A-41CF-9C72-430F290290C8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IPolicyConfigIlha {
+    int _GetMixFormat(); int _GetDeviceFormat(); int _ResetDeviceFormat(); int _SetDeviceFormat();
+    int _GetProcessingPeriod(); int _SetProcessingPeriod(); int _GetShareMode(); int _SetShareMode();
+    int _GetPropertyValue(); int _SetPropertyValue();
+    int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
+}
+[ComImport, Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")] class PolicyConfigIlha { }
 
 [ComImport, Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 interface IAudioMeterInformationIlha { int GetPeakValue(out float peak); }
@@ -164,6 +178,41 @@ public static class AudioIlha {
             if (ps.GetValue(ref chave, out v) != 0) return "";
             return v.vt == 31 ? Marshal.PtrToStringUni(v.p) : "";
         } catch { return ""; }
+    }
+    static string NomeDe(IMMDeviceIlha dev) {
+        try {
+            IPropertyStoreIlha ps;
+            if (dev.OpenPropertyStore(0, out ps) != 0 || ps == null) return "";
+            var chave = new PropKeyIlha();
+            chave.fmtid = new Guid("A45C254E-DF1C-4EFD-8020-67D146A850E0");
+            chave.pid = 14;
+            PropVariantIlha v;
+            if (ps.GetValue(ref chave, out v) != 0) return "";
+            return v.vt == 31 ? Marshal.PtrToStringUni(v.p) : "";
+        } catch { return ""; }
+    }
+    // Dispositivos ativos: fluxo 0 = saída (caixas/fones), 1 = entrada (microfones). Linhas "padrao<TAB>id<TAB>nome"
+    public static string[] Listar(int fluxo) {
+        var lista = new System.Collections.Generic.List<string>();
+        try {
+            var en = (IMMDeviceEnumeratorIlha)(new MMDeviceEnumeratorIlha());
+            string padrao = "";
+            IMMDeviceIlha def;
+            if (en.GetDefaultAudioEndpoint(fluxo, 1, out def) == 0 && def != null) def.GetId(out padrao);
+            IMMDeviceCollectionIlha col;
+            Marshal.ThrowExceptionForHR(en.EnumAudioEndpoints(fluxo, 1, out col)); // DEVICE_STATE_ACTIVE
+            int n; col.GetCount(out n);
+            for (int i = 0; i < n; i++) {
+                IMMDeviceIlha d; if (col.Item(i, out d) != 0 || d == null) continue;
+                string id; d.GetId(out id);
+                lista.Add((id == padrao ? "1" : "0") + "\t" + id + "\t" + NomeDe(d));
+            }
+        } catch { }
+        return lista.ToArray();
+    }
+    public static void DefinirPadrao(string id) {
+        var pc = (IPolicyConfigIlha)(new PolicyConfigIlha());
+        for (int papel = 0; papel < 3; papel++) Marshal.ThrowExceptionForHR(pc.SetDefaultEndpoint(id, papel)); // console, multimídia, comunicação
     }
     public static bool Mudo() { bool m; Marshal.ThrowExceptionForHR(Ponto().GetMute(out m)); return m; }
     public static void DefinirMudo(bool m) { Guid g = Guid.Empty; Marshal.ThrowExceptionForHR(Ponto().SetMute(m, ref g)); }
@@ -572,6 +621,12 @@ function Executar($comando) {
         'wifi'   { Definir-Radio 'WiFi' $arg; Start-Sleep -Milliseconds 400; Enviar-Sistema }
         'bt'     { Definir-Radio 'Bluetooth' $arg; Start-Sleep -Milliseconds 400; Enviar-Sistema }
         'estado' { Enviar-Sistema }
+        'dispositivos' { Enviar-Dispositivos }
+        'padrao' {
+            try { [AudioIlha]::DefinirPadrao($arg.Trim()) } catch { [Console]::Error.WriteLine("Falha ao trocar dispositivo: $($_.Exception.Message)") }
+            Start-Sleep -Milliseconds 300
+            Enviar-Dispositivos; Enviar-Sistema
+        }
         'toggle' {
             if ($sessao) { $null = Aguardar ($sessao.TryTogglePlayPauseAsync()) ([bool]) }
             $script:rajada = 45
@@ -657,6 +712,18 @@ function Vigiar-Brilho {
     }
     $script:brilhoVisto = $v
 }
+function Enviar-Dispositivos {
+    $conv = {
+        param($linhas)
+        $r = @()
+        foreach ($l in $linhas) { $p = $l -split "`t", 3; if ($p.Count -eq 3) { $r += [ordered]@{ padrao = ($p[0] -eq '1'); id = $p[1]; nome = $p[2] } } }
+        ,$r
+    }
+    $obj = [ordered]@{ tipo = 'dispositivos'; saidas = (& $conv ([AudioIlha]::Listar(0))); entradas = (& $conv ([AudioIlha]::Listar(1))) }
+    [Console]::Out.WriteLine((ConvertTo-Json -InputObject $obj -Compress -Depth 4))
+    [Console]::Out.Flush()
+}
+
 function Vigiar-Saida {
     $nome = [AudioIlha]::NomeSaida()
     if ($null -ne $script:saidaVista -and $nome -and $nome -ne $script:saidaVista) {

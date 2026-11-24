@@ -140,6 +140,40 @@ ilha.addEventListener('mouseenter', () => {
   if (Math.random() < 0.35) olhos.reagir('surpreso', 500);
 });
 // volta depois de um jogo: estado limpo (nada "preso" de antes de esconder)
+// ---- Saída de áudio e microfone ----
+function desenharDispositivos(lista, caixa, vazio) {
+  caixa.innerHTML = '';
+  if (!lista?.length) { const p = document.createElement('div'); p.className = 'vazio'; p.textContent = vazio; caixa.appendChild(p); return; }
+  for (const d of lista) {
+    const b = document.createElement('button');
+    b.textContent = d.nome || 'Dispositivo';
+    b.title = d.nome || '';
+    if (d.padrao) b.className = 'ativo';
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (d.padrao) return;
+      caixa.querySelectorAll('button').forEach((x) => x.classList.toggle('ativo', x === b));
+      api.definirAudio(d.id);
+      aviso(d.nome, caixa.id === 'listaSaidas' ? 'Saída de áudio' : 'Microfone', { icone: caixa.id === 'listaSaidas' ? '🔊' : '🎙', tipo: 'info', ms: 2200 });
+    });
+    caixa.appendChild(b);
+  }
+}
+api.on('dispositivos', (d) => {
+  desenharDispositivos(d.saidas, $('listaSaidas'), 'Nenhuma saída de áudio');
+  desenharDispositivos(d.entradas, $('listaEntradas'), 'Nenhum microfone');
+});
+$('tgAudio').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const p = $('painelAudio');
+  p.hidden = !p.hidden;
+  if (!p.hidden) {
+    if (!$('listaSaidas').children.length) { $('listaSaidas').innerHTML = '<div class="vazio">Carregando…</div>'; $('listaEntradas').innerHTML = '<div class="vazio">Carregando…</div>'; }
+    api.listarAudio?.();
+  }
+});
+$('fecharAudio').addEventListener('click', (e) => { e.stopPropagation(); $('painelAudio').hidden = true; });
+
 api.on('janela:reexibida', () => {
   estado.hover = false;
   estado.fixada = false;
@@ -149,6 +183,7 @@ api.on('janela:reexibida', () => {
   interativoAgora = null;
   definirInterativo(false);
   if (estado.vista === 'expandida') mostrar('compacta');
+  $('painelAudio').hidden = true;
 });
 // diagnóstico: o que acontece com cada clique (vai para o log por alguns minutos)
 for (const tipo of ['pointerdown', 'pointerup', 'click']) {

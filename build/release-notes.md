@@ -1,4 +1,4 @@
-## Novidades da 5.0.6
+## Novidades da 5.1.0
 
-- **Cliques depois de jogar:** quando a ilha volta depois de um jogo, ela reinicia o modo de clique e o estado da interface, porque o Windows às vezes "esquecia" esse modo.
-- **Diagnóstico de cliques:** por alguns minutos depois de abrir a ilha, e depois de cada jogo, ela registra no log cada clique que chega até ela. Isso serve para achar o problema de clique que ainda aparece em alguns PCs.
+- **Trocar a saída de áudio e o microfone:** no Início, o botão novo de fone abre a lista de saídas (caixas de som, fones, monitor...) e de microfones ligados ao PC. É só clicar para trocar. A ilha muda o dispositivo padrão do Windows na hora, inclusive para chamadas.
+- Inclui a 5.0.6: reinício do modo de clique depois de jogos e diagnóstico de cliques.
