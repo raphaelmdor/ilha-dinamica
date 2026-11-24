@@ -1262,11 +1262,23 @@ const APPS_CHAMADA = [
   [/phonelink|yourphone|vínculo/i, 'Celular'], [/steam/i, 'Steam'], [/^chrome$/i, 'Chrome'], [/msedge|edge/i, 'Edge'],
   [/firefox/i, 'Firefox'], [/opera/i, 'Opera'], [/brave/i, 'Brave'], [/googlemeet|meet/i, 'Google Meet'],
 ];
-const nomeChamada = (apps) => { for (const a of apps) for (const [re, n] of APPS_CHAMADA) if (re.test(a)) return n; return null; };
+// Nome bonito do app; WebView2 (usado por dentro do WhatsApp, Teams novo...) não diz qual app é
+const nomeDoApp = (a) => {
+  if (/webview|applicationframehost|runtimebroker/i.test(a)) return 'Chamada';
+  for (const [re, n] of APPS_CHAMADA) if (re.test(a)) return n;
+  return String(a).replace(/[-_.]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+};
+// Qualquer programa usando o microfone é candidato; vira chamada se também estiver tocando som
+const nomeChamada = (apps) => (apps.length ? nomeDoApp(apps[0]) : null);
 let relogioChamada = null;
 // Compara "WhatsAppDesktop" (microfone) com "WhatsApp" (processo tocando som) e afins
 const raiz = (x) => String(x).toLowerCase().replace(/[^a-z]/g, '').replace(/desktop|root|app$/g, '').slice(0, 6);
-const mesmoApp = (a, b) => { const x = raiz(a); const y = raiz(b); return x.length >= 3 && y.length >= 3 && (x.startsWith(y) || y.startsWith(x)); };
+const HOSPEDEIROS = /webview|applicationframehost|whatsapp|teams/i;
+const mesmoApp = (a, b) => {
+  if (HOSPEDEIROS.test(a) && HOSPEDEIROS.test(b)) return true; // o som e o microfone podem vir de processos diferentes do mesmo app
+  const x = raiz(a); const y = raiz(b);
+  return x.length >= 3 && y.length >= 3 && (x.startsWith(y) || y.startsWith(x));
+};
 let micAgora = { mic: [], cam: [] };
 let candidato = null;          // app de conversa com microfone ligado, ainda sem confirmar se é chamada
 let conferindo = null;
@@ -1292,7 +1304,7 @@ function atualizarChamada(mic, cam) {
     }, 1500);
     return;
   }
-  candidato = { app, desde: Date.now(), apps: mic.filter((x) => nomeChamada([x])) };
+  candidato = { app, desde: Date.now(), apps: [...mic] };
   // confere a cada 2 s enquanto o microfone estiver ligado (a chamada pode "conectar" depois)
   setTimeout(() => api.consultarSons?.(), 2500);
   conferindo = setInterval(() => api.consultarSons?.(), 2000);
@@ -1316,10 +1328,14 @@ api.on('toque', ({ titulo }) => {
 api.on('sons', (tocando) => {
   if (!candidato || estado.chamada) return;
   if (Date.now() - candidato.desde < 2400) return; // microfone ligado por um instante não conta
-  const fala = candidato.apps.some((m) => tocando.some((t) => mesmoApp(m, t)));
-  if (!fala) return;
+  let quem = null;
+  for (const m of candidato.apps) { const t = tocando.find((x) => mesmoApp(m, x)); if (t) { quem = { m, t }; break; } }
+  if (!quem) return;
   clearInterval(conferindo); conferindo = null;
-  iniciarChamada(candidato.app, micAgora.cam.length > 0, candidato.desde);
+  // nome: o do app que usa o microfone; se for genérico (WebView), o do app que está tocando o som
+  let nome = nomeDoApp(quem.m);
+  if (nome === 'Chamada') { const n2 = nomeDoApp(quem.t); if (n2 !== 'Chamada') nome = n2; }
+  iniciarChamada(nome, micAgora.cam.length > 0, candidato.desde);
   candidato = null;
 });
 function iniciarChamada(app, video, desde) {

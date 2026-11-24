@@ -1598,7 +1598,10 @@ if (copiaDeTeste) {
     janela.webContents.once('did-finish-load', avisarSeAtualizou);
     if (dados.silenciouNotif) silenciarNoFoco(false); // a ilha fechou no meio de um foco: devolve as notificações
     servicos.vigiarDownloads((d) => janela?.webContents.send('download', d));
-    servicos.vigiarPrivacidade((p) => janela?.webContents.send('privacidade', p));
+    servicos.vigiarPrivacidade((p) => {
+      log('Microfone/câmera em uso:', JSON.stringify(p));
+      janela?.webContents.send('privacidade', p);
+    });
     lancador.definirCotacoes(servicos.lerCotacoes);
     servicos.atualizarCotacoes();
     setInterval(() => servicos.atualizarCotacoes(), 60 * 60 * 1000);
