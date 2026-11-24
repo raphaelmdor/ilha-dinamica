@@ -1112,12 +1112,14 @@ input[type="range"] { touch-action: none; cursor: pointer; }
   animation: conversa 2.6s ease-in-out infinite;
 }
 .olhos[data-humor="chamada"] .olho + .olho { animation-delay: 0.08s; }
+/* A animação mexe só em "scale" e "translate" (propriedades separadas): o "transform" continua livre
+   para os olhinhos seguirem o mouse com a transição suave de sempre */
 @keyframes conversa {
-  0%, 18%, 100% { transform: translate(var(--ox), var(--oy)) scaleY(1); }
-  22% { transform: translate(var(--ox), var(--oy)) scaleY(0.15); }   /* piscadinha */
-  26% { transform: translate(var(--ox), var(--oy)) scaleY(1); }
-  55% { transform: translate(var(--ox), calc(var(--oy) + 1px)) scaleY(0.82); } /* "uhum" */
-  65% { transform: translate(var(--ox), var(--oy)) scaleY(1); }
+  0%, 18%, 100% { scale: 1 1; translate: 0 0; }
+  22% { scale: 1 0.15; }                         /* piscadinha */
+  26% { scale: 1 1; }
+  55% { scale: 1 0.82; translate: 0 1px; }       /* "uhum" */
+  65% { scale: 1 1; translate: 0 0; }
 }
 /* ondinhas de voz saindo do lado */
 .olhos[data-humor="chamada"] .ondas { display: block; position: absolute; right: calc(-9px * var(--e)); top: 50%; transform: translateY(-50%); width: calc(8px * var(--e)); height: calc(12px * var(--e)); }

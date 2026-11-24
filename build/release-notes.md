@@ -1,3 +1,4 @@
-## Novidades da 5.4.2
+## Novidades da 5.4.3
 
-- **Correção da detecção de chamadas:** na 5.4.0, a verificação de áudio a cada 3 segundos (quem usa o microfone e quem toca som) não tinha entrado no programa. Agora ela roda, e o Discord e as outras chamadas passam a ser reconhecidos.
+- **Olhinhos de fone seguindo o mouse:** em chamada, os olhinhos voltam a acompanhar o mouse com o movimento suave de sempre. A piscadinha e o "uhum" continuam por cima.
+- Inclui a 5.4.2: correção da detecção de chamadas (Discord e outros).
