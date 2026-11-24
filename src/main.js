@@ -112,6 +112,9 @@ let mostrarMesmoEmJogo = false; // você pediu para mostrar (Ctrl+Alt+I) durante
 let jogoAtual = '';             // motivo/nome do jogo detectado
 let ultimoAppGrande = '';       // último app maximizado/tela cheia (para marcar como jogo pelo menu)
 let encerrando = false;
+let ultimoSons = '';
+// A cada 3 s: quem está tocando som e quem está usando o microfone (para reconhecer chamadas)
+setInterval(() => { if (ajudanteMidia && !encerrando) escreverAjudante('sons'); }, 3000);
 
 function carregarConfig() {
   try {

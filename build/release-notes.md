@@ -1,4 +1,3 @@
-## Novidades da 5.4.1
+## Novidades da 5.4.2
 
-- **Volta ao Início depois de 5 segundos:** se você reabrir o painel logo depois de recolher, ele continua no widget onde estava. Se o notch ficar recolhido por 5 segundos, a próxima abertura começa no Início.
-- Inclui a 5.4.0: reconhece chamadas pelo áudio de verdade, inclusive no Discord com o microfone mutado.
+- **Correção da detecção de chamadas:** na 5.4.0, a verificação de áudio a cada 3 segundos (quem usa o microfone e quem toca som) não tinha entrado no programa. Agora ela roda, e o Discord e as outras chamadas passam a ser reconhecidos.
