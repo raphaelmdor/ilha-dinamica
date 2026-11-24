@@ -1009,8 +1009,9 @@ body.sem-olhos .olhos { display: none; }
 /* ---------- Modo discreto (app maximizado com abas no topo) ---------- */
 /* Notch pequenininho colado no topo, só com os olhinhos dentro */
 .ilha.discreta[data-estado="compacta"] {
-  width: calc(50px * var(--escala));
-  height: calc(20px * var(--escala));
+  /* sempre do mesmo tamanho, com música, timer ou chamada */
+  width: calc(50px * var(--escala)) !important;
+  height: calc(20px * var(--escala)) !important;
   margin-top: 0;
   background: var(--fundo) !important;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -1022,8 +1023,8 @@ body.sem-olhos .olhos { display: none; }
 .ilha.discreta[data-estado="compacta"] .vista-compacta { padding: 0; justify-content: center; gap: 0; }
 .ilha.discreta[data-estado="compacta"] .centro,
 .ilha.discreta[data-estado="compacta"] .lado.dir { display: none; }
-.ilha.discreta[data-estado="compacta"] .lado.esq { min-width: 0; }
-.ilha.discreta[data-estado="compacta"] .olhos { padding-left: 0; --e: calc(var(--escala) * 0.7); }
+.ilha.discreta[data-estado="compacta"] .lado.esq { min-width: 0; padding-left: 0 !important; }
+.ilha.discreta[data-estado="compacta"] .olhos { padding-left: 0; width: auto; --e: calc(var(--escala) * 0.7); }
 /* atividade muda a cor dos olhos */
 .ilha.discreta.com-ativ[data-estado="compacta"] { --cor-olhos: #f87171; }
 .ilha.discreta.com-timer[data-estado="compacta"] { --cor-olhos: var(--laranja); }
@@ -1167,7 +1168,8 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 @keyframes letreiro { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 /* no notch (pílula baixinha) as notinhas sobem pelo lado de fora dos olhos, sem entrar no nome */
 .ilha.colada .nota-musical {
-  left: calc(-11px * var(--e)); top: 18%; font-size: calc(13px * var(--e)); font-weight: 700;
+  /* nasce em cima do olhinho esquerdo e "pula" dele para cima e para fora, como o mascote curtindo */
+  left: calc(-3px * var(--e)); top: 6%; font-size: calc(12px * var(--e)); font-weight: 700;
   color: #fff; text-shadow: 0 0 5px var(--verde), 0 0 2px var(--verde);
   animation-name: nota-sobe-notch;
 }
@@ -1175,7 +1177,16 @@ input[type="range"] { touch-action: none; cursor: pointer; }
   0% { opacity: 0; transform: translate(0, 0) scale(0.6) rotate(0deg); }
   20% { opacity: 1; }
   75% { opacity: 1; }
-  100% { opacity: 0; transform: translate(var(--dx, -4px), calc(-6px * var(--e))) scale(1.05) rotate(var(--rot, -10deg)); }
+  100% { opacity: 0; transform: translate(var(--dx, -4px), calc(-9px * var(--e))) scale(1.05) rotate(var(--rot, -10deg)); }
 }
 /* tocando no notch: um espacinho à esquerda dos olhinhos para as notinhas aparecerem */
-.ilha.colada.tocando[data-estado="compacta"] .lado.esq { padding-left: calc(12px * var(--escala)); }
+.ilha.colada.tocando[data-estado="compacta"]:not(.discreta) .lado.esq { padding-left: calc(6px * var(--escala)); }
+/* modo discreto tocando música: o mesmo notch pequenininho, só com os olhinhos ^ ^ curtindo (sem notinhas nem balanço) */
+.ilha.discreta[data-estado="compacta"] .nota-musical { display: none; }
+.ilha.discreta[data-estado="compacta"] .olhos.com-ritmo { transform: none !important; }
+.ilha.discreta[data-estado="compacta"] .olhos[data-humor="musica"] { animation: none; }
+.ilha.discreta[data-estado="compacta"] .olhos[data-humor="musica"] .olho { transform: none; filter: none; }
+
+/* modo discreto em chamada: só o fone pequenininho nos olhos, sem contorno nem ondinhas */
+.ilha.discreta.em-chamada[data-estado="compacta"] { animation: none; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
+.ilha.discreta[data-estado="compacta"] .ondas { display: none !important; }

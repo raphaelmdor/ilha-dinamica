@@ -95,7 +95,7 @@ export class Olhos {
       n.textContent = Math.random() < 0.5 ? '♪' : '♫';
       // no notch (colado no topo) sobe para a esquerda, longe do nome da música; solta, para os lados
       const colada = g.closest('.ilha')?.classList.contains('colada');
-      n.style.setProperty('--dx', (colada ? -(3 + Math.random() * 5) : 8 + Math.random() * 10).toFixed(1) + 'px');
+      n.style.setProperty('--dx', (colada ? -(5 + Math.random() * 4) : 8 + Math.random() * 10).toFixed(1) + 'px');
       n.style.setProperty('--rot', (Math.random() * 40 - 20).toFixed(0) + 'deg');
       n.addEventListener('animationend', () => n.remove());
       g.appendChild(n);

@@ -53,7 +53,7 @@ const CONFIG_PADRAO = {
   corRelogio: '#f5f5f7',
   corDestaque: '#60a5fa',
   fundo: 'preto',                 // preto | grafite | translucido
-  tamanho: 1,                     // 0.85 a 1.25
+  tamanho: 1,                     // 0.8 a 2 (80% a 200%)
   relogio24h: true,
   mostrarSegundos: false,
   mostrarOlhos: true,
@@ -652,13 +652,16 @@ function posicionarJanela() {
   const tela = screen.getPrimaryDisplay();
   const area = tela.workArea;
   // Responsivo: em telas estreitas a janela encolhe junto
-  const largura = Math.round(Math.min(JANELA.largura, area.width * 0.9));
+  // a janela cresce junto com o tamanho escolhido (até 200%), sem passar da tela
+  const fator = Math.max(1, Number(config?.tamanho) || 1);
+  const largura = Math.round(Math.min(JANELA.largura * fator, area.width * 0.95));
+  const alturaJanela = Math.round(Math.min(JANELA.altura * fator, area.height * 0.9));
   const x = Math.round(area.x + (area.width - largura) / 2);
   const y = tela.bounds.y;
   // só mexe na janela se a posição mudou de verdade (mexer no meio de um clique cancela o clique)
   const b = janela.getBounds();
-  if (b.x !== x || b.y !== y || b.width !== largura || b.height !== JANELA.altura) {
-    janela.setBounds({ x, y, width: largura, height: JANELA.altura });
+  if (b.x !== x || b.y !== y || b.width !== largura || b.height !== alturaJanela) {
+    janela.setBounds({ x, y, width: largura, height: alturaJanela });
   }
   janela.webContents.send('tela', {
     largura: area.width,
@@ -1214,7 +1217,7 @@ function abrirConfiguracoes() {
 const VALIDADORES = {
   corOlhos: (v) => /^#[0-9a-f]{6}$/i.test(v), corRelogio: (v) => /^#[0-9a-f]{6}$/i.test(v), corDestaque: (v) => /^#[0-9a-f]{6}$/i.test(v),
   fundo: (v) => ['preto', 'grafite', 'translucido'].includes(v),
-  tamanho: (v) => typeof v === 'number' && v >= 0.8 && v <= 1.3,
+  tamanho: (v) => typeof v === 'number' && v >= 0.8 && v <= 2,
   relogio24h: (v) => typeof v === 'boolean', mostrarSegundos: (v) => typeof v === 'boolean',
   mostrarOlhos: (v) => typeof v === 'boolean', formatoOlhos: (v) => ['pilula', 'redondo'].includes(v),
   abrirAoPassar: (v) => typeof v === 'boolean', atrasoAbrir: (v) => Number.isInteger(v) && v >= 0 && v <= 2000,
@@ -1262,6 +1265,7 @@ function salvarConfigParcial(parcial) {
     if (Object.keys(erros).length) registrarAtalhos();
   }
   if (config.iniciarComWindows !== anterior.iniciarComWindows) aplicarInicioAutomatico();
+  if (config.tamanho !== anterior.tamanho) posicionarJanela();
   if (JSON.stringify(config.agendasIcs) !== JSON.stringify(anterior.agendasIcs)) janela?.webContents.send('agendas:recarregar');
   salvarConfig();
   janelaConfig?.webContents.send('config', config);
