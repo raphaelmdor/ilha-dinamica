@@ -213,7 +213,7 @@ export function iniciarWidgets(ctx) {
       li.append(h, t);
       if (ev.origem === 'google') {
         li.classList.add('google');
-        li.title = 'Da sua Google Agenda (edite por lá)';
+        li.title = `Da sua agenda${ev.fonte ? ' ' + ev.fonte : ''} (edite por lá)`;
       } else {
         const x = document.createElement('button'); x.className = 'apagar'; x.textContent = '✕'; x.title = 'Apagar';
         x.addEventListener('click', () => {

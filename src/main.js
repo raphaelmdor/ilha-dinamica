@@ -73,7 +73,7 @@ const CONFIG_PADRAO = {
   historicoCopiados: true,
   // Jogos
   esconderEmJogos: true,
-  agendasIcs: [],                 // links secretos (iCal) da Google Agenda/Outlook — só leitura
+  agendasIcs: [],                 // links iCal da Google Agenda, Apple (iCloud) ou Outlook — só leitura
   focoSilencia: true,             // pausa as notificações do Windows durante o Pomodoro
   // Apps com abas no topo (navegador, VS Code...): a ilha vira um tracinho que não bloqueia cliques
   modoDiscreto: 'abas',           // abas | sempre (todo app maximizado) | nunca
@@ -1237,7 +1237,7 @@ const VALIDADORES = {
   pausaLongaMin: (v) => Number.isInteger(v) && v >= 1 && v <= 120,
   focoAuto: (v) => typeof v === 'boolean', historicoCopiados: (v) => typeof v === 'boolean',
   esconderEmJogos: (v) => typeof v === 'boolean',
-  agendasIcs: (v) => Array.isArray(v) && v.length <= 3 && v.every((x) => typeof x === 'string' && x.length <= 2000 && /^(https|webcal):\/\//i.test(x)),
+  agendasIcs: (v) => Array.isArray(v) && v.length <= 5 && v.every((x) => typeof x === 'string' && x.length <= 2000 && /^(https|webcal):\/\//i.test(x)),
   focoSilencia: (v) => typeof v === 'boolean',
   modoDiscreto: (v) => ['abas', 'sempre', 'nunca'].includes(v),
   semDiscreto: (v) => Array.isArray(v) && v.length <= 60 && v.every((x) => typeof x === 'string' && x.trim().length >= 2 && x.length <= 60),

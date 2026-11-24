@@ -306,7 +306,7 @@ ligarAdicionar('novoAppAbas', 'addAppAbas', 'appsComAbas');
 }
 
 // ---------------------------------------------------------------------------
-// Google Agenda (links iCal)
+// Agendas externas: Google, Apple (iCloud), Outlook (links iCal)
 // ---------------------------------------------------------------------------
 function desenharAgendas() {
   const ul = $('listaIcs');
@@ -314,7 +314,10 @@ function desenharAgendas() {
   (cfg.agendasIcs || []).forEach((url, i) => {
     const li = document.createElement('li');
     const host = url.replace(/^[a-z]+:\/\//i, '').split('/')[0];
-    li.append(`Agenda ${i + 1} · ${host}`);
+    const u = url.toLowerCase();
+    const nome = u.includes('icloud.com') ? 'Apple (iCloud)' : u.includes('google.com') ? 'Google'
+      : /outlook|office365|live\.com/.test(u) ? 'Outlook' : host;
+    li.append(`Agenda ${i + 1} · ${nome}`);
     const x = document.createElement('button'); x.textContent = '✕'; x.title = 'Remover';
     x.addEventListener('click', () => salvar({ agendasIcs: cfg.agendasIcs.filter((_, k) => k !== i) }, 'Agenda removida'));
     li.appendChild(x);
@@ -326,8 +329,8 @@ function desenharAgendas() {
 }
 function adicionarAgenda() {
   const v = $('novoIcs').value.trim();
-  if (!/^(https|webcal):\/\/.+/i.test(v)) { toast('Cole o "Endereço secreto no formato iCal" (começa com https://)', true); return; }
-  if ((cfg.agendasIcs || []).length >= 3) { toast('No máximo 3 agendas', true); return; }
+  if (!/^(https|webcal):\/\/.+/i.test(v)) { toast('Cole o link da agenda (começa com https:// ou webcal://)', true); return; }
+  if ((cfg.agendasIcs || []).length >= 5) { toast('No máximo 5 agendas', true); return; }
   $('novoIcs').value = '';
   salvar({ agendasIcs: [...(cfg.agendasIcs || []), v] }, 'Agenda ligada! Os compromissos aparecem em instantes');
 }

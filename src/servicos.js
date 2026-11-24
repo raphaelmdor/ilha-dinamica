@@ -90,7 +90,7 @@ function vigiarPrivacidade(aoMudar) {
 }
 
 // ---------------------------------------------------------------------------
-// Google Agenda (ou Outlook): link secreto no formato iCal, só leitura
+// Agendas externas (Google, Apple/iCloud, Outlook): link no formato iCal, só leitura
 // ---------------------------------------------------------------------------
 function desdobrar(texto) {
   return texto.replace(/\r?\n[ \t]/g, ''); // linhas continuadas do ICS
@@ -145,7 +145,16 @@ function expandirRegra(inicio, regra, limiteFim) {
   return datas;
 }
 
-function lerICS(texto, origem) {
+// De qual serviço é o link (para mostrar o nome certo na ilha)
+function nomeDaAgenda(url) {
+  const u = String(url).toLowerCase();
+  if (u.includes('icloud.com')) return 'Apple';
+  if (u.includes('google.com')) return 'Google';
+  if (u.includes('outlook') || u.includes('office365') || u.includes('live.com')) return 'Outlook';
+  return '';
+}
+
+function lerICS(texto, origem, fonte = '') {
   const linhas = desdobrar(texto).split(/\r?\n/);
   const eventos = [];
   const hoje = new Date();
@@ -164,7 +173,8 @@ function lerICS(texto, origem) {
             data: iso(d),
             hora: ev.inicio.diaInteiro ? null : `${pad(d.getHours())}:${pad(d.getMinutes())}`,
             titulo: ev.titulo,
-            origem: 'google',
+            origem: 'google', // compromisso externo, só leitura
+            fonte,
           });
         }
       }
@@ -196,7 +206,7 @@ async function buscarAgendas(urls = []) {
       if (!resp.ok) { erros.push(`HTTP ${resp.status}`); continue; }
       const texto = await resp.text();
       if (!texto.includes('BEGIN:VCALENDAR')) { erros.push('não é um link de agenda (iCal)'); continue; }
-      todos.push(...lerICS(texto, k));
+      todos.push(...lerICS(texto, k, nomeDaAgenda(u)));
     } catch { erros.push('sem conexão'); }
   }
   log(`Agendas externas: ${todos.length} compromissos${erros.length ? ' | erros: ' + erros.join(', ') : ''}`);
@@ -235,5 +245,5 @@ function definirNotificacoes(ligadas) {
 
 module.exports = {
   configurarLog, vigiarDownloads, vigiarPrivacidade, buscarAgendas, lerICS,
-  atualizarCotacoes, lerCotacoes, notificacoesLigadas, definirNotificacoes,
+  atualizarCotacoes, lerCotacoes, notificacoesLigadas, definirNotificacoes, nomeDaAgenda,
 };

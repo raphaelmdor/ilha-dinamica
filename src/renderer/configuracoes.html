@@ -128,10 +128,15 @@
       <label class="chave"><input type="checkbox" data-chave="focoAuto"><span></span>Começar a próxima fase do Pomodoro sozinho</label>
       <label class="chave"><input type="checkbox" data-chave="focoSilencia"><span></span>Pausar as notificações do Windows durante o foco <small>(voltam sozinhas na pausa)</small></label>
       <div class="campo">
-        <label>Google Agenda <small>(só leitura — os compromissos aparecem na Agenda da ilha, com lembretes)</small></label>
-        <p class="dica">No computador, abra calendar.google.com › ⚙ Configurações › clique na sua agenda (à esquerda) ›
-          role até <b>"Endereço secreto no formato iCal"</b> › copie e cole aqui. Funciona também com o Outlook (link .ics).</p>
-        <div class="linha-add"><input class="texto" id="novoIcs" type="password" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" autocomplete="off"><button class="bt-add" id="addIcs">Ligar</button></div>
+        <label>Agendas: Google, Apple e Outlook <small>(só leitura — os compromissos aparecem na Agenda da ilha, com lembretes)</small></label>
+        <p class="dica"><b>Google:</b> no computador, abra calendar.google.com › ⚙ Configurações › clique na sua agenda (à esquerda) ›
+          role até <b>"Endereço secreto no formato iCal"</b> › copie e cole aqui.</p>
+        <p class="dica"><b>Apple (iCloud):</b> no iPhone, abra o app Calendário › toque em <b>Calendários</b> (embaixo) › toque no <b>ⓘ</b> ao lado da agenda ›
+          ligue <b>"Calendário público"</b> › <b>"Compartilhar Link…"</b> › <b>Copiar</b> e cole aqui (começa com webcal://).
+          No Mac: app Calendário › clique com o botão direito na agenda › Compartilhar › marque "Calendário público".
+          <i>Atenção: quem tiver esse link consegue ver os compromissos dessa agenda.</i></p>
+        <p class="dica"><b>Outlook:</b> outlook.com › ⚙ Configurações › Calendário › Calendários compartilhados › Publicar um calendário › copie o link <b>ICS</b>.</p>
+        <div class="linha-add"><input class="texto" id="novoIcs" type="password" placeholder="https://… ou webcal://…" autocomplete="off"><button class="bt-add" id="addIcs">Ligar</button></div>
         <ul class="tags" id="listaIcs"></ul>
       </div>
     </section>

@@ -1,6 +1,6 @@
-## Novidades da 5.5.4
+## Novidades da 5.6.0
 
-- **Clique à prova de falhas:** quando o Windows "perde" o clique do mouse na ilha (só a rodinha funcionava), a própria ilha percebe e clica por você. Também arrasta o volume e o brilho quando o arraste não chega.
-- A ilha reafirma para o Windows que está clicável enquanto o mouse está em cima dela, e devolve os cliques para o que está embaixo assim que o mouse sai.
-- Cada clique perdido fica registrado no log, para descobrirmos a causa de vez.
-- Inclui as novidades da 5.5: mascotinho com personalidade, carinho, tonto, soninho e ligação.
+- **Agenda da Apple (iCloud):** além da Google Agenda e do Outlook, agora dá para ligar a agenda do iPhone/Mac. Em Configurações tem o passo a passo de cada serviço.
+- Cada agenda ligada mostra de onde vem (Google, Apple ou Outlook), e o compromisso na ilha diz de qual agenda ele é.
+- Agora dá para ligar até 5 agendas.
+- Inclui a 5.5.4: clique à prova de falhas.
