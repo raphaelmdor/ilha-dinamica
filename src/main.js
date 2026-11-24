@@ -1635,7 +1635,16 @@ if (copiaDeTeste) {
 // Mede o consumo da ilha e anota no log: a cada minuto nos primeiros 15 min, depois a cada 30 min
 function medirDesempenho() {
   let quando = 0;
-  const medir = () => {
+  const medir = async () => {
+    // de dentro da tela: memória do JavaScript, elementos e animações ativas (para achar acúmulos)
+    let dentro = '';
+    try {
+      const r = await Promise.race([
+        janela?.webContents.executeJavaScript(`({ js: Math.round((performance.memory?.usedJSHeapSize || 0) / 1048576), nos: document.getElementsByTagName('*').length, anim: document.getAnimations().length })`, true),
+        new Promise((res) => setTimeout(() => res(null), 2000)),
+      ]);
+      if (r) dentro = ` | tela por dentro: js ${r.js}MB, ${r.nos} elementos, ${r.anim} animações`;
+    } catch { /* janela ocupada */ }
     try {
       const m = app.getAppMetrics();
       const porTipo = {};
@@ -1651,7 +1660,7 @@ function medirDesempenho() {
       const partes = Object.entries(porTipo).map(([t, v]) => `${t} ${v.cpu.toFixed(1)}%/${Math.round(v.mem)}MB`).join(', ');
       const abertos = Object.entries(processosAbertos).map(([k, v]) => `${k}×${v}`).join(' ') || 'nenhum';
       for (const k of Object.keys(processosAbertos)) delete processosAbertos[k];
-      log(`Desempenho: CPU ${cpu.toFixed(1)}% | memória ${Math.round(mem)} MB (${partes}) | programas abertos desde a última medição: ${abertos}${ocultaPorJogo ? ' | em jogo' : ''}`);
+      log(`Desempenho: CPU ${cpu.toFixed(1)}% | memória ${Math.round(mem)} MB (${partes}) | programas abertos desde a última medição: ${abertos}${dentro}${ocultaPorJogo ? ' | em jogo' : ''}`);
     } catch (e) { log('Desempenho: erro ao medir -', e.message); }
     quando++;
     setTimeout(medir, quando < 15 ? 60 * 1000 : 30 * 60 * 1000);

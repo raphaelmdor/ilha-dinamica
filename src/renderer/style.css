@@ -139,12 +139,15 @@ body {
   width: 3px;
   border-radius: 2px;
   background: var(--verde);
+  height: 100%;
   animation: eq 0.9s ease-in-out infinite;
 }
 .equalizador i:nth-child(2) { animation-delay: -0.3s; }
 .equalizador i:nth-child(3) { animation-delay: -0.6s; }
 .equalizador i:nth-child(4) { animation-delay: -0.15s; }
-@keyframes eq { 0%, 100% { height: 25%; } 50% { height: 100%; } }
+/* anima um recorte (mesma aparência de antes, com os cantinhos arredondados), e não a altura:
+   mudar a altura obrigava a ilha inteira a se recalcular 60 vezes por segundo */
+@keyframes eq { 0%, 100% { clip-path: inset(75% 0 0 0 round 2px); } 50% { clip-path: inset(0 0 0 0 round 2px); } }
 .equalizador.grande { height: 20px; }
 .equalizador.grande i { width: 4px; }
 

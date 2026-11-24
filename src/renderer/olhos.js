@@ -179,11 +179,22 @@ export class Olhos {
         m.amp += (animada - m.amp) * 0.03 * k;
         m.brilho *= Math.pow(0.97, k);
         const balanco = Math.sin(m.fase);
-        for (const g of this.grupos) {
-          g.style.setProperty('--y', Math.max(-1, Math.min(3, m.y)).toFixed(2));
-          g.style.setProperty('--giro', (balanco * 7 * m.amp).toFixed(2));
-          g.style.setProperty('--lado', (balanco * 1.2 * m.amp).toFixed(2));
-          g.style.setProperty('--brilho', Math.min(1, m.brilho * 1.4).toFixed(2));
+        // só mexe nos olhinhos que estão aparecendo, e só no que mudou (cada mudança custa um recálculo de estilo)
+        if (t - (m.conferiuVisiveis || 0) > 500) {
+          m.conferiuVisiveis = t;
+          m.visiveis = this.grupos.filter((g) => g.offsetParent !== null || g.getClientRects().length);
+        }
+        const valores = {
+          '--y': Math.max(-1, Math.min(3, m.y)).toFixed(2),
+          '--giro': (balanco * 7 * m.amp).toFixed(2),
+          '--lado': (balanco * 1.2 * m.amp).toFixed(2),
+          '--brilho': Math.min(1, m.brilho * 1.4).toFixed(2),
+        };
+        for (const g of m.visiveis || this.grupos) {
+          const antes = g.__ritmo || (g.__ritmo = {});
+          for (const k in valores) {
+            if (antes[k] !== valores[k]) { antes[k] = valores[k]; g.style.setProperty(k, valores[k]); }
+          }
         }
         requestAnimationFrame(passo);
       };
@@ -195,6 +206,7 @@ export class Olhos {
       for (const g of this.grupos) {
         g.classList.remove('com-ritmo');
         for (const p of ['--y', '--giro', '--lado', '--brilho']) g.style.removeProperty(p);
+        g.__ritmo = null;
       }
     }, 1500);
   }
