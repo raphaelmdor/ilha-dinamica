@@ -126,6 +126,10 @@ let jogoAtual = '';             // motivo/nome do jogo detectado
 let ultimoAppGrande = '';       // último app maximizado/tela cheia (para marcar como jogo pelo menu)
 let encerrando = false;
 let ultimoSons = '';
+// Microfone/câmera em uso: o ajudante lê o registro a cada 2 s (antes abria dois reg.exe a cada 2 s)
+let ultimaPrivacidade = '';
+const IGNORAR_PRIVACIDADE = [path.basename(process.execPath).toLowerCase()]; // a própria ilha (voz) não conta
+setInterval(() => { if (ajudanteMidia && !encerrando) escreverAjudante('privacidade'); }, 2000);
 // A cada 3 s: quem está tocando som e quem está usando o microfone (para reconhecer chamadas)
 setInterval(() => { if (ajudanteMidia && !encerrando) escreverAjudante('sons'); }, 3000);
 
@@ -422,6 +426,16 @@ function iniciarAjudanteMidia() {
       try {
         const dados = JSON.parse(linha);
         if (dados.tipo === 'log') { log('[mídia]', String(dados.msg).slice(0, 1500)); continue; }
+        if (dados.tipo === 'privacidade') {
+          const p = { mic: servicos.nomesEmUso(dados.mic, IGNORAR_PRIVACIDADE), cam: servicos.nomesEmUso(dados.cam, IGNORAR_PRIVACIDADE) };
+          const atual = JSON.stringify(p);
+          if (atual !== ultimaPrivacidade) {
+            ultimaPrivacidade = atual;
+            log('Microfone/câmera em uso:', atual);
+            janela?.webContents.send('privacidade', p);
+          }
+          continue;
+        }
         if (dados.tipo === 'sons') {
           const r = JSON.stringify([dados.apps || [], dados.captura || []]);
           if (r !== ultimoSons) { ultimoSons = r; log('Áudio ativo — tocando:', JSON.stringify(dados.apps || []), '| microfone:', JSON.stringify(dados.captura || [])); }
@@ -1125,9 +1139,14 @@ async function buscarClima() {
 // ---------------------------------------------------------------------------
 let copiados = [];
 let ultimoCopiado = '';
+let ultimaSeqCopia = -2;
 function vigiarCopiados() {
   setInterval(() => {
     if (config.historicoCopiados === false) return;
+    // nada novo copiado: nem lê a área de transferência
+    const seq = janelasWin.seqAreaTransferencia();
+    if (seq !== -1 && seq === ultimaSeqCopia) return;
+    ultimaSeqCopia = seq;
     let t = '';
     try { t = clipboard.readText(); } catch { return; }
     if (!t || t === ultimoCopiado) return;
@@ -1692,10 +1711,7 @@ function medirDesempenho() {
     janela.webContents.once('did-finish-load', avisarSeAtualizou);
     if (dados.silenciouNotif) silenciarNoFoco(false); // a ilha fechou no meio de um foco: devolve as notificações
     servicos.vigiarDownloads((d) => janela?.webContents.send('download', d));
-    servicos.vigiarPrivacidade((p) => {
-      log('Microfone/câmera em uso:', JSON.stringify(p));
-      janela?.webContents.send('privacidade', p);
-    }, () => ocultaPorJogo);
+    // (microfone/câmera: lidos pelo ajudante de mídia, sem abrir programas — ver "privacidade")
     lancador.definirCotacoes(servicos.lerCotacoes);
     servicos.atualizarCotacoes();
     setInterval(() => servicos.atualizarCotacoes(), 60 * 60 * 1000);

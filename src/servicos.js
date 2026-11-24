@@ -77,6 +77,19 @@ function lerEmUso(recurso, ignorar) {
   });
 }
 
+// Nomes dos apps a partir do que o ajudante leu do registro ('NP|C:#...#app.exe' ou 'PK|Pacote_xyz')
+function nomesEmUso(brutos, ignorar = []) {
+  const apps = [];
+  for (const b of brutos || []) {
+    const [tipo, ultimo] = String(b).split('|');
+    if (!ultimo) continue;
+    const nome = tipo === 'NP' ? ultimo.split('#').pop() : ultimo.split('_')[0].split('.').pop();
+    const caminho = ultimo.replace(/#/g, '\\').toLowerCase();
+    if (!ignorar.some((x) => caminho.endsWith(x))) apps.push(nome.replace(/\.exe$/i, ''));
+  }
+  return [...new Set(apps)];
+}
+
 function vigiarPrivacidade(aoMudar, pausado = () => false) {
   if (process.platform !== 'win32') return;
   // a própria ilha usa o microfone para a voz: não conta
@@ -248,5 +261,5 @@ function definirNotificacoes(ligadas) {
 
 module.exports = {
   configurarLog, vigiarDownloads, vigiarPrivacidade, buscarAgendas, lerICS,
-  atualizarCotacoes, lerCotacoes, notificacoesLigadas, definirNotificacoes, nomeDaAgenda,
+  atualizarCotacoes, lerCotacoes, notificacoesLigadas, definirNotificacoes, nomeDaAgenda, nomesEmUso,
 };

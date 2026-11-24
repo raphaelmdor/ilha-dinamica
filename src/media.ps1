@@ -659,6 +659,36 @@ function Enviar-Estado {
     }
 }
 
+# Quem está usando o microfone/câmera agora: o Windows anota em LastUsedTimeStart/Stop (Stop = 0 -> em uso).
+# Lido direto do registro aqui dentro, sem abrir nenhum programa.
+function Em-Uso($k) {
+    $i = $k.GetValue('LastUsedTimeStart'); $f = $k.GetValue('LastUsedTimeStop')
+    return ($null -ne $i -and [long]$i -gt 0 -and ($null -eq $f -or [long]$f -eq 0))
+}
+function Ler-EmUso([string]$recurso) {
+    $nomes = New-Object System.Collections.Generic.List[string]
+    $base = $null
+    try { $base = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\$recurso") } catch { }
+    if (-not $base) { return $nomes.ToArray() }
+    try {
+        foreach ($sub in $base.GetSubKeyNames()) {
+            $k = $null
+            try { $k = $base.OpenSubKey($sub) } catch { }
+            if (-not $k) { continue }
+            try {
+                if ($sub -eq 'NonPackaged') {
+                    foreach ($s2 in $k.GetSubKeyNames()) {
+                        $k2 = $null
+                        try { $k2 = $k.OpenSubKey($s2) } catch { }
+                        if ($k2) { try { if (Em-Uso $k2) { $nomes.Add('NP|' + $s2) } } finally { $k2.Close() } }
+                    }
+                } elseif (Em-Uso $k) { $nomes.Add('PK|' + $sub) }
+            } finally { $k.Close() }
+        }
+    } finally { $base.Close() }
+    return $nomes.ToArray()
+}
+
 function Executar($comando) {
     $sessao = $null
     if ($gerente) {
@@ -684,6 +714,11 @@ function Executar($comando) {
         'bt'     { Definir-Radio 'Bluetooth' $arg; Start-Sleep -Milliseconds 400; Enviar-Sistema }
         'estado' { Enviar-Sistema }
         'dispositivos' { Enviar-Dispositivos }
+        'privacidade' {
+            $obj = [ordered]@{ tipo = 'privacidade'; mic = @(Ler-EmUso 'microphone'); cam = @(Ler-EmUso 'webcam') }
+            [Console]::Out.WriteLine((ConvertTo-Json -InputObject $obj -Compress))
+            [Console]::Out.Flush()
+        }
         'sons' {
             $obj = [ordered]@{ tipo = 'sons'; apps = @([AudioIlha]::SessoesAtivas(0)); captura = @([AudioIlha]::SessoesAtivas(1)) }
             [Console]::Out.WriteLine((ConvertTo-Json -InputObject $obj -Compress))

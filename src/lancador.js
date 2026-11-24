@@ -41,9 +41,15 @@ function indexarApps() {
 
 // Apps da Microsoft Store (WhatsApp, Spotify da Store...) não têm atalho .lnk:
 // o ícone vem do logo declarado no pacote do app
+// Guarda os ícones já encontrados: a leitura dos pacotes da Loja é pesada e só precisa
+// ser refeita quando aparece um app novo
+let mapaIconesLoja = {};
+const appsLojaVistos = new Set();
 function iconesDaLoja() {
   const semIcone = apps.filter((a) => !a.ic && a.appId.includes('!'));
-  if (!semIcone.length) return;
+  for (const a of semIcone) if (mapaIconesLoja[a.appId]) a.ic = mapaIconesLoja[a.appId];
+  const novos = semIcone.filter((a) => !appsLojaVistos.has(a.appId));
+  if (!novos.length) return;
   const script = [
     '[Console]::OutputEncoding=[Text.Encoding]::UTF8',
     '$r=@{}',
@@ -66,6 +72,8 @@ function iconesDaLoja() {
       if (erro) { log('Ícones da Loja: falhou', erro.message); return; }
       try {
         const mapa = JSON.parse(saida.trim() || '{}');
+        mapaIconesLoja = mapa;
+        for (const a of semIcone) appsLojaVistos.add(a.appId);
         let n = 0;
         for (const a of apps) {
           if (!a.ic && mapa[a.appId]) { a.ic = mapa[a.appId]; n++; }
@@ -124,10 +132,18 @@ async function indexarArquivos() {
   log(`Arquivos indexados: ${arquivos.length}`);
 }
 
+let comecou = false;
+function comecarIndexacao() {
+  if (comecou) return;
+  comecou = true;
+  indexarApps();
+  setTimeout(indexarArquivos, 10000);
+}
 function iniciar(funcaoLog, emJogo = () => false) {
   log = funcaoLog || log;
-  indexarApps();
-  indexarArquivos();
+  // não pesa na abertura da ilha (que costuma ser junto com o Windows): indexa uns segundos depois,
+  // ou na hora, se você abrir a busca antes disso
+  setTimeout(comecarIndexacao, 8000);
   // durante um jogo não reindexa (abrir o PowerShell no meio do jogo pode fazer o ponteiro aparecer)
   setInterval(() => { if (!emJogo()) indexarApps(); }, 10 * 60 * 1000);
   setInterval(() => { if (!emJogo()) indexarArquivos(); }, 15 * 60 * 1000);
@@ -344,6 +360,7 @@ function registrar(r) {
 }
 
 function buscar(texto) {
+  comecarIndexacao();
   resultadosAtuais = new Map();
   const bruto = String(texto || '').trim();
   const q = norm(bruto);

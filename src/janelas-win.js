@@ -48,6 +48,7 @@ function iniciar(log = () => {}, handlePropria = null) {
     w.CloseHandle = kernel32.func('__stdcall', 'CloseHandle', 'bool', ['void *']);
     w.GetAsyncKeyState = user32.func('__stdcall', 'GetAsyncKeyState', 'int16', ['int32']);
     w.MapVirtualKeyW = user32.func('__stdcall', 'MapVirtualKeyW', 'uint32', ['uint32', 'uint32']);
+    w.GetClipboardSequenceNumber = user32.func('__stdcall', 'GetClipboardSequenceNumber', 'uint32', []);
     // Para trazer uma janela nossa para a frente (o Windows bloqueia apps "de fundo" de pegar o foco)
     w.GetForegroundWindowI = user32.func('__stdcall', 'GetForegroundWindow', 'intptr', []);
     w.GetWindowThreadProcessIdI = user32.func('__stdcall', 'GetWindowThreadProcessId', 'uint32', ['intptr', 'void *']);
@@ -209,6 +210,10 @@ function vkDaPosicao(codigo) {
   if (!w || !sc) return 0;
   try { return w.MapVirtualKeyW(sc, 1) || 0; } catch { return 0; } // 1 = MAPVK_VSC_TO_VK
 }
+// Número que o Windows aumenta a cada cópia: só lê a área de transferência quando ele muda (-1 = não sei)
+function seqAreaTransferencia() {
+  try { return w ? Number(w.GetClipboardSequenceNumber()) : -1; } catch { return -1; }
+}
 function teclaApertada(vk) {
   try { return !!w && (w.GetAsyncKeyState(vk) & 0x8000) !== 0; } catch { return false; }
 }
@@ -253,4 +258,4 @@ function focarJanela(hwnd) {
   } catch { return false; }
 }
 
-module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, vkDaPosicao, teclaApertada, trazerParaFrente, janelaDaFrente, focarJanela };
+module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, vkDaPosicao, teclaApertada, seqAreaTransferencia, trazerParaFrente, janelaDaFrente, focarJanela };
