@@ -1213,7 +1213,10 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 }
 
 /* modo discreto em chamada: só o fone pequenininho nos olhos, sem contorno nem ondinhas */
-.ilha.discreta.em-chamada[data-estado="compacta"] { animation: none; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
+/* o contorno verde neon "respirando" também aparece no notch pequenininho */
+.ilha.discreta.em-chamada[data-estado="compacta"] { animation: respira-chamada 3s ease-in-out infinite; box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.55), 0 0 14px rgba(52, 211, 153, 0.25); }
+/* no discreto os olhos não têm o recuo da esquerda: fone bem centralizado em cima deles */
+.ilha.discreta[data-estado="compacta"] .olhos[data-humor="chamada"] .fone { transform: translateX(-50%); }
 /* no notch pequenininho: fone, olhinhos conversando e ondinhas, tudo um pouco menor e mais para baixo para caber */
 .ilha.discreta[data-estado="compacta"] .olhos[data-humor="chamada"] { --e: calc(var(--escala) * 0.62); margin-top: calc(3px * var(--escala)); }
 .ilha.discreta[data-estado="compacta"] .olhos[data-humor="chamada"] .ondas { right: calc(-7px * var(--e)); }

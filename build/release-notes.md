@@ -1,4 +1,4 @@
-## Novidades da 5.5.1: o mascotinho ganhou vida
+## Novidades da 5.5.2: o mascotinho ganhou vida
 
 - **Respira** de levinho quando está à toa.
 - **Gestinhos espontâneos** quando você não está mexendo: piscadela com bochechinha corada, pulinho de alegria, olhar desconfiado de rabo de olho, cabecinha curiosa olhando pros lados, espreguiçada, bocejo e até um "atchim!".
@@ -7,3 +7,4 @@
 - **Soninho:** antes de dormir ele boceja; de madrugada (23h às 6h) fica de olho meio fechado; depois de dormir bastante, acorda se espreguiçando.
 - **Em ligação:** os olhinhos ficam quietinhos dentro do fone, sem seguir o mouse.
 - **Painel aberto em ligação:** os olhinhos grandes do painel também colocam o fone, como já faziam com a música.
+- **Modo discreto em ligação:** fone e olhinhos bem centralizados, e o contorno verde neon "respirando" aparece também no notch pequenininho.
