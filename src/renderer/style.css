@@ -300,6 +300,7 @@ body {
   padding-left: 4px;
   position: relative;
   flex: none;
+  transition: rotate 0.3s ease, scale 0.3s ease, translate 0.3s ease;
 }
 .olhos.grandes { --e: calc(var(--escala) * 1.45); padding-left: 0; }
 .olho {
@@ -309,6 +310,7 @@ body {
   background: var(--cor-olhos);
   border-radius: calc(4px * var(--e));
   box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+  position: relative;
   transform: translate(var(--ox), var(--oy));
   transition:
     transform 0.14s ease-out,
@@ -342,7 +344,7 @@ body {
 /* Confuso: um olho maior, outro apertado, cabeça inclinada */
 .olhos[data-humor="confuso"] { transform: rotate(-8deg); transition: transform 0.2s; }
 .olhos[data-humor="confuso"] .olho:first-child { height: calc(4px * var(--e)); }
-.olhos[data-humor="confuso"] .olho:last-child { height: calc(12px * var(--e)); }
+.olhos[data-humor="confuso"] .olho + .olho { height: calc(12px * var(--e)); }
 
 /* Ouvindo: atentos, olhando pra cima, com brilho azul */
 .olhos[data-humor="ouvindo"] .olho {
@@ -1216,3 +1218,157 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 .ilha.discreta[data-estado="compacta"] .olhos[data-humor="chamada"] { --e: calc(var(--escala) * 0.62); margin-top: calc(3px * var(--escala)); }
 .ilha.discreta[data-estado="compacta"] .olhos[data-humor="chamada"] .ondas { right: calc(-7px * var(--e)); }
 .ilha.discreta.em-chamada[data-estado="compacta"] { width: calc(62px * var(--escala)) !important; }
+
+/* =========================================================
+   Personalidade de mascote
+   (as animações usam scale/translate/rotate separados: o "transform" fica livre para seguir o mouse)
+   ========================================================= */
+
+/* Respirando de leve quando está à toa */
+.olhos[data-humor="normal"] { animation: respirar 4.6s ease-in-out infinite; }
+@keyframes respirar {
+  0%, 100% { scale: 1 1; }
+  50% { scale: 1.02 1.07; }
+}
+
+/* De madrugada: olhinhos meio fechados, com soninho */
+.olhos.noite[data-humor="normal"] .olho {
+  height: calc(6.5px * var(--e));
+  translate: 0 calc(1.6px * var(--e));
+  border-radius: calc(1.5px * var(--e)) calc(1.5px * var(--e)) calc(4px * var(--e)) calc(4px * var(--e));
+}
+.olhos.noite.piscar[data-humor="normal"] .olho { height: calc(1.5px * var(--e)); }
+
+/* Bochechinhas coradas (carinho e piscadela) */
+.olho::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 1.6px * var(--e));
+  left: 50%;
+  width: calc(4.6px * var(--e));
+  height: calc(2.3px * var(--e));
+  border-radius: 50%;
+  background: #ff7aa2;
+  opacity: 0;
+  translate: -85% 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.olho + .olho::after { translate: -15% 0; }
+.olhos[data-humor="carinho"] .olho::after,
+.olhos[data-humor="piscadela"] .olho::after { opacity: 0.85; }
+
+/* Carinho: ^ ^ derretido, cabecinha encostando */
+.olhos[data-humor="carinho"] { rotate: -7deg; animation: aninhar 1.6s ease-in-out infinite; }
+@keyframes aninhar { 0%, 100% { translate: 0 0; } 50% { translate: calc(-0.8px * var(--e)) calc(0.6px * var(--e)); } }
+.olhos[data-humor="carinho"] .olho,
+.olhos[data-humor="pulinho"] .olho,
+.olhos[data-humor="piscadela"] .olho + .olho {
+  height: calc(6px * var(--e));
+  width: calc(8.5px * var(--e));
+  background: transparent;
+  border: calc(2.4px * var(--e)) solid var(--cor-olhos);
+  border-bottom: 0;
+  border-radius: calc(6px * var(--e)) calc(6px * var(--e)) 0 0;
+  box-shadow: none;
+}
+
+/* Piscadela: um olho fecha ^ e a cabeça inclina */
+.olhos[data-humor="piscadela"] { rotate: 7deg; }
+
+/* Desconfiado: pálpebra baixa, olhando de rabo de olho */
+.olhos[data-humor="desconfiado"] .olho {
+  height: calc(4.5px * var(--e));
+  translate: 0 calc(2px * var(--e));
+  border-radius: calc(1px * var(--e)) calc(1px * var(--e)) calc(4px * var(--e)) calc(4px * var(--e));
+}
+
+/* Pulinho de alegria, com amassa-e-estica */
+.olhos[data-humor="pulinho"] { animation: pulinho 0.95s cubic-bezier(0.3, 0.7, 0.4, 1); }
+@keyframes pulinho {
+  0% { translate: 0 0; scale: 1 1; }
+  15% { translate: 0 calc(1px * var(--e)); scale: 1.18 0.78; }
+  40% { translate: 0 calc(-3.2px * var(--e)); scale: 0.9 1.14; }
+  62% { translate: 0 0; scale: 1.14 0.84; }
+  80% { scale: 0.97 1.04; }
+  100% { translate: 0 0; scale: 1 1; }
+}
+
+/* Curioso: cabeça inclinada, olhos arregalados, olha pros lados */
+.olhos[data-humor="curioso"] { rotate: 11deg; }
+.olhos[data-humor="curioso"] .olho { height: calc(12.5px * var(--e)); width: calc(6.6px * var(--e)); }
+
+/* Espreguiçando: estica de olhos fechados */
+.olhos[data-humor="espreguicar"] { animation: espreguicar 1.8s ease-in-out; }
+.olhos[data-humor="espreguicar"] .olho { animation: olho-fechado-longo 1.8s ease-in-out; }
+@keyframes espreguicar {
+  0%, 100% { scale: 1 1; rotate: 0deg; }
+  30%, 55% { scale: 1.28 0.82; rotate: -4deg; }
+  70% { scale: 0.92 1.1; rotate: 3deg; }
+  85% { scale: 1.04 0.97; rotate: 0deg; }
+}
+@keyframes olho-fechado-longo { 0%, 100% { scale: 1 1; } 22%, 62% { scale: 1.1 0.18; } 75% { scale: 1 1; } }
+
+/* Bocejo: olhinhos apertados, boquinha abrindo, cabeça pra trás */
+.olhos[data-humor="bocejo"] { animation: cabeca-bocejo 2.3s ease-in-out; }
+.olhos[data-humor="bocejo"] .olho { animation: olho-bocejo 2.3s ease-in-out; }
+.olhos[data-humor="bocejo"]::after {
+  content: "";
+  position: absolute;
+  left: calc(50% + 2px);
+  top: 62%;
+  width: calc(4px * var(--e));
+  height: calc(4px * var(--e));
+  border-radius: 50%;
+  border: calc(1.4px * var(--e)) solid var(--cor-olhos);
+  translate: -50% 0;
+  opacity: 0;
+  animation: boca-bocejo 2.3s ease-in-out forwards;
+}
+@keyframes cabeca-bocejo {
+  0%, 100% { rotate: 0deg; translate: 0 0; }
+  25%, 65% { rotate: -6deg; translate: 0 calc(-1.6px * var(--e)); }
+}
+@keyframes olho-bocejo { 0%, 100% { scale: 1 1; } 20%, 68% { scale: 1.12 0.16; } 80% { scale: 1 0.55; } 90% { scale: 1 0.6; } }
+@keyframes boca-bocejo { 0% { opacity: 0; scale: 0.3; } 25%, 62% { opacity: 0.9; scale: 1 1.35; } 80%, 100% { opacity: 0; scale: 0.3; } }
+
+/* Atchim! Arregala, prende... e espirra */
+.olhos[data-humor="atchim"] { animation: cabeca-atchim 1.4s ease-in-out; }
+.olhos[data-humor="atchim"] .olho { animation: olho-atchim 1.4s ease-in-out; }
+@keyframes olho-atchim {
+  0% { scale: 1 1; }
+  12%, 30% { scale: 1 1.22; }
+  34% { scale: 1.1 0.8; }
+  40%, 62% { scale: 1.2 0.14; }
+  100% { scale: 1 1; }
+}
+@keyframes cabeca-atchim {
+  0%, 100% { translate: 0 0; rotate: 0deg; }
+  30% { translate: 0 calc(-1.6px * var(--e)); rotate: -7deg; }
+  40% { translate: 0 calc(2px * var(--e)); rotate: 5deg; }
+  47% { translate: calc(-1.2px * var(--e)) calc(1px * var(--e)); }
+  54% { translate: calc(1.2px * var(--e)) calc(1px * var(--e)); }
+  62% { translate: 0 0; rotate: 0deg; }
+}
+
+/* Tonto: olhinhos em espiral girando e a cabeça cambaleando */
+.olhos[data-humor="tonto"] { animation: cabeca-tonta 0.9s ease-in-out infinite; }
+.olhos[data-humor="tonto"] .olho {
+  width: calc(7.5px * var(--e));
+  height: calc(7.5px * var(--e));
+  border-radius: 50%;
+  background: transparent;
+  border: calc(2px * var(--e)) solid var(--cor-olhos);
+  border-right-color: transparent;
+  box-shadow: none;
+  animation: girar-olho 0.55s linear infinite;
+}
+.olhos[data-humor="tonto"] .olho + .olho { animation-direction: reverse; }
+@keyframes girar-olho { to { rotate: 360deg; } }
+@keyframes cabeca-tonta {
+  0%, 100% { rotate: -8deg; translate: calc(-1px * var(--e)) 0; }
+  50% { rotate: 8deg; translate: calc(1px * var(--e)) 0; }
+}
+
+/* no modo discreto (bem pequenininho) a boquinha não cabe */
+.ilha.discreta[data-estado="compacta"] .olhos[data-humor="bocejo"]::after { display: none; }

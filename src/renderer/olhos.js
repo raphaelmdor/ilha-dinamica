@@ -1,5 +1,6 @@
 // Olhinhos da ilha: seguem o mouse, piscam e mudam de humor.
 // Humores: normal, feliz, confuso, ouvindo, pensando, musica, surpreso, dormindo
+// Gestos de mascote: carinho, piscadela, desconfiado, pulinho, espreguicar, bocejo, atchim, curioso, tonto
 
 const SONO_MS = 2 * 60 * 1000; // sem mexer o mouse por 2 min: dorme
 
@@ -15,6 +16,118 @@ export class Olhos {
     this.agendarPiscada();
     setInterval(() => this.vigiarSono(), 5000);
     setInterval(() => this.vaguear(), 2600);
+    this.iniciarPersonalidade();
+  }
+
+  // ---------- Personalidade de mascote ----------
+  iniciarPersonalidade() {
+    this.cutucadas = [];
+    this.rastro = [];
+    this.ultTonto = 0;
+    this.ultCarinho = 0;
+    this.olhandoAte = 0;
+    this.bocejou = false;
+    this.conferirNoite();
+    setInterval(() => this.conferirNoite(), 60 * 1000);
+    setTimeout(() => this.agendarGesto(), 9000);
+  }
+
+  /** Nada mais importante acontecendo: pode fazer graça */
+  livre() {
+    return !this.temporario && !this.dormindo && !this.emChamada && this.base === 'normal' && document.visibilityState !== 'hidden';
+  }
+
+  /** De madrugada (23h–6h) fica de olhinho meio fechado, com soninho */
+  conferirNoite() {
+    const h = new Date().getHours();
+    const noite = h >= 23 || h < 6;
+    for (const g of this.grupos) g.classList.toggle('noite', noite);
+    this.noite = noite;
+  }
+
+  /** De tempos em tempos, quando ninguém está mexendo, faz um gestinho espontâneo */
+  agendarGesto() {
+    const espera = (this.noite ? 10000 : 14000) + Math.random() * 18000;
+    setTimeout(() => { try { this.gestoEspontaneo(); } finally { this.agendarGesto(); } }, espera);
+  }
+
+  gestoEspontaneo() {
+    const parado = Date.now() - this.ultimoMovimento;
+    if (!this.livre() || parado < 5000) return;
+    // quase pegando no sono: um bocejo antes de dormir
+    if (!this.bocejou && parado > SONO_MS - 40000) { this.bocejou = true; this.fazer('bocejo'); return; }
+    const opcoes = this.noite
+      ? [['bocejo', 4], ['piscadela', 1], ['espreguicar', 2], ['curioso', 1]]
+      : [['piscadela', 3], ['desconfiado', 2], ['pulinho', 3], ['curioso', 3], ['espreguicar', 1.5], ['bocejo', 1], ['atchim', 0.7]];
+    let r = Math.random() * opcoes.reduce((t, o) => t + o[1], 0);
+    for (const [nome, peso] of opcoes) { if ((r -= peso) <= 0) return this.fazer(nome); }
+  }
+
+  /** Executa um gesto (com o olhar combinando quando precisa) */
+  fazer(nome) {
+    const dur = { piscadela: 1000, desconfiado: 2400, pulinho: 950, espreguicar: 1800, bocejo: 2300, atchim: 1400, curioso: 2300, tonto: 2200, carinho: 2000 }[nome] || 1500;
+    this.reagir(nome, dur);
+    const lado = Math.random() < 0.5 ? -1 : 1;
+    const olharLado = (l) => {
+      const r = this.grupos.find((g) => g.getBoundingClientRect().width)?.getBoundingClientRect();
+      if (r) this.olharPara(r.left + r.width / 2 + l * 400, r.top + r.height / 2 + 10);
+    };
+    this.olhandoAte = Date.now() + dur;
+    if (nome === 'desconfiado') { olharLado(lado); setTimeout(() => this.temporario === nome && olharLado(-lado), 1200); }
+    if (nome === 'curioso') {
+      olharLado(lado);
+      setTimeout(() => this.temporario === nome && olharLado(-lado), 800);
+      setTimeout(() => this.temporario === nome && this.olharPara(window.innerWidth / 2, 400), 1600);
+    }
+  }
+
+  /** Clique nos olhinhos: carinho; vários cliques seguidos deixam ele tonto */
+  cutucar() {
+    const agora = Date.now();
+    this.cutucadas = this.cutucadas.filter((t) => agora - t < 1600);
+    this.cutucadas.push(agora);
+    if (this.cutucadas.length >= 3) { this.cutucadas = []; this.ficarTonto(); }
+    else this.fazer('carinho');
+  }
+
+  ficarTonto() {
+    if (Date.now() - this.ultTonto < 4000 || this.emChamada) return;
+    this.ultTonto = Date.now();
+    this.fazer('tonto');
+  }
+
+  /** Mouse parado em cima dos olhinhos: ele gosta do carinho (^ ^ e bochechinhas) */
+  conferirCarinho(pos) {
+    const perto = (p) => p && this.grupos.some((g) => {
+      const r = g.getBoundingClientRect();
+      return r.width && p.x > r.left - 6 && p.x < r.right + 6 && p.y > r.top - 6 && p.y < r.bottom + 6;
+    });
+    if (!perto(pos)) { clearTimeout(this.timerCarinho); this.timerCarinho = null; return; }
+    if (this.timerCarinho) return;
+    this.timerCarinho = setTimeout(() => {
+      this.timerCarinho = null;
+      const ok = perto(this.cursor) && Date.now() - this.ultCarinho > 5000 && !this.emChamada && this.base !== 'ouvindo'
+        && (!this.temporario || this.temporario === 'feliz');
+      if (ok) { this.ultCarinho = Date.now(); this.fazer('carinho'); }
+    }, 650);
+  }
+
+  /** Sacudir o mouse de um lado pro outro bem rápido deixa ele tonto */
+  conferirSacudida(pos) {
+    const agora = Date.now();
+    this.rastro.push({ x: pos.x, t: agora });
+    this.rastro = this.rastro.filter((p) => agora - p.t < 900);
+    if (pos.botao || this.rastro.length < 6) return;
+    let viradas = 0, sentido = 0, andou = 0;
+    for (let i = 1; i < this.rastro.length; i++) {
+      const dx = this.rastro[i].x - this.rastro[i - 1].x;
+      andou += Math.abs(dx);
+      if (Math.abs(dx) < 12) continue;
+      const s = Math.sign(dx);
+      if (sentido && s !== sentido) viradas++;
+      sentido = s;
+    }
+    if (viradas >= 4 && andou > 900) { this.rastro = []; this.ficarTonto(); }
   }
 
   aplicar() {
@@ -113,9 +226,14 @@ export class Olhos {
 
   /** Humor de fundo: continua até ser trocado */
   /** Liga/desliga o jeito "em chamada" dos olhinhos */
+  centralizar() {
+    for (const g of this.grupos) { g.style.setProperty('--ox', '0px'); g.style.setProperty('--oy', '0px'); }
+  }
+
   definirChamada(sim) {
     this.emChamada = !!sim;
-    if (sim) this.dormindo = false;
+    if (sim) { this.dormindo = false; this.temporario = null; clearTimeout(this.timeoutTemp); this.centralizar(); }
+    else if (this.cursor) this.olharPara(this.cursor.x, this.cursor.y);
     this.aplicar();
   }
 
@@ -159,11 +277,17 @@ export class Olhos {
     this.cursor = pos;
     if (!mexeu) return;
     this.ultimoMovimento = Date.now();
+    this.bocejou = false;
     if (this.dormindo) this.acordar(true);
+    this.conferirSacudida(pos);
+    this.conferirCarinho(pos);
+    if (this.temporario === 'tonto') return; // tonto não consegue seguir nada
     this.olharPara(pos.x, pos.y);
   }
 
   olharPara(x, y) {
+    // em ligação os olhinhos ficam quietinhos dentro do fone (não seguem o mouse)
+    if (this.emChamada) { this.centralizar(); return; }
     for (const g of this.grupos) {
       const r = g.getBoundingClientRect();
       if (!r.width) continue; // grupo escondido
@@ -179,7 +303,7 @@ export class Olhos {
 
   /** Parado há um tempo: olha para pontos aleatórios, como quem está distraído */
   vaguear() {
-    if (this.dormindo || Date.now() - this.ultimoMovimento < 4000) return;
+    if (this.dormindo || Date.now() - this.ultimoMovimento < 4000 || Date.now() < this.olhandoAte) return;
     if (Math.random() < 0.45) {
       const x = window.innerWidth * (0.2 + Math.random() * 0.6);
       const y = Math.random() < 0.5 ? 400 : -100;
@@ -209,6 +333,7 @@ export class Olhos {
     const podeDormir = this.base === 'normal' && !this.temporario;
     if (ocioso && podeDormir && !this.dormindo) {
       this.dormindo = true;
+      this.dormiuEm = Date.now();
       this.aplicar();
     }
   }
@@ -217,7 +342,9 @@ export class Olhos {
     if (!this.dormindo) return;
     this.dormindo = false;
     this.ultimoMovimento = Date.now();
-    if (comSusto) this.reagir('surpreso', 700);
+    // dormiu bastante: acorda se espreguiçando; cochilo curto: acorda num susto
+    if (comSusto && Date.now() - (this.dormiuEm || 0) > 10 * 60 * 1000) this.fazer('espreguicar');
+    else if (comSusto) this.reagir('surpreso', 700);
     else this.aplicar();
   }
 }

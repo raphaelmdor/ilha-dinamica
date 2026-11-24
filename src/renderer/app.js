@@ -224,7 +224,7 @@ ilha.addEventListener('click', (e) => {
   if (estado.vista === 'busca') return;
   if (estado.vista === 'aviso') { fecharAvisoPeloUsuario(); return; }
   if (estado.vista === 'escuta') { voz.pararComando(); return; }
-  if (e.target.closest('.olhos')) olhos.reagir('feliz', 1400); // carinho nos olhinhos
+  if (e.target.closest('.olhos')) olhos.cutucar(); // carinho (e cutucar demais deixa tonto)
   // Clique na pílula abre o painel; ele fecha sozinho quando o mouse sai
   if (estado.vista === 'compacta' && !ilha.classList.contains('discreta')) abrirPainel();
 });
