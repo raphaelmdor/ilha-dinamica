@@ -1162,4 +1162,16 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 .vista-compacta .centro.rolando span { display: inline-block; padding-left: 6%; animation: letreiro linear infinite; }
 @keyframes letreiro { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 /* no notch (pílula baixinha) as notinhas sobem pelo lado de fora dos olhos, sem entrar no nome */
-.ilha.colada .nota-musical { left: 0; top: 30%; font-size: calc(8.5px * var(--e)); }
+.ilha.colada .nota-musical {
+  left: calc(-11px * var(--e)); top: 18%; font-size: calc(13px * var(--e)); font-weight: 700;
+  color: #fff; text-shadow: 0 0 5px var(--verde), 0 0 2px var(--verde);
+  animation-name: nota-sobe-notch;
+}
+@keyframes nota-sobe-notch {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6) rotate(0deg); }
+  20% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx, -4px), calc(-6px * var(--e))) scale(1.05) rotate(var(--rot, -10deg)); }
+}
+/* tocando no notch: um espacinho à esquerda dos olhinhos para as notinhas aparecerem */
+.ilha.colada.tocando[data-estado="compacta"] .lado.esq { padding-left: calc(12px * var(--escala)); }
