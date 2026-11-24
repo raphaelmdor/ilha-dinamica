@@ -932,6 +932,7 @@ export function iniciarWidgets(ctx) {
     atividade,
     aoAbrirPainel: () => aoMostrar(paginas[atual]?.dataset.widget),
     paginaAtual: () => paginas[atual]?.dataset.widget,
+    irParaInicio: () => irPara(0, false),
     irParaWidget: (nome) => { const i = paginas.findIndex((p) => p.dataset.widget === nome); if (i >= 0) irPara(i); return i >= 0; },
     alternarFoco,
     novaTarefa: (texto) => { const t = { id: uid(), texto, feita: false }; dados.tarefas.unshift(t); salvar('tarefas'); desenharTarefas(t.id); atualizarResumo(); },

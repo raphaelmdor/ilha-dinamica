@@ -1,7 +1,7 @@
 {
   "name": "ilha-dinamica",
   "productName": "Ilha Dinâmica",
-  "version": "5.3.4",
+  "version": "5.3.5",
   "description": "Dynamic Island para Windows 11 com comandos de voz offline em português",
   "main": "src/main.js",
   "author": "Raphael",

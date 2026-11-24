@@ -41,6 +41,8 @@ let timeoutAviso = null;
 let timeoutRecolher = null;
 
 function mostrar(vista) {
+  // recolheu: na próxima vez que abrir, o painel começa no Início
+  if (vista === 'compacta' && estado.vista && estado.vista !== 'compacta') estado.voltarAoInicio = true;
   estado.vista = vista;
   ilha.dataset.estado = vista;
   if (vista !== 'aviso') ilha.classList.remove('alto', 'com-botoes');
@@ -222,6 +224,12 @@ ilha.addEventListener('click', (e) => {
 });
 
 function abrirPainel() {
+  if (estado.voltarAoInicio) {
+    estado.voltarAoInicio = false;
+    widgets?.irParaInicio?.();
+    const pa = document.getElementById('painelAudio');
+    if (pa) pa.hidden = true;
+  }
   mostrar('expandida');
   api.sistema('estado');
   widgets?.aoAbrirPainel();
@@ -1491,6 +1499,7 @@ api.on('modoApp', aplicarModoApp);
   aplicarAparencia(estado.config);
   widgets.aplicarConfig(estado.config);
   await widgets.carregar();
+  estado.voltarAoInicio = true; // ao abrir a ilha, o painel também começa no Início
   atualizarRelogio();
   setInterval(atualizarRelogio, 1000);
   setInterval(tickTimer, 250);
