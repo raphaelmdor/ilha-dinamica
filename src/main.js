@@ -1477,6 +1477,14 @@ ipcMain.on('interativo', (_e, sim) => {
 let diagClique = false;
 function ligarDiagClique() { diagClique = true; setTimeout(() => { diagClique = false; }, 10 * 60 * 1000); }
 ipcMain.on('diag:clique', (_e, msg) => { if (diagClique) log('Clique-diag:', String(msg).slice(0, 300)); });
+// Clique físico que não chegou na ilha (ela clicou por você): sempre vai para o log, com o estado da janela,
+// e liga o diagnóstico detalhado por 10 min para entender a causa
+ipcMain.on('diag:sempre', (_e, msg) => {
+  let extra = '';
+  try { extra = ` | focavel=${janela?.isFocusable?.()} focada=${janela?.isFocused()} visivel=${janela?.isVisible()} topo=${janela?.isAlwaysOnTop()}`; } catch {}
+  log('Clique perdido (socorro):', String(msg).slice(0, 300) + extra);
+  if (!diagClique) ligarDiagClique();
+});
 ipcMain.handle('acao', (_e, acao) => executarAcao(acao));
 ipcMain.handle('lancador:buscar', (_e, texto) => lancador.buscar(texto));
 ipcMain.handle('lancador:executar', (_e, id) => {

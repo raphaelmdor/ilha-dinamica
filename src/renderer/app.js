@@ -1500,6 +1500,87 @@ api.on('cursor', (pos) => {
     }, 260);
   }
 });
+// ---------------------------------------------------------------------------
+// Clique à prova de falhas
+// Às vezes o Windows para de entregar o clique físico para a ilha (só a rodinha chega). A decisão de
+// "clicável" passa a usar a posição REAL do mouse (vem do Windows a cada 60 ms, com o estado do botão):
+// mouse em cima da ilha = clicável, reafirmado de tempos em tempos. E se o botão desceu em cima da ilha
+// e o clique não chegou na página, a própria ilha clica (ou arrasta o volume/brilho) por você.
+// ---------------------------------------------------------------------------
+let ultimoReforco = 0;
+let pressao = null; // { x, y, t, alvo, faixa } enquanto o botão está apertado em cima da ilha
+let ultimoPointerdown = 0;
+document.addEventListener('pointerdown', (e) => { if (e.isTrusted) ultimoPointerdown = Date.now(); }, true);
+function sobreAIlha(pos, folga = 2) {
+  const r = ilha.getBoundingClientRect();
+  return r.width > 0 && pos.x >= r.left - folga && pos.x <= r.right + folga && pos.y >= r.top - folga && pos.y <= r.bottom + folga;
+}
+function moverFaixa(input, x) {
+  const r = input.getBoundingClientRect();
+  const min = Number(input.min || 0), max = Number(input.max || 100), passo = Number(input.step) || 1;
+  const t = Math.max(0, Math.min(1, (x - r.left) / (r.width || 1)));
+  const v = String(Math.round((min + t * (max - min)) / passo) * passo);
+  if (input.value === v) return;
+  input.value = v;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function eventoDeMouse(alvo, tipo, x, y) {
+  const C = tipo.startsWith('pointer') ? PointerEvent : MouseEvent;
+  alvo.dispatchEvent(new C(tipo, { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y,
+    button: 0, buttons: tipo.endsWith('down') ? 1 : 0, pointerId: 1, pointerType: 'mouse', isPrimary: true }));
+}
+const cliqueChegou = (p) => ultimoPointerdown > p.t - 400;
+api.on('cursor', (pos) => {
+  // no tracinho do modo discreto a ilha só pega o mouse depois de meio segundo parado (não rouba cliques das abas)
+  const podeClicar = !(ilha.classList.contains('discreta') && estado.vista === 'compacta');
+  const sobre = podeClicar && sobreAIlha(pos);
+  if (sobre && !pos.botao) {
+    const agora = Date.now();
+    if (interativoAgora !== true) { definirInterativo(true); ultimoReforco = agora; }
+    else if (agora - ultimoReforco > 1500) { ultimoReforco = agora; api.interativo(true); } // reafirma pro Windows
+  }
+  // saiu de perto do notch e o "mouseleave" se perdeu: devolve os cliques para o que está embaixo
+  if (!pressao && !pos.botao && estado.vista === 'compacta' && interativoAgora === true && !estado.teclado && !sobreAIlha(pos, 10)) {
+    definirInterativo(false);
+  }
+  if (pos.botao && !pressao && sobre) {
+    pressao = { x: pos.x, y: pos.y, t: Date.now(), alvo: document.elementFromPoint(pos.x, pos.y) };
+    return;
+  }
+  if (!pressao) return;
+  // segurando o botão num controle deslizante e o clique não chegou: arrasta junto com o mouse
+  if (pos.botao) {
+    if (Date.now() - pressao.t > 150 && !cliqueChegou(pressao)) {
+      const faixa = pressao.faixa || pressao.alvo?.closest?.('input[type="range"]:not([disabled])');
+      if (faixa) { pressao.faixa = faixa; pressao.xFinal = pos.x; moverFaixa(faixa, pos.x); }
+    }
+    return;
+  }
+  // soltou: se o clique de verdade não chegou, clica por você
+  const p = pressao;
+  pressao = null;
+  setTimeout(() => {
+    if (cliqueChegou(p)) return;
+    const alvo = p.alvo && document.contains(p.alvo) ? p.alvo : document.elementFromPoint(p.x, p.y);
+    if (!alvo || !ilha.contains(alvo)) return;
+    const nome = alvo.id || alvo.className?.toString?.().slice(0, 30) || alvo.tagName || '?';
+    api.diagSempre?.(`em ${nome} | vista=${estado.vista} interativo=${interativoAgora} discreta=${ilha.classList.contains('discreta')} foco=${document.hasFocus()}`);
+    // destrava o modo de clique da janela (desliga e liga de novo)
+    api.interativo(false);
+    definirInterativo(true);
+    estado.hover = true;
+    if (p.faixa) { moverFaixa(p.faixa, p.xFinal ?? p.x); p.faixa.dispatchEvent(new Event('change', { bubbles: true })); return; }
+    if (alvo.matches('input[type="range"]')) { moverFaixa(alvo, p.x); alvo.dispatchEvent(new Event('change', { bubbles: true })); return; }
+    const campo = alvo.closest('input, textarea');
+    if (campo) { campo.focus(); campo.click(); return; }
+    eventoDeMouse(alvo, 'pointerdown', p.x, p.y);
+    eventoDeMouse(alvo, 'mousedown', p.x, p.y);
+    eventoDeMouse(alvo, 'pointerup', p.x, p.y);
+    eventoDeMouse(alvo, 'mouseup', p.x, p.y);
+    eventoDeMouse(alvo, 'click', p.x, p.y);
+  }, 120);
+});
+
 // Reage ao app em primeiro plano:
 //   maximizada -> gruda no topo (formato "notch")
 //   cheia      -> encolhe para o modo mini (vídeo, jogo, F11)

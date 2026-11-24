@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('ilhaAPI', {
   diagChamada: (msg) => ipcRenderer.send('erro-interface', 'Chamada-diag: ' + String(msg)),
   definirAudio: (id) => ipcRenderer.send('audio:padrao', String(id)),
   diagClique: (msg) => ipcRenderer.send('diag:clique', String(msg)),
+  diagSempre: (msg) => ipcRenderer.send('diag:sempre', String(msg)),
   transcrever: (wav) => ipcRenderer.invoke('voz:transcrever', wav),
   vozFim: () => ipcRenderer.send('voz:fim'),
   buscar: (texto) => ipcRenderer.invoke('lancador:buscar', texto),
