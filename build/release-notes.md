@@ -1,6 +1,4 @@
-## Novidades da 5.3.0
+## Novidades da 5.3.1
 
-- **Sempre notch:** a ilha fica sempre colada no topo, como um notch, sem alternar entre pílula flutuando, notch e mini. A única troca é para o modo discreto (só os olhinhos) em apps com abas.
-- **Notch redesenhado:** um pouco maior e mais confortável, com cantos mais suaves. Ele se ajusta sozinho com música, timer ou chamada, e o painel aberto também nasce do topo.
-- **Letreiro mais esperto:** o nome da música só passa em looping quando realmente não cabe.
-- As opções "Virar notch" e "Encolher em tela cheia" saíram das configurações, porque não fazem mais sentido.
+- **Prévia nas configurações:** a ilha de exemplo no topo das configurações agora aparece como notch, colada no topo da "tela", igual à ilha de verdade.
+- Inclui a 5.3.0: a ilha fica sempre como notch.
