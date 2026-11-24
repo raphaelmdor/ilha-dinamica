@@ -231,12 +231,14 @@ public static class AudioIlha {
     }
     // Programas com som saindo AGORA (em qualquer caixa/fone ligado). Numa chamada o app toca a voz
     // da outra pessoa; gravando um áudio, não toca nada: é assim que a ilha diferencia.
-    public static string[] TocandoSom() {
+    public static string[] TocandoSom() { return SessoesAtivas(0); }
+    // Programas com áudio ATIVO: fluxo 0 = tocando som, 1 = capturando o microfone
+    public static string[] SessoesAtivas(int fluxo) {
         var nomes = new System.Collections.Generic.HashSet<string>();
         try {
             var en = (IMMDeviceEnumeratorIlha)(new MMDeviceEnumeratorIlha());
             IMMDeviceCollectionIlha col;
-            Marshal.ThrowExceptionForHR(en.EnumAudioEndpoints(0, 1, out col));
+            Marshal.ThrowExceptionForHR(en.EnumAudioEndpoints(fluxo, 1, out col));
             int n; col.GetCount(out n);
             for (int i = 0; i < n; i++) {
                 try {
@@ -683,7 +685,7 @@ function Executar($comando) {
         'estado' { Enviar-Sistema }
         'dispositivos' { Enviar-Dispositivos }
         'sons' {
-            $obj = [ordered]@{ tipo = 'sons'; apps = @([AudioIlha]::TocandoSom()) }
+            $obj = [ordered]@{ tipo = 'sons'; apps = @([AudioIlha]::SessoesAtivas(0)); captura = @([AudioIlha]::SessoesAtivas(1)) }
             [Console]::Out.WriteLine((ConvertTo-Json -InputObject $obj -Compress))
             [Console]::Out.Flush()
         }

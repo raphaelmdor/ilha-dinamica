@@ -1280,35 +1280,46 @@ const mesmoApp = (a, b) => {
   return x.length >= 3 && y.length >= 3 && (x.startsWith(y) || y.startsWith(x));
 };
 let micAgora = { mic: [], cam: [] };
-let candidato = null;          // app de conversa com microfone ligado, ainda sem confirmar se é chamada
-let conferindo = null;
-// Chamada = app de conversa usando o microfone E tocando som (a voz da outra pessoa).
-// Gravando um áudio no WhatsApp, o microfone liga mas o app não toca nada: não é chamada.
-function atualizarChamada(mic, cam) {
-  micAgora = { mic, cam };
-  const app = nomeChamada(mic);
-  if (!app) {
-    candidato = null;
-    clearInterval(conferindo); conferindo = null;
-    if (estado.chamada) encerrarChamada();
-    return;
-  }
-  if (estado.chamada) { estado.chamada.app = app; return; }
-  if (candidato) return;
-  api.diagChamada?.(`microfone: ${JSON.stringify(mic)} -> ${app}`);
-  // acabou de tocar uma ligação: atender = chamada, sem precisar conferir mais nada
-  if (Date.now() - (estado.toqueEm || 0) < 90000) {
-    const quem = estado.toqueDe;
-    setTimeout(() => {
-      if (!estado.chamada && nomeChamada(micAgora.mic)) iniciarChamada(quem || app, micAgora.cam.length > 0, Date.now() - 1500);
-    }, 1500);
-    return;
-  }
-  candidato = { app, desde: Date.now(), apps: [...mic] };
-  // confere a cada 2 s enquanto o microfone estiver ligado (a chamada pode "conectar" depois)
-  setTimeout(() => api.consultarSons?.(), 2500);
-  conferindo = setInterval(() => api.consultarSons?.(), 2000);
+// Apps de voz: com o áudio de chamada aberto por um tempo, é chamada mesmo com o microfone mutado
+const APPS_VOZ = /discord|teams|zoom|skype|slack|teamspeak|ts3client|mumble|webex|guilded/i; // (WhatsApp/Telegram tocam áudios longos: só pelo microfone)
+const vistoDesde = new Map(); // "tipo:app" -> desde quando aparece sem parar
+function continuo(chave, presente, agora) {
+  if (!presente) { vistoDesde.delete(chave); return 0; }
+  if (!vistoDesde.has(chave)) vistoDesde.set(chave, agora);
+  return agora - vistoDesde.get(chave);
 }
+let semChamadaDesde = 0;
+// Chamada = (algum app usando o microfone E tocando som) OU (app de voz com áudio aberto por 8 s) OU (ligação que tocou e foi atendida)
+function avaliarChamada(tocando, captura) {
+  const agora = Date.now();
+  const mic = [...new Set([...(micAgora.mic || []), ...captura])].filter((x) => !/ilhadinamica|electron/i.test(x));
+  let achado = null;
+  for (const m of mic) {
+    const t = tocando.find((x) => mesmoApp(m, x));
+    if (continuo('mic:' + m, true, agora) >= 2400 && t) { achado = { m, t }; break; }
+  }
+  for (const k of [...vistoDesde.keys()]) if (k.startsWith('mic:') && !mic.includes(k.slice(4))) vistoDesde.delete(k);
+  if (!achado) {
+    for (const t of tocando) {
+      const voz = APPS_VOZ.test(t) || /webview/i.test(t) && mic.length;
+      if (continuo('voz:' + t, voz, agora) >= 8000) { achado = { m: t, t }; break; }
+    }
+    for (const k of [...vistoDesde.keys()]) if (k.startsWith('voz:') && !tocando.includes(k.slice(4))) vistoDesde.delete(k);
+  }
+  if (!achado && mic.length && agora - (estado.toqueEm || 0) < 90000) achado = { m: mic[0], t: mic[0], quem: estado.toqueDe };
+  if (achado) {
+    semChamadaDesde = 0;
+    if (!estado.chamada) {
+      let nome = achado.quem || nomeDoApp(achado.m);
+      if (nome === 'Chamada') { const n2 = nomeDoApp(achado.t); if (n2 !== 'Chamada') nome = n2; }
+      iniciarChamada(nome, micAgora.cam.length > 0, agora - 2000);
+    }
+  } else if (estado.chamada) {
+    if (!semChamadaDesde) semChamadaDesde = agora;
+    if (agora - semChamadaDesde > 5000) { semChamadaDesde = 0; encerrarChamada(); } // 5 s sem sinais: acabou
+  }
+}
+function atualizarChamada(mic, cam) { micAgora = { mic, cam }; }
 // Ligação tocando (o WhatsApp Web avisa o Windows como se fosse uma "música" com esse título)
 api.on('toque', ({ titulo }) => {
   if (estado.chamada) return;
@@ -1325,18 +1336,9 @@ api.on('toque', ({ titulo }) => {
     aviso(video ? 'Chamada de vídeo recebida' : 'Ligação recebida', estado.toqueDe || 'WhatsApp', { icone: '📞', tipo: 'info', ms: 5000 });
   }
 });
-api.on('sons', (tocando) => {
-  if (!candidato || estado.chamada) return;
-  if (Date.now() - candidato.desde < 2400) return; // microfone ligado por um instante não conta
-  let quem = null;
-  for (const m of candidato.apps) { const t = tocando.find((x) => mesmoApp(m, x)); if (t) { quem = { m, t }; break; } }
-  if (!quem) return;
-  clearInterval(conferindo); conferindo = null;
-  // nome: o do app que usa o microfone; se for genérico (WebView), o do app que está tocando o som
-  let nome = nomeDoApp(quem.m);
-  if (nome === 'Chamada') { const n2 = nomeDoApp(quem.t); if (n2 !== 'Chamada') nome = n2; }
-  iniciarChamada(nome, micAgora.cam.length > 0, candidato.desde);
-  candidato = null;
+api.on('sons', (d) => {
+  const { tocando = [], captura = [] } = Array.isArray(d) ? { tocando: d } : (d || {});
+  avaliarChamada(tocando, captura);
 });
 function iniciarChamada(app, video, desde) {
   ilha.classList.remove('chamando');
