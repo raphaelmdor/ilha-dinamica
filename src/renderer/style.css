@@ -1372,3 +1372,6 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 
 /* no modo discreto (bem pequenininho) a boquinha não cabe */
 .ilha.discreta[data-estado="compacta"] .olhos[data-humor="bocejo"]::after { display: none; }
+
+/* painel aberto em ligação: olhinhos grandes com fone, com espaço para as ondinhas */
+.olhos.grandes[data-humor="chamada"] { margin-right: calc(9px * var(--e)); }
