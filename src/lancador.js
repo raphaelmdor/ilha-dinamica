@@ -124,12 +124,13 @@ async function indexarArquivos() {
   log(`Arquivos indexados: ${arquivos.length}`);
 }
 
-function iniciar(funcaoLog) {
+function iniciar(funcaoLog, emJogo = () => false) {
   log = funcaoLog || log;
   indexarApps();
   indexarArquivos();
-  setInterval(indexarApps, 10 * 60 * 1000);
-  setInterval(indexarArquivos, 15 * 60 * 1000);
+  // durante um jogo não reindexa (abrir o PowerShell no meio do jogo pode fazer o ponteiro aparecer)
+  setInterval(() => { if (!emJogo()) indexarApps(); }, 10 * 60 * 1000);
+  setInterval(() => { if (!emJogo()) indexarArquivos(); }, 15 * 60 * 1000);
 }
 
 function atualizarEstadoSistema(e) { estadoSistema = { ...estadoSistema, ...e }; }

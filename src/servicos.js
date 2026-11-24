@@ -77,12 +77,15 @@ function lerEmUso(recurso, ignorar) {
   });
 }
 
-function vigiarPrivacidade(aoMudar) {
+function vigiarPrivacidade(aoMudar, pausado = () => false) {
   if (process.platform !== 'win32') return;
   // a própria ilha usa o microfone para a voz: não conta
   const ignorar = [path.basename(process.execPath).toLowerCase()];
   let anterior = '';
   setInterval(async () => {
+    // durante um jogo não consulta o registro: abrir o reg.exe a cada 2 s fazia o ponteiro piscar no jogo
+    // (as chamadas continuam sendo reconhecidas pelas sessões de áudio, que não abrem processos)
+    if (pausado()) return;
     const [mic, cam] = await Promise.all([lerEmUso('microphone', ignorar), lerEmUso('webcam', ignorar)]);
     const atual = JSON.stringify({ mic, cam });
     if (atual !== anterior) { anterior = atual; aoMudar({ mic, cam }); }

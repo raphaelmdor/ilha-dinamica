@@ -47,6 +47,7 @@ function iniciar(log = () => {}, handlePropria = null) {
     w.QueryFullProcessImageNameW = kernel32.func('__stdcall', 'QueryFullProcessImageNameW', 'bool', ['void *', 'uint32', 'void *', koffi.inout(koffi.pointer('uint32'))]);
     w.CloseHandle = kernel32.func('__stdcall', 'CloseHandle', 'bool', ['void *']);
     w.GetAsyncKeyState = user32.func('__stdcall', 'GetAsyncKeyState', 'int16', ['int32']);
+    w.MapVirtualKeyW = user32.func('__stdcall', 'MapVirtualKeyW', 'uint32', ['uint32', 'uint32']);
     // Para trazer uma janela nossa para a frente (o Windows bloqueia apps "de fundo" de pegar o foco)
     w.GetForegroundWindowI = user32.func('__stdcall', 'GetForegroundWindow', 'intptr', []);
     w.GetWindowThreadProcessIdI = user32.func('__stdcall', 'GetWindowThreadProcessId', 'uint32', ['intptr', 'void *']);
@@ -196,6 +197,22 @@ function estadoPrimeiroPlano() {
 }
 
 // Botão esquerdo do mouse apertado? (para não abrir a ilha enquanto você arrasta uma aba)
+// Posição física da tecla (KeyboardEvent.code) -> código de varredura -> tecla virtual no layout atual
+// (assim o "\|" ao lado do Shift do teclado ABNT2 funciona, mesmo o Electron não conhecendo)
+const VARREDURA = {
+  Backquote: 0x29, Minus: 0x0C, Equal: 0x0D, BracketLeft: 0x1A, BracketRight: 0x1B, Backslash: 0x2B,
+  Semicolon: 0x27, Quote: 0x28, Comma: 0x33, Period: 0x34, Slash: 0x35, IntlBackslash: 0x56, IntlRo: 0x73,
+  NumpadDecimal: 0x53, NumpadComma: 0x7E,
+};
+function vkDaPosicao(codigo) {
+  const sc = VARREDURA[codigo];
+  if (!w || !sc) return 0;
+  try { return w.MapVirtualKeyW(sc, 1) || 0; } catch { return 0; } // 1 = MAPVK_VSC_TO_VK
+}
+function teclaApertada(vk) {
+  try { return !!w && (w.GetAsyncKeyState(vk) & 0x8000) !== 0; } catch { return false; }
+}
+
 function botaoMouseApertado() {
   try { return !!w && (w.GetAsyncKeyState(0x01) & 0x8000) !== 0; } catch { return false; }
 }
@@ -236,4 +253,4 @@ function focarJanela(hwnd) {
   } catch { return false; }
 }
 
-module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, trazerParaFrente, janelaDaFrente, focarJanela };
+module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, vkDaPosicao, teclaApertada, trazerParaFrente, janelaDaFrente, focarJanela };

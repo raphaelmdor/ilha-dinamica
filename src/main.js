@@ -848,11 +848,47 @@ ipcMain.on('voz:fim', () => {
   timerVozEmJogo = setTimeout(encerrarVozEmJogo, 3000); // dá tempo de ver a resposta
 });
 
+// Atalhos com tecla de pontuação (ex.: Shift+| no teclado ABNT2) são gravados pela POSIÇÃO da tecla
+// ("Shift+|@IntlBackslash"): o Electron só conhece as teclas do teclado americano, então esses a ilha
+// vigia ela mesma (sem abrir nada, só lendo o estado das teclas a cada 35 ms).
+let atalhosPorPosicao = [];
+let timerPosicao = null;
+function registrarPorPosicao(atalho, acao) {
+  const [mods, codigo] = atalho.split('@');
+  const vk = janelasWin.vkDaPosicao(codigo);
+  if (!vk) return false;
+  const partes = mods.split('+');
+  atalhosPorPosicao.push({ vk, ctrl: partes.includes('Control'), alt: partes.includes('Alt'), shift: partes.includes('Shift'), win: partes.includes('Super'), acao, antes: true });
+  if (!timerPosicao) {
+    timerPosicao = setInterval(() => {
+      if (!atalhosPorPosicao.length) return;
+      const k = janelasWin.teclaApertada;
+      const ctrl = k(0x11), alt = k(0x12), shift = k(0x10), win = k(0x5B) || k(0x5C);
+      for (const a of atalhosPorPosicao) {
+        const agora = k(a.vk);
+        if (agora && !a.antes && a.ctrl === ctrl && a.alt === alt && a.shift === shift && a.win === win) {
+          try { a.acao(); } catch (e) { log('Erro no atalho:', e.message); }
+        }
+        a.antes = agora;
+      }
+    }, 35);
+  }
+  return true;
+}
+
 function registrarAtalhos() {
   globalShortcut.unregisterAll();
+  atalhosPorPosicao = [];
   const erros = {};
   const tentar = (nome, atalho, acao) => {
     if (!atalho) return null;
+    if (atalho.includes('@')) {
+      if (registrarPorPosicao(atalho, acao)) return atalho;
+      erros[nome] = `"${atalho.split('@')[0]}" não pôde ser usado neste teclado`;
+      return null;
+    }
+    // atalhos com | ou \ gravados antes de existir a posição física: também vale a tecla "\|" do teclado ABNT2
+    if (/\+[|\\]$/.test(atalho)) registrarPorPosicao(atalho.slice(0, -1) + '|@IntlBackslash', acao);
     try {
       if (globalShortcut.register(atalho, acao)) return atalho;
     } catch { /* formato inválido */ }
@@ -878,7 +914,7 @@ function registrarAtalhos() {
     atalhoBuscaAtivo = tentar('atalhoBusca2', 'Control+Alt+P', foraDeJogo(abrirLancador));
     if (atalhoBuscaAtivo) delete erros.atalhoBusca;
   }
-  log('Atalhos:', config.atalhoVoz, '|', config.atalhoMostrar, '| busca:', atalhoBuscaAtivo || 'nenhum', Object.keys(erros).length ? JSON.stringify(erros) : '');
+  log('Atalhos:', config.atalhoVoz, '|', config.atalhoMostrar, '| busca:', atalhoBuscaAtivo || 'nenhum', '| painel:', config.atalhoPainel || 'nenhum', Object.keys(erros).length ? JSON.stringify(erros) : '');
   atualizarMenuBandeja();
   return erros;
 }
@@ -1617,11 +1653,11 @@ if (copiaDeTeste) {
     servicos.vigiarPrivacidade((p) => {
       log('Microfone/câmera em uso:', JSON.stringify(p));
       janela?.webContents.send('privacidade', p);
-    });
+    }, () => ocultaPorJogo);
     lancador.definirCotacoes(servicos.lerCotacoes);
     servicos.atualizarCotacoes();
     setInterval(() => servicos.atualizarCotacoes(), 60 * 60 * 1000);
-    lancador.iniciar(log);
+    lancador.iniciar(log, () => ocultaPorJogo);
 
     // Manda a posição do mouse para os olhinhos seguirem (só quando muda)
     let ultimoCursor = '';
@@ -1642,7 +1678,7 @@ if (copiaDeTeste) {
       let jogoDesde = 0;
       let semJogoDesde = 0;
       jogos.carregarGameBar(log);
-      setInterval(() => jogos.carregarGameBar(), 10 * 60 * 1000);
+      setInterval(() => { if (!ocultaPorJogo) jogos.carregarGameBar(); }, 10 * 60 * 1000);
       setInterval(() => {
         if (encerrando || !janela) return;
         let info = null;

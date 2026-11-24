@@ -1,6 +1,6 @@
-## Novidades da 5.6.0
+## Novidades da 5.6.1
 
-- **Agenda da Apple (iCloud):** além da Google Agenda e do Outlook, agora dá para ligar a agenda do iPhone/Mac. Em Configurações tem o passo a passo de cada serviço.
-- Cada agenda ligada mostra de onde vem (Google, Apple ou Outlook), e o compromisso na ilha diz de qual agenda ele é.
-- Agora dá para ligar até 5 agendas.
-- Inclui a 5.5.4: clique à prova de falhas.
+- **Jogos sem ponteiro piscando:** durante um jogo a ilha não abre mais nenhum programa em segundo plano (a consulta de microfone/câmera, a indexação de apps e a lista de jogos ficam pausadas até você sair do jogo). As chamadas continuam sendo reconhecidas.
+- **Atalhos com pontuação no teclado ABNT2:** atalhos como Shift+| agora funcionam. A ilha reconhece a tecla pela posição física, e o atalho que você já tinha gravado passa a funcionar sem precisar gravar de novo.
+- **Painel aberto em ligação:** fone centralizado em cima dos olhinhos.
+- Inclui a 5.6.0: agenda da Apple (iCloud).

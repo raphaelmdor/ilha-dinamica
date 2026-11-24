@@ -134,7 +134,7 @@ $('restaurar').addEventListener('click', async () => {
 // Gravador de atalhos
 // ---------------------------------------------------------------------------
 const NOMES_TECLAS = { ' ': 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', Enter: 'Enter', Tab: 'Tab', Backspace: 'Backspace', Delete: 'Delete', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', Insert: 'Insert' };
-const bonito = (a) => String(a || 'nenhum').replace('Control', 'Ctrl').replace('Space', 'Espaço').replace(/\+/g, ' + ');
+const bonito = (a) => String(a || 'nenhum').replace(/@\w+$/, '').replace('Control', 'Ctrl').replace('Space', 'Espaço').replace(/\+/g, ' + ');
 
 document.querySelectorAll('[data-atalho]').forEach((el) => {
   const chave = el.dataset.atalho;
@@ -159,7 +159,11 @@ document.querySelectorAll('[data-atalho]').forEach((el) => {
     if (e.shiftKey) mods.push('Shift');
     if (e.metaKey) mods.push('Super');
     if (!mods.length && !/^F\d/.test(tecla)) { erro.textContent = 'Use pelo menos Ctrl, Alt ou Shift junto'; return; }
-    const atalho = [...mods, tecla].join('+');
+    let atalho = [...mods, tecla].join('+');
+    // tecla de pontuação: guarda também a posição física (o Electron só entende o teclado americano)
+    if (e.key.length === 1 && !/[a-z0-9]/i.test(e.key) && e.key !== ' ' && /^(Backquote|Minus|Equal|Bracket|Backslash|Semicolon|Quote|Comma|Period|Slash|Intl|Numpad(Decimal|Comma))/.test(e.code)) {
+      atalho += '@' + e.code;
+    }
     const outros = ['atalhoBusca', 'atalhoVoz', 'atalhoMostrar', 'atalhoPainel'].filter((k) => k !== chave);
     if (outros.some((k) => cfg[k] === atalho)) { erro.textContent = 'Esse atalho já está em uso por outra função da ilha'; return; }
     const r = await salvar({ [chave]: atalho });

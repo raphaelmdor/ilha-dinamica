@@ -1376,3 +1376,5 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 
 /* painel aberto em ligação: olhinhos grandes com fone, com espaço para as ondinhas */
 .olhos.grandes[data-humor="chamada"] { margin-right: calc(9px * var(--e)); }
+/* os olhos grandes não têm o recuo da esquerda: fone bem centralizado em cima deles */
+.olhos.grandes[data-humor="chamada"] .fone { transform: translateX(-50%); }
