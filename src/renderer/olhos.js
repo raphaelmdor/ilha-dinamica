@@ -94,8 +94,16 @@ export class Olhos {
       n.className = 'nota-musical';
       n.textContent = Math.random() < 0.5 ? '♪' : '♫';
       // no notch (colado no topo) sobe para a esquerda, longe do nome da música; solta, para os lados
-      const colada = g.closest('.ilha')?.classList.contains('colada');
-      n.style.setProperty('--dx', (colada ? -(5 + Math.random() * 4) : 8 + Math.random() * 10).toFixed(1) + 'px');
+      const ilhaEl = g.closest('.ilha');
+      const colada = ilhaEl?.classList.contains('colada');
+      if (ilhaEl?.classList.contains('discreta')) {
+        // notch pequenininho: a notinha pula de um dos olhinhos para o lado, sem sair do notch
+        const direita = Math.random() < 0.5;
+        n.classList.add('nota-discreta', direita ? 'dir' : 'esq');
+        n.style.setProperty('--dx', ((direita ? 1 : -1) * (3 + Math.random() * 2)).toFixed(1) + 'px');
+      } else {
+        n.style.setProperty('--dx', (colada ? -(5 + Math.random() * 4) : 8 + Math.random() * 10).toFixed(1) + 'px');
+      }
       n.style.setProperty('--rot', (Math.random() * 40 - 20).toFixed(0) + 'deg');
       n.addEventListener('animationend', () => n.remove());
       g.appendChild(n);
