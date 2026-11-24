@@ -122,6 +122,25 @@ interface IPolicyConfigIlha {
     int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
 }
 [ComImport, Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")] class PolicyConfigIlha { }
+// Sessões de som por programa (quem está TOCANDO som agora)
+[ComImport, Guid("77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioSessionManager2Ilha {
+    int _GetAudioSessionControl(); int _GetSimpleAudioVolume();
+    int GetSessionEnumerator(out IAudioSessionEnumeratorIlha e);
+}
+[ComImport, Guid("E2F5BB11-0570-40CA-ACDD-3AA01277DEE8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioSessionEnumeratorIlha {
+    int GetCount(out int n);
+    int GetSession(int i, out IAudioSessionControl2Ilha s);
+}
+[ComImport, Guid("bfb7ff88-7239-4fc9-8fa2-07c950be9c6d"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IAudioSessionControl2Ilha {
+    int GetState(out int state);
+    int _GetDisplayName(); int _SetDisplayName(); int _GetIconPath(); int _SetIconPath();
+    int _GetGroupingParam(); int _SetGroupingParam(); int _RegisterNotif(); int _UnregisterNotif();
+    int _GetSessionIdentifier(); int _GetSessionInstanceIdentifier();
+    int GetProcessId(out uint pid);
+}
 
 [ComImport, Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 interface IAudioMeterInformationIlha { int GetPeakValue(out float peak); }
@@ -209,6 +228,36 @@ public static class AudioIlha {
             }
         } catch { }
         return lista.ToArray();
+    }
+    // Programas com som saindo AGORA (em qualquer caixa/fone ligado). Numa chamada o app toca a voz
+    // da outra pessoa; gravando um áudio, não toca nada: é assim que a ilha diferencia.
+    public static string[] TocandoSom() {
+        var nomes = new System.Collections.Generic.HashSet<string>();
+        try {
+            var en = (IMMDeviceEnumeratorIlha)(new MMDeviceEnumeratorIlha());
+            IMMDeviceCollectionIlha col;
+            Marshal.ThrowExceptionForHR(en.EnumAudioEndpoints(0, 1, out col));
+            int n; col.GetCount(out n);
+            for (int i = 0; i < n; i++) {
+                try {
+                    IMMDeviceIlha d; if (col.Item(i, out d) != 0 || d == null) continue;
+                    Guid iid = typeof(IAudioSessionManager2Ilha).GUID; object o;
+                    if (d.Activate(ref iid, 23, IntPtr.Zero, out o) != 0) continue;
+                    IAudioSessionEnumeratorIlha se;
+                    if (((IAudioSessionManager2Ilha)o).GetSessionEnumerator(out se) != 0) continue;
+                    int k; se.GetCount(out k);
+                    for (int j = 0; j < k; j++) {
+                        try {
+                            IAudioSessionControl2Ilha sc; if (se.GetSession(j, out sc) != 0 || sc == null) continue;
+                            int st; sc.GetState(out st); if (st != 1) continue; // 1 = ativa
+                            uint pid; sc.GetProcessId(out pid); if (pid == 0) continue;
+                            try { nomes.Add(System.Diagnostics.Process.GetProcessById((int)pid).ProcessName); } catch { }
+                        } catch { }
+                    }
+                } catch { }
+            }
+        } catch { }
+        var r = new string[nomes.Count]; nomes.CopyTo(r); return r;
     }
     public static void DefinirPadrao(string id) {
         var pc = (IPolicyConfigIlha)(new PolicyConfigIlha());
@@ -622,6 +671,11 @@ function Executar($comando) {
         'bt'     { Definir-Radio 'Bluetooth' $arg; Start-Sleep -Milliseconds 400; Enviar-Sistema }
         'estado' { Enviar-Sistema }
         'dispositivos' { Enviar-Dispositivos }
+        'sons' {
+            $obj = [ordered]@{ tipo = 'sons'; apps = @([AudioIlha]::TocandoSom()) }
+            [Console]::Out.WriteLine((ConvertTo-Json -InputObject $obj -Compress))
+            [Console]::Out.Flush()
+        }
         'padrao' {
             try { [AudioIlha]::DefinirPadrao($arg.Trim()) } catch { [Console]::Error.WriteLine("Falha ao trocar dispositivo: $($_.Exception.Message)") }
             Start-Sleep -Milliseconds 300

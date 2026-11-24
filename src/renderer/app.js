@@ -1225,29 +1225,59 @@ const APPS_CHAMADA = [
 ];
 const nomeChamada = (apps) => { for (const a of apps) for (const [re, n] of APPS_CHAMADA) if (re.test(a)) return n; return null; };
 let relogioChamada = null;
+// Compara "WhatsAppDesktop" (microfone) com "WhatsApp" (processo tocando som) e afins
+const raiz = (x) => String(x).toLowerCase().replace(/[^a-z]/g, '').replace(/desktop|root|app$/g, '').slice(0, 6);
+const mesmoApp = (a, b) => { const x = raiz(a); const y = raiz(b); return x.length >= 3 && y.length >= 3 && (x.startsWith(y) || y.startsWith(x)); };
+let micAgora = { mic: [], cam: [] };
+let candidato = null;          // app de conversa com microfone ligado, ainda sem confirmar se é chamada
+let conferindo = null;
+// Chamada = app de conversa usando o microfone E tocando som (a voz da outra pessoa).
+// Gravando um áudio no WhatsApp, o microfone liga mas o app não toca nada: não é chamada.
 function atualizarChamada(mic, cam) {
+  micAgora = { mic, cam };
   const app = nomeChamada(mic);
-  const antes = estado.chamada;
-  if (app && !antes) {
-    estado.chamada = { app, desde: Date.now(), video: cam.length > 0 };
-    ilha.classList.add('em-chamada');
-    olhos.definirChamada(true);
-    $('chamadaMini').title = `Em chamada · ${app}`;
-    aviso(cam.length ? 'Chamada de vídeo' : 'Em chamada', app, { icone: '📞', tipo: 'info', ms: 3000 });
-    const tic = () => { $('chamadaTempo').textContent = fmtTempo((Date.now() - estado.chamada.desde) / 1000); };
-    tic();
-    relogioChamada = setInterval(tic, 1000);
-  } else if (!app && antes) {
-    const duracao = fmtTempo((Date.now() - antes.desde) / 1000);
-    estado.chamada = null;
-    clearInterval(relogioChamada);
-    ilha.classList.remove('em-chamada');
-    olhos.definirChamada(false);
-    olhos.reagir('feliz', 1800);
-    aviso('Chamada encerrada', `${antes.app} · ${duracao}`, { icone: '📞', tipo: 'info', ms: 3000 });
-  } else if (app && antes) {
-    antes.app = app;
+  if (!app) {
+    candidato = null;
+    clearInterval(conferindo); conferindo = null;
+    if (estado.chamada) encerrarChamada();
+    return;
   }
+  if (estado.chamada) { estado.chamada.app = app; return; }
+  if (candidato) return;
+  candidato = { app, desde: Date.now(), apps: mic.filter((x) => nomeChamada([x])) };
+  // confere a cada 2 s enquanto o microfone estiver ligado (a chamada pode "conectar" depois)
+  setTimeout(() => api.consultarSons?.(), 2500);
+  conferindo = setInterval(() => api.consultarSons?.(), 2000);
+}
+api.on('sons', (tocando) => {
+  if (!candidato || estado.chamada) return;
+  if (Date.now() - candidato.desde < 2400) return; // microfone ligado por um instante não conta
+  const fala = candidato.apps.some((m) => tocando.some((t) => mesmoApp(m, t)));
+  if (!fala) return;
+  clearInterval(conferindo); conferindo = null;
+  iniciarChamada(candidato.app, micAgora.cam.length > 0, candidato.desde);
+  candidato = null;
+});
+function iniciarChamada(app, video, desde) {
+  estado.chamada = { app, desde, video };
+  ilha.classList.add('em-chamada');
+  olhos.definirChamada(true);
+  $('chamadaMini').title = `Em chamada · ${app}`;
+  aviso(video ? 'Chamada de vídeo' : 'Em chamada', app, { icone: '📞', tipo: 'info', ms: 3000 });
+  const tic = () => { if (estado.chamada) $('chamadaTempo').textContent = fmtTempo((Date.now() - estado.chamada.desde) / 1000); };
+  tic();
+  clearInterval(relogioChamada);
+  relogioChamada = setInterval(tic, 1000);
+}
+function encerrarChamada() {
+  const antes = estado.chamada;
+  const duracao = fmtTempo((Date.now() - antes.desde) / 1000);
+  estado.chamada = null;
+  clearInterval(relogioChamada);
+  ilha.classList.remove('em-chamada');
+  olhos.definirChamada(false);
+  olhos.reagir('feliz', 1800);
+  aviso('Chamada encerrada', `${antes.app} · ${duracao}`, { icone: '📞', tipo: 'info', ms: 3000 });
 }
 
 api.on('privacidade', ({ mic, cam }) => {

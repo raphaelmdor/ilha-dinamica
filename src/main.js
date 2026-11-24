@@ -406,6 +406,7 @@ function iniciarAjudanteMidia() {
       try {
         const dados = JSON.parse(linha);
         if (dados.tipo === 'log') { log('[mídia]', String(dados.msg).slice(0, 1500)); continue; }
+        if (dados.tipo === 'sons') { janela?.webContents.send('sons', dados.apps || []); continue; }
         if (dados.tipo === 'dispositivos') { janela?.webContents.send('dispositivos', dados); continue; }
         if (dados.tipo === 'hw') {
           hw = { ...hw, cpuTemp: dados.cpuTemp, cpuFonte: dados.cpuFonte, ...(dados.gpuUso != null ? { gpuUso: dados.gpuUso } : {}) };
@@ -1480,6 +1481,7 @@ ipcMain.handle('apps:listar', () => lancador.listarApps());
 ipcMain.on('foco:silenciar', (_e, sim) => silenciarNoFoco(!!sim));
 ipcMain.on('atualizar:agora', () => instalarAtualizacaoAgora());
 ipcMain.on('audio:listar', () => escreverAjudante('dispositivos'));
+ipcMain.on('audio:sons', () => escreverAjudante('sons'));
 ipcMain.on('audio:padrao', (_e, id) => {
   if (typeof id !== 'string' || !/^\{[\w.-]+\}\.\{[0-9a-fA-F-]+\}$/.test(id)) return;
   log('Trocando dispositivo de áudio padrão');

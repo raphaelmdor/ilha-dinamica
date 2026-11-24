@@ -1,7 +1,4 @@
-## Novidades da 5.2.0
+## Novidades da 5.2.1
 
-- **A ilha percebe quando você está em chamada:** Discord, WhatsApp, Teams, Zoom, Google Meet no navegador, Telegram, Skype, Slack e outros.
-  - Os olhinhos colocam um **fone de ouvido**, ficam atentos, piscam e "concordam" com a cabeça. Ondinhas de voz saem do lado.
-  - No notch aparece uma **pílula verde com um telefone balançando e o tempo da chamada**, e a ilha ganha um contorno verde que "respira".
-  - Quando a chamada acaba, a ilha mostra quanto tempo durou e os olhinhos ficam felizes.
-- Inclui a 5.1.0: trocar a saída de áudio e o microfone pela ilha.
+- **Chamada x gravar áudio:** a ilha agora diferencia uma chamada de uma gravação de áudio. Só é chamada quando o app usa o microfone e, ao mesmo tempo, toca som (a voz da outra pessoa). Gravando um áudio no WhatsApp, o microfone liga mas o app não toca nada, então a ilha não entra no modo chamada. O microfone ligado por menos de 2 segundos também não conta.
+- Inclui a 5.2.0: modo chamada com fone nos olhinhos e tempo da chamada no notch.
