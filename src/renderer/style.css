@@ -1149,7 +1149,7 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 .ilha.em-chamada { box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.55), 0 0 14px rgba(52, 211, 153, 0.25); animation: respira-chamada 3s ease-in-out infinite; }
 @keyframes respira-chamada { 50% { box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.25), 0 0 4px rgba(52, 211, 153, 0.1); } }
 /* no modo discreto (só olhinhos), o fone continua aparecendo */
-.ilha.discreta.em-chamada[data-estado="compacta"] { --cor-olhos: var(--verde); }
+.ilha.discreta.em-chamada[data-estado="compacta"] { --cor-olhos: #fff; }
 
 /* ligação tocando: a ilha "vibra" e pulsa em verde */
 .ilha.chamando { animation: vibra-ligacao 1.2s ease-in-out infinite; box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.7), 0 0 18px rgba(52, 211, 153, 0.45); }
@@ -1210,4 +1210,7 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 
 /* modo discreto em chamada: só o fone pequenininho nos olhos, sem contorno nem ondinhas */
 .ilha.discreta.em-chamada[data-estado="compacta"] { animation: none; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
-.ilha.discreta[data-estado="compacta"] .ondas { display: none !important; }
+/* no notch pequenininho: fone, olhinhos conversando e ondinhas, tudo um pouco menor e mais para baixo para caber */
+.ilha.discreta[data-estado="compacta"] .olhos[data-humor="chamada"] { --e: calc(var(--escala) * 0.62); margin-top: calc(3px * var(--escala)); }
+.ilha.discreta[data-estado="compacta"] .olhos[data-humor="chamada"] .ondas { right: calc(-7px * var(--e)); }
+.ilha.discreta.em-chamada[data-estado="compacta"] { width: calc(62px * var(--escala)) !important; }
