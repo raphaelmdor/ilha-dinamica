@@ -7,6 +7,19 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const os = require('os');
+// Medidor de desempenho: conta quantos programas a ilha abre (antes de qualquer módulo pegar as funções)
+const processosAbertos = {};
+{
+  const cp = require('child_process');
+  for (const nome of ['spawn', 'execFile', 'execFileSync']) {
+    const original = cp[nome];
+    cp[nome] = function (cmd, ...resto) {
+      const exe = path.basename(String(cmd)).toLowerCase();
+      processosAbertos[exe] = (processosAbertos[exe] || 0) + 1;
+      return original.call(this, cmd, ...resto);
+    };
+  }
+}
 const { spawn, execFile, execFileSync } = require('child_process');
 const janelasWin = require('./janelas-win');
 const lancador = require('./lancador');
@@ -1600,7 +1613,36 @@ if (copiaDeTeste) {
 } else if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
+// Mede o consumo da ilha e anota no log: a cada minuto nos primeiros 15 min, depois a cada 30 min
+function medirDesempenho() {
+  let quando = 0;
+  const medir = () => {
+    try {
+      const m = app.getAppMetrics();
+      const porTipo = {};
+      let cpu = 0, mem = 0;
+      for (const p of m) {
+        const t = p.type === 'Browser' ? 'principal' : p.type === 'Tab' || p.type === 'Renderer' ? 'tela' : p.type === 'GPU' ? 'gpu' : 'outros';
+        porTipo[t] = porTipo[t] || { cpu: 0, mem: 0 };
+        porTipo[t].cpu += p.cpu?.percentCPUUsage || 0;
+        porTipo[t].mem += (p.memory?.workingSetSize || 0) / 1024;
+        cpu += p.cpu?.percentCPUUsage || 0;
+        mem += (p.memory?.workingSetSize || 0) / 1024;
+      }
+      const partes = Object.entries(porTipo).map(([t, v]) => `${t} ${v.cpu.toFixed(1)}%/${Math.round(v.mem)}MB`).join(', ');
+      const abertos = Object.entries(processosAbertos).map(([k, v]) => `${k}×${v}`).join(' ') || 'nenhum';
+      for (const k of Object.keys(processosAbertos)) delete processosAbertos[k];
+      log(`Desempenho: CPU ${cpu.toFixed(1)}% | memória ${Math.round(mem)} MB (${partes}) | programas abertos desde a última medição: ${abertos}${ocultaPorJogo ? ' | em jogo' : ''}`);
+    } catch (e) { log('Desempenho: erro ao medir -', e.message); }
+    quando++;
+    setTimeout(medir, quando < 15 ? 60 * 1000 : 30 * 60 * 1000);
+  };
+  app.getAppMetrics(); // a primeira leitura de CPU zera a contagem
+  setTimeout(medir, 60 * 1000);
+}
+
   app.whenReady().then(async () => {
+    medirDesempenho();
     // Libera o microfone só para a nossa própria página local
     const origem = `http://127.0.0.1:${PORTA}`;
     session.defaultSession.setPermissionRequestHandler((wc, permissao, callback) => {
