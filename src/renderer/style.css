@@ -885,14 +885,18 @@ body.sem-olhos .olhos { display: none; }
 }
 /* Notch: mais baixinho e estreito, texto e olhinhos menores */
 .ilha.colada[data-estado="compacta"] {
-  width: calc(168px * var(--escala));
-  height: calc(28px * var(--escala));
-  border-bottom-left-radius: calc(14px * var(--escala));
-  border-bottom-right-radius: calc(14px * var(--escala));
+  width: calc(184px * var(--escala));
+  height: calc(31px * var(--escala));
+  border-bottom-left-radius: calc(16px * var(--escala));
+  border-bottom-right-radius: calc(16px * var(--escala));
 }
-.ilha.colada.com-midia[data-estado="compacta"] { width: calc(200px * var(--escala)); }
-.ilha.colada.com-timer[data-estado="compacta"] { width: calc(196px * var(--escala)); }
-.ilha.colada[data-estado="compacta"] .vista-compacta { font-size: calc(12px * var(--escala)); padding: 0 10px 0 6px; gap: 6px; }
+.ilha.colada.com-midia[data-estado="compacta"] { width: calc(236px * var(--escala)); }
+.ilha.colada.com-timer[data-estado="compacta"] { width: calc(206px * var(--escala)); }
+.ilha.colada.em-chamada[data-estado="compacta"] { width: calc(214px * var(--escala)); }
+.ilha.colada.em-chamada.com-midia[data-estado="compacta"] { width: calc(250px * var(--escala)); }
+.ilha.colada[data-estado="compacta"] .vista-compacta { font-size: calc(12.5px * var(--escala)); padding: 0 12px 0 8px; gap: 7px; }
+/* painel aberto também nasce do topo: só os cantos de baixo arredondados */
+.ilha.colada:not([data-estado="compacta"]) { border-bottom-left-radius: calc(24px * var(--escala)); border-bottom-right-radius: calc(24px * var(--escala)); }
 .ilha.colada[data-estado="compacta"] .olhos { --e: calc(var(--escala) * 0.82); width: calc(22px * var(--escala)); }
 .ilha.colada[data-estado="compacta"] .equalizador { height: 11px; }
 

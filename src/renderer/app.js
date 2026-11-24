@@ -4,6 +4,7 @@ import { Olhos } from './olhos.js';
 import { iniciarWidgets } from './widgets.js';
 
 const $ = (id) => document.getElementById(id);
+document.getElementById('ilha')?.classList.add('colada'); // nasce já como notch
 const ilha = $('ilha');
 const olhos = new Olhos();
 // Fora do Electron (abrindo o HTML no navegador para testar o visual) usa um simulador
@@ -314,8 +315,9 @@ function conferirLetreiro() {
   const caixa = $('textoCompacto');
   const span = caixa.firstElementChild;
   if (!span || !caixa.clientWidth) return;
-  const largura = caixa.classList.contains('rolando') ? span.offsetWidth / 2 : span.offsetWidth;
-  const precisa = largura > caixa.clientWidth + 2;
+  // largura do nome sozinho (guardada antes de duplicar o texto para o letreiro)
+  if (!caixa.classList.contains('rolando')) caixa.dataset.largura = span.offsetWidth;
+  const precisa = Number(caixa.dataset.largura) > caixa.clientWidth + 2;
   if (precisa && !caixa.classList.contains('rolando')) {
     const texto = caixa.dataset.texto;
     span.textContent = `${texto}\u2003•\u2003${texto}\u2003•\u2003`;
@@ -328,6 +330,8 @@ function conferirLetreiro() {
   }
 }
 window.addEventListener('resize', () => requestAnimationFrame(conferirLetreiro));
+// a ilha muda de largura com animação: mede de novo quando ela termina de crescer/encolher
+document.getElementById('ilha').addEventListener('transitionend', (e) => { if (e.propertyName === 'width') conferirLetreiro(); });
 
 // Tempo da música (interpola entre as atualizações do Windows)
 const fmtTempo = (s) => { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -1470,14 +1474,12 @@ api.on('cursor', (pos) => {
 let ultimoModoApp = null;
 function aplicarModoApp(modo) {
   ultimoModoApp = modo;
-  const notch = estado.config.modoNotch !== false;
-  const mini = estado.config.modoMini !== false && modo === 'cheia';
+  // Sempre notch colado no topo; a única troca é para o modo discreto (só os olhinhos)
   const discreta = modo === 'maximizada-abas';
   ilha.classList.toggle('discreta', discreta);
   if (discreta && estado.vista === 'compacta') definirInterativo(false); // nunca rouba cliques das abas
-  ilha.classList.toggle('colada', notch && (modo === 'maximizada' || modo === 'maximizada-abas' || modo === 'cheia') || mini || discreta);
-  ilha.classList.toggle('mini', mini);
-  if (mini && estado.fixada) { estado.fixada = false; voltarAoPadrao(); }
+  ilha.classList.add('colada');
+  ilha.classList.remove('mini');
 }
 api.on('modoApp', aplicarModoApp);
 
