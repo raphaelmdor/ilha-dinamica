@@ -882,16 +882,17 @@ let atalhosPorPosicao = [];
 let timerPosicao = null;
 function registrarPorPosicao(atalho, acao) {
   const [mods, codigo] = atalho.split('@');
-  const vk = janelasWin.vkDaPosicao(codigo);
-  if (!vk) return false;
+  if (!janelasWin.posicaoConhecida(codigo)) return false;
   const partes = mods.split('+');
-  atalhosPorPosicao.push({ vk, ctrl: partes.includes('Control'), alt: partes.includes('Alt'), shift: partes.includes('Shift'), win: partes.includes('Super'), acao, antes: true });
+  // a tecla é descoberta na primeira conferência (o leitor de teclado pode ainda não estar pronto agora)
+  atalhosPorPosicao.push({ codigo, vk: 0, ctrl: partes.includes('Control'), alt: partes.includes('Alt'), shift: partes.includes('Shift'), win: partes.includes('Super'), acao, antes: true });
   if (!timerPosicao) {
     timerPosicao = setInterval(() => {
       if (!atalhosPorPosicao.length) return;
       const k = janelasWin.teclaApertada;
       const ctrl = k(0x11), alt = k(0x12), shift = k(0x10), win = k(0x5B) || k(0x5C);
       for (const a of atalhosPorPosicao) {
+        if (!a.vk) { a.vk = janelasWin.vkDaPosicao(a.codigo); if (!a.vk) continue; }
         const agora = k(a.vk);
         if (agora && !a.antes && a.ctrl === ctrl && a.alt === alt && a.shift === shift && a.win === win) {
           try { a.acao(); } catch (e) { log('Erro no atalho:', e.message); }

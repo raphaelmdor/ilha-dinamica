@@ -205,6 +205,7 @@ const VARREDURA = {
   Semicolon: 0x27, Quote: 0x28, Comma: 0x33, Period: 0x34, Slash: 0x35, IntlBackslash: 0x56, IntlRo: 0x73,
   NumpadDecimal: 0x53, NumpadComma: 0x7E,
 };
+const posicaoConhecida = (codigo) => !!VARREDURA[codigo];
 function vkDaPosicao(codigo) {
   const sc = VARREDURA[codigo];
   if (!w || !sc) return 0;
@@ -258,4 +259,4 @@ function focarJanela(hwnd) {
   } catch { return false; }
 }
 
-module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, vkDaPosicao, teclaApertada, seqAreaTransferencia, trazerParaFrente, janelaDaFrente, focarJanela };
+module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, vkDaPosicao, posicaoConhecida, teclaApertada, seqAreaTransferencia, trazerParaFrente, janelaDaFrente, focarJanela };

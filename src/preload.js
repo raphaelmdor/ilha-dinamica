@@ -1,5 +1,5 @@
 // Ponte segura entre a interface e o processo principal
-const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const { contextBridge, ipcRenderer, webUtils, webFrame } = require('electron');
 
 const CANAIS = ['toque', 'sons', 'dispositivos', 'janela:reexibida', 'jogo:interagir', 'whisper:status', 'nivel', 'config', 'tela', 'midia', 'modelo:status', 'voz:ativar', 'cursor', 'modoApp', 'sistema', 'lancador:abrir', 'lancador:fechar', 'copiados', 'teclado:fim', 'painel:alternar',
   'osd', 'saida', 'download', 'privacidade', 'agendas:recarregar', 'atualizacao', 'atualizado'];
@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('ilhaAPI', {
   definirAudio: (id) => ipcRenderer.send('audio:padrao', String(id)),
   diagClique: (msg) => ipcRenderer.send('diag:clique', String(msg)),
   diagSempre: (msg) => ipcRenderer.send('diag:sempre', String(msg)),
+  // solta da memória o que a tela não usa mais (ex.: capas de músicas anteriores)
+  liberarMemoria: () => { try { webFrame.clearCache(); } catch { /* ignora */ } },
   transcrever: (wav) => ipcRenderer.invoke('voz:transcrever', wav),
   vozFim: () => ipcRenderer.send('voz:fim'),
   buscar: (texto) => ipcRenderer.invoke('lancador:buscar', texto),

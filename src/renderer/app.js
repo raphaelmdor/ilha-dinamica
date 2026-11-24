@@ -425,6 +425,7 @@ async function iniciarBateria() {
 // ---------------------------------------------------------------------------
 // Mídia
 // ---------------------------------------------------------------------------
+let timerLiberarMemoria = null;
 function atualizarMidia(m) {
   m = m || { ativo: false };
   // Música nova: alguns players (Spotify) mandam o tempo da música anterior por um tempinho.
@@ -463,6 +464,9 @@ function atualizarMidia(m) {
       estado.capaUrl = m.capa;
       $('capaGrande').style.backgroundImage = `url("${m.capa}")`;
       $('capaMini').style.backgroundImage = `url("${m.capa}")`;
+      // a capa anterior (às vezes 250 KB) não fica guardada no cache de imagens
+      clearTimeout(timerLiberarMemoria);
+      timerLiberarMemoria = setTimeout(() => api.liberarMemoria?.(), 4000);
     }
     ilha.classList.add('com-capa');
     estado.chaveCapa = chave;
