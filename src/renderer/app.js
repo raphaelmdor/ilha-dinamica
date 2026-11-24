@@ -41,8 +41,14 @@ let timeoutAviso = null;
 let timeoutRecolher = null;
 
 function mostrar(vista) {
-  // recolheu: na próxima vez que abrir, o painel começa no Início
-  if (vista === 'compacta' && estado.vista && estado.vista !== 'compacta') estado.voltarAoInicio = true;
+  // recolheu: se ficar recolhido por 5 s, na próxima vez o painel abre no Início
+  // (reabrindo antes disso, continua no widget onde estava)
+  if (vista === 'compacta' && estado.vista && estado.vista !== 'compacta') {
+    clearTimeout(estado.timeoutInicio);
+    estado.timeoutInicio = setTimeout(() => { if (estado.vista === 'compacta') estado.voltarAoInicio = true; }, 5000);
+  } else if (vista === 'expandida') {
+    clearTimeout(estado.timeoutInicio);
+  }
   estado.vista = vista;
   ilha.dataset.estado = vista;
   if (vista !== 'aviso') ilha.classList.remove('alto', 'com-botoes');
