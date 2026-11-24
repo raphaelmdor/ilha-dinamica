@@ -1,6 +1,5 @@
-## Novidades da 5.2.2
+## Novidades da 5.2.3
 
-- **Ligação recebida:** quando uma ligação toca, por exemplo no WhatsApp Web, a ilha "vibra" com um brilho verde, os olhinhos se assustam e aparece "Ligação recebida" com o nome de quem está ligando.
-- **Atender vira chamada na hora:** se você atender (o microfone liga), a ilha entra no modo chamada com o nome da pessoa no notch.
-- **Correção:** o toque da ligação não aparece mais como se fosse música.
-- Registro no log para ajustar a detecção de chamadas em que nada toca antes, como entrar num canal do Discord ou numa reunião.
+- **Nome da música passando:** quando o nome não cabe na ilha, ele passa em looping, como um letreiro, com as pontas esfumaçadas. Não fica mais cortado com "…".
+- **Notinhas sem embolar:** no notch colado no topo, as notinhas sobem pelo lado esquerdo dos olhinhos e não passam mais por trás do nome da música.
+- Inclui a 5.2.2: reconhece ligação tocando e atendida.

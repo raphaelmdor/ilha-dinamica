@@ -297,10 +297,37 @@ function atualizarRelogio() {
 
 function atualizarTextoCompacto() {
   const m = estado.midia;
-  $('textoCompacto').textContent = m.ativo && m.status === 'Playing'
-    ? m.titulo
-    : fmtHora.format(new Date());
+  const texto = m.ativo && m.status === 'Playing' ? m.titulo : fmtHora.format(new Date());
+  const caixa = $('textoCompacto');
+  if (caixa.dataset.texto === texto) { conferirLetreiro(); return; }
+  caixa.dataset.texto = texto;
+  caixa.classList.remove('rolando');
+  caixa.innerHTML = '';
+  const span = document.createElement('span');
+  span.textContent = texto;
+  caixa.appendChild(span);
+  requestAnimationFrame(conferirLetreiro);
 }
+
+// Nome grande demais: passa em looping (letreiro), sem cortar com "..."
+function conferirLetreiro() {
+  const caixa = $('textoCompacto');
+  const span = caixa.firstElementChild;
+  if (!span || !caixa.clientWidth) return;
+  const largura = caixa.classList.contains('rolando') ? span.offsetWidth / 2 : span.offsetWidth;
+  const precisa = largura > caixa.clientWidth + 2;
+  if (precisa && !caixa.classList.contains('rolando')) {
+    const texto = caixa.dataset.texto;
+    span.textContent = `${texto}\u2003•\u2003${texto}\u2003•\u2003`;
+    // velocidade constante (~28 px por segundo), qualquer que seja o tamanho do nome
+    span.style.animationDuration = `${Math.max(6, (span.offsetWidth / 2) / 28)}s`;
+    caixa.classList.add('rolando');
+  } else if (!precisa && caixa.classList.contains('rolando')) {
+    span.textContent = caixa.dataset.texto;
+    caixa.classList.remove('rolando');
+  }
+}
+window.addEventListener('resize', () => requestAnimationFrame(conferirLetreiro));
 
 // Tempo da música (interpola entre as atualizações do Windows)
 const fmtTempo = (s) => { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
