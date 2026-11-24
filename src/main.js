@@ -406,7 +406,8 @@ function iniciarAjudanteMidia() {
       try {
         const dados = JSON.parse(linha);
         if (dados.tipo === 'log') { log('[mídia]', String(dados.msg).slice(0, 1500)); continue; }
-        if (dados.tipo === 'sons') { janela?.webContents.send('sons', dados.apps || []); continue; }
+        if (dados.tipo === 'sons') { log('Chamada-diag: tocando som', JSON.stringify(dados.apps || [])); janela?.webContents.send('sons', dados.apps || []); continue; }
+        if (dados.tipo === 'toque') { log('Toque de ligação:', dados.titulo); janela?.webContents.send('toque', dados); continue; }
         if (dados.tipo === 'dispositivos') { janela?.webContents.send('dispositivos', dados); continue; }
         if (dados.tipo === 'hw') {
           hw = { ...hw, cpuTemp: dados.cpuTemp, cpuFonte: dados.cpuFonte, ...(dados.gpuUso != null ? { gpuUso: dados.gpuUso } : {}) };

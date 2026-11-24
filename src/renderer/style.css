@@ -1145,3 +1145,11 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 @keyframes respira-chamada { 50% { box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.25), 0 0 4px rgba(52, 211, 153, 0.1); } }
 /* no modo discreto (só olhinhos), o fone continua aparecendo */
 .ilha.discreta.em-chamada[data-estado="compacta"] { --cor-olhos: var(--verde); }
+
+/* ligação tocando: a ilha "vibra" e pulsa em verde */
+.ilha.chamando { animation: vibra-ligacao 1.2s ease-in-out infinite; box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.7), 0 0 18px rgba(52, 211, 153, 0.45); }
+@keyframes vibra-ligacao {
+  0%, 40%, 100% { translate: 0 0; }
+  5%, 15%, 25%, 35% { translate: -1.5px 0; }
+  10%, 20%, 30% { translate: 1.5px 0; }
+}

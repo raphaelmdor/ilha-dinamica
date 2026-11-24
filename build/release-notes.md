@@ -1,4 +1,6 @@
-## Novidades da 5.2.1
+## Novidades da 5.2.2
 
-- **Chamada x gravar áudio:** a ilha agora diferencia uma chamada de uma gravação de áudio. Só é chamada quando o app usa o microfone e, ao mesmo tempo, toca som (a voz da outra pessoa). Gravando um áudio no WhatsApp, o microfone liga mas o app não toca nada, então a ilha não entra no modo chamada. O microfone ligado por menos de 2 segundos também não conta.
-- Inclui a 5.2.0: modo chamada com fone nos olhinhos e tempo da chamada no notch.
+- **Ligação recebida:** quando uma ligação toca, por exemplo no WhatsApp Web, a ilha "vibra" com um brilho verde, os olhinhos se assustam e aparece "Ligação recebida" com o nome de quem está ligando.
+- **Atender vira chamada na hora:** se você atender (o microfone liga), a ilha entra no modo chamada com o nome da pessoa no notch.
+- **Correção:** o toque da ligação não aparece mais como se fosse música.
+- Registro no log para ajustar a detecção de chamadas em que nada toca antes, como entrar num canal do Discord ou numa reunião.

@@ -1244,11 +1244,36 @@ function atualizarChamada(mic, cam) {
   }
   if (estado.chamada) { estado.chamada.app = app; return; }
   if (candidato) return;
+  api.diagChamada?.(`microfone: ${JSON.stringify(mic)} -> ${app}`);
+  // acabou de tocar uma ligação: atender = chamada, sem precisar conferir mais nada
+  if (Date.now() - (estado.toqueEm || 0) < 90000) {
+    const quem = estado.toqueDe;
+    setTimeout(() => {
+      if (!estado.chamada && nomeChamada(micAgora.mic)) iniciarChamada(quem || app, micAgora.cam.length > 0, Date.now() - 1500);
+    }, 1500);
+    return;
+  }
   candidato = { app, desde: Date.now(), apps: mic.filter((x) => nomeChamada([x])) };
   // confere a cada 2 s enquanto o microfone estiver ligado (a chamada pode "conectar" depois)
   setTimeout(() => api.consultarSons?.(), 2500);
   conferindo = setInterval(() => api.consultarSons?.(), 2000);
 }
+// Ligação tocando (o WhatsApp Web avisa o Windows como se fosse uma "música" com esse título)
+api.on('toque', ({ titulo }) => {
+  if (estado.chamada) return;
+  const primeira = Date.now() - (estado.toqueEm || 0) > 8000;
+  estado.toqueEm = Date.now();
+  const m = String(titulo).match(/recebida de\s+(.+)$/i) || String(titulo).match(/.*\b(?:de|from)\s+(.+)$/i);
+  estado.toqueDe = m ? m[1].trim() : '';
+  const video = /v[íi]deo|video/i.test(titulo);
+  ilha.classList.add('chamando');
+  clearTimeout(estado.timeoutToque);
+  estado.timeoutToque = setTimeout(() => ilha.classList.remove('chamando'), 5000);
+  if (primeira) {
+    olhos.reagir('surpreso', 2500);
+    aviso(video ? 'Chamada de vídeo recebida' : 'Ligação recebida', estado.toqueDe || 'WhatsApp', { icone: '📞', tipo: 'info', ms: 5000 });
+  }
+});
 api.on('sons', (tocando) => {
   if (!candidato || estado.chamada) return;
   if (Date.now() - candidato.desde < 2400) return; // microfone ligado por um instante não conta
@@ -1259,6 +1284,8 @@ api.on('sons', (tocando) => {
   candidato = null;
 });
 function iniciarChamada(app, video, desde) {
+  ilha.classList.remove('chamando');
+  estado.toqueEm = 0;
   estado.chamada = { app, desde, video };
   ilha.classList.add('em-chamada');
   olhos.definirChamada(true);

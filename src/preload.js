@@ -1,7 +1,7 @@
 // Ponte segura entre a interface e o processo principal
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
-const CANAIS = ['sons', 'dispositivos', 'janela:reexibida', 'jogo:interagir', 'whisper:status', 'nivel', 'config', 'tela', 'midia', 'modelo:status', 'voz:ativar', 'cursor', 'modoApp', 'sistema', 'lancador:abrir', 'lancador:fechar', 'copiados', 'teclado:fim', 'painel:alternar',
+const CANAIS = ['toque', 'sons', 'dispositivos', 'janela:reexibida', 'jogo:interagir', 'whisper:status', 'nivel', 'config', 'tela', 'midia', 'modelo:status', 'voz:ativar', 'cursor', 'modoApp', 'sistema', 'lancador:abrir', 'lancador:fechar', 'copiados', 'teclado:fim', 'painel:alternar',
   'osd', 'saida', 'download', 'privacidade', 'agendas:recarregar', 'atualizacao', 'atualizado'];
 
 // Qualquer erro da interface vai para o ilha-log.txt
@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('ilhaAPI', {
   sairDoJogo: () => ipcRenderer.send('jogo:sair'),
   listarAudio: () => ipcRenderer.send('audio:listar'),
   consultarSons: () => ipcRenderer.send('audio:sons'),
+  diagChamada: (msg) => ipcRenderer.send('erro-interface', 'Chamada-diag: ' + String(msg)),
   definirAudio: (id) => ipcRenderer.send('audio:padrao', String(id)),
   diagClique: (msg) => ipcRenderer.send('diag:clique', String(msg)),
   transcrever: (wav) => ipcRenderer.invoke('voz:transcrever', wav),

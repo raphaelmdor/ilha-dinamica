@@ -443,6 +443,7 @@ $ultimoEstado = ''
 $script:chaveCapaEnviada = ''
 $ultimaChaveCapa = ''
 $capaAtual = $null
+$toqueAvisado = [DateTime]::MinValue
 $cicloDiag = 0
 $capaTentativas = 0
 $rajada = 0
@@ -518,6 +519,15 @@ function Eh-Ruido($x) {
         if (-not $p) { return $false }
         $t = ([string]$p.Title).Trim()
         $a = ([string]$p.Artist).Trim()
+        # toque de ligação (ex.: "🔔📞 Ligação de voz recebida de Fulano" no WhatsApp Web): avisa a ilha
+        if ($t -match '(?i)(liga[çc][ãa]o|chamada|incoming call|calling)') {
+            if (((Get-Date) - $script:toqueAvisado).TotalMilliseconds -gt 1500) {
+                $script:toqueAvisado = Get-Date
+                [Console]::Out.WriteLine((@{ tipo = 'toque'; titulo = $t; app = [string]$x.SourceAppUserModelId } | ConvertTo-Json -Compress))
+                [Console]::Out.Flush()
+            }
+            return $true
+        }
         if ($t -match '(?i)whatsapp') { return $true }
         if (-not $a -and $t -match '^(?i)(https?://)?[a-z0-9-]+(\.[a-z0-9-]+)+(/\S*)?$') { return $true }
     } catch { }
@@ -569,6 +579,7 @@ function Escolher-Sessao {
         if ($novo) { $escolhida = $novo } elseif ($fixa) { $escolhida = $fixa } else { $escolhida = $tocando[0] }
     } else {
         $escolhida = $todas | Where-Object { [string]$_.SourceAppUserModelId -eq $script:sessaoFixa } | Select-Object -First 1
+        if ($escolhida -and (Eh-Ruido $escolhida)) { $escolhida = $null }
         if (-not $escolhida) {
             # O player que estava tocando sumiu por um instante (trocando de música): segura a tela
             # como está em vez de pular para outro player que está pausado
