@@ -1,4 +1,7 @@
-## Novidades da 5.1.0
+## Novidades da 5.2.0
 
-- **Trocar a saída de áudio e o microfone:** no Início, o botão novo de fone abre a lista de saídas (caixas de som, fones, monitor...) e de microfones ligados ao PC. É só clicar para trocar. A ilha muda o dispositivo padrão do Windows na hora, inclusive para chamadas.
-- Inclui a 5.0.6: reinício do modo de clique depois de jogos e diagnóstico de cliques.
+- **A ilha percebe quando você está em chamada:** Discord, WhatsApp, Teams, Zoom, Google Meet no navegador, Telegram, Skype, Slack e outros.
+  - Os olhinhos colocam um **fone de ouvido**, ficam atentos, piscam e "concordam" com a cabeça. Ondinhas de voz saem do lado.
+  - No notch aparece uma **pílula verde com um telefone balançando e o tempo da chamada**, e a ilha ganha um contorno verde que "respira".
+  - Quando a chamada acaba, a ilha mostra quanto tempo durou e os olhinhos ficam felizes.
+- Inclui a 5.1.0: trocar a saída de áudio e o microfone pela ilha.

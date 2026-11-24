@@ -18,7 +18,9 @@ export class Olhos {
   }
 
   aplicar() {
-    const humor = this.temporario || (this.dormindo ? 'dormindo' : this.base);
+    // em chamada: fone na cabeça e "falando", acima de música (mas a escuta da voz vem primeiro)
+    const base = this.emChamada && this.base !== 'ouvindo' ? 'chamada' : this.base;
+    const humor = this.temporario || (this.dormindo && !this.emChamada ? 'dormindo' : base);
     for (const g of this.grupos) g.dataset.humor = humor;
   }
 
@@ -100,6 +102,13 @@ export class Olhos {
   }
 
   /** Humor de fundo: continua até ser trocado */
+  /** Liga/desliga o jeito "em chamada" dos olhinhos */
+  definirChamada(sim) {
+    this.emChamada = !!sim;
+    if (sim) this.dormindo = false;
+    this.aplicar();
+  }
+
   definirBase(humor) {
     this.base = humor;
     this.aplicar();
@@ -111,7 +120,7 @@ export class Olhos {
         const ms = Math.max(650, Math.min(1500, periodo * 2)) * (0.8 + Math.random() * 0.5);
         this.timerNotas = setTimeout(() => {
           if (this.base !== 'musica') { this.timerNotas = null; return; }
-          if (!this.temporario && !this.dormindo) this.soltarNota();
+          if (!this.temporario && !this.dormindo && !this.emChamada) this.soltarNota();
           proxima();
         }, ms);
       };

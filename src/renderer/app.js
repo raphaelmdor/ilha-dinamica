@@ -1216,14 +1216,49 @@ api.on('download', ({ nome, caminho, tamanho }) => {
 
 // Privacidade: pontinho laranja (microfone) ou verde (câmera)
 let usandoAntes = { mic: [], cam: [] };
+// ---- Chamadas: app de conversa usando o microfone ----
+const APPS_CHAMADA = [
+  [/discord/i, 'Discord'], [/teams/i, 'Teams'], [/zoom/i, 'Zoom'], [/whatsapp/i, 'WhatsApp'], [/skype/i, 'Skype'],
+  [/slack/i, 'Slack'], [/telegram/i, 'Telegram'], [/signal/i, 'Signal'], [/webex/i, 'Webex'], [/messenger/i, 'Messenger'],
+  [/phonelink|yourphone|vínculo/i, 'Celular'], [/steam/i, 'Steam'], [/^chrome$/i, 'Chrome'], [/msedge|edge/i, 'Edge'],
+  [/firefox/i, 'Firefox'], [/opera/i, 'Opera'], [/brave/i, 'Brave'], [/googlemeet|meet/i, 'Google Meet'],
+];
+const nomeChamada = (apps) => { for (const a of apps) for (const [re, n] of APPS_CHAMADA) if (re.test(a)) return n; return null; };
+let relogioChamada = null;
+function atualizarChamada(mic, cam) {
+  const app = nomeChamada(mic);
+  const antes = estado.chamada;
+  if (app && !antes) {
+    estado.chamada = { app, desde: Date.now(), video: cam.length > 0 };
+    ilha.classList.add('em-chamada');
+    olhos.definirChamada(true);
+    $('chamadaMini').title = `Em chamada · ${app}`;
+    aviso(cam.length ? 'Chamada de vídeo' : 'Em chamada', app, { icone: '📞', tipo: 'info', ms: 3000 });
+    const tic = () => { $('chamadaTempo').textContent = fmtTempo((Date.now() - estado.chamada.desde) / 1000); };
+    tic();
+    relogioChamada = setInterval(tic, 1000);
+  } else if (!app && antes) {
+    const duracao = fmtTempo((Date.now() - antes.desde) / 1000);
+    estado.chamada = null;
+    clearInterval(relogioChamada);
+    ilha.classList.remove('em-chamada');
+    olhos.definirChamada(false);
+    olhos.reagir('feliz', 1800);
+    aviso('Chamada encerrada', `${antes.app} · ${duracao}`, { icone: '📞', tipo: 'info', ms: 3000 });
+  } else if (app && antes) {
+    antes.app = app;
+  }
+}
+
 api.on('privacidade', ({ mic, cam }) => {
+  atualizarChamada(mic, cam);
   ilha.classList.toggle('priv-mic', mic.length > 0 && cam.length === 0);
   ilha.classList.toggle('priv-cam', cam.length > 0);
   ilha.title = [cam.length ? `📷 Câmera: ${cam.join(', ')}` : '', mic.length ? `🎙 Microfone: ${mic.join(', ')}` : ''].filter(Boolean).join('\n');
   const novosCam = cam.filter((x) => !usandoAntes.cam.includes(x));
   const novosMic = mic.filter((x) => !usandoAntes.mic.includes(x));
   if (novosCam.length) aviso('Câmera ligada', `${novosCam.join(', ')} está usando a câmera`, { icone: '📷', tipo: 'info', ms: 3500 });
-  else if (novosMic.length) aviso('Microfone em uso', `${novosMic.join(', ')} está ouvindo`, { icone: '🎙', tipo: 'info', ms: 3500 });
+  else if (novosMic.length && !estado.chamada) aviso('Microfone em uso', `${novosMic.join(', ')} está ouvindo`, { icone: '🎙', tipo: 'info', ms: 3500 });
   usandoAntes = { mic, cam };
 });
 

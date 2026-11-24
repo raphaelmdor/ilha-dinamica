@@ -1084,3 +1084,64 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 .pa-fechar { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border: 0; border-radius: 50%;
   background: rgba(255, 255, 255, 0.08); color: var(--suave); cursor: pointer; font-size: 14px; line-height: 1; }
 .pa-fechar:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
+
+/* ---------- Em chamada ---------- */
+/* fone de ouvido e ondinhas: só aparecem no jeito "chamada" */
+.olhos .fone, .olhos .ondas { display: none; }
+.olhos[data-humor="chamada"] .fone {
+  display: block; position: absolute; left: 50%; top: calc(-5px * var(--e));
+  width: calc(22px * var(--e)); height: calc(13px * var(--e)); transform: translateX(calc(-50% + 2px));
+  border: calc(1.6px * var(--e)) solid var(--verde); border-bottom: 0;
+  border-radius: calc(12px * var(--e)) calc(12px * var(--e)) 0 0; pointer-events: none;
+}
+/* conchas do fone dos dois lados */
+.olhos[data-humor="chamada"] .fone::before, .olhos[data-humor="chamada"] .fone::after {
+  content: ''; position: absolute; bottom: calc(-5px * var(--e)); width: calc(3.5px * var(--e)); height: calc(6px * var(--e));
+  background: var(--verde); border-radius: calc(2px * var(--e));
+}
+.olhos[data-humor="chamada"] .fone::before { left: calc(-2.5px * var(--e)); }
+.olhos[data-humor="chamada"] .fone::after { right: calc(-2.5px * var(--e)); }
+/* olhinhos atentos, conversando: piscam e "acenam" de leve, como quem escuta e responde */
+.olhos[data-humor="chamada"] .olho {
+  height: calc(9px * var(--e));
+  animation: conversa 2.6s ease-in-out infinite;
+}
+.olhos[data-humor="chamada"] .olho + .olho { animation-delay: 0.08s; }
+@keyframes conversa {
+  0%, 18%, 100% { transform: translate(var(--ox), var(--oy)) scaleY(1); }
+  22% { transform: translate(var(--ox), var(--oy)) scaleY(0.15); }   /* piscadinha */
+  26% { transform: translate(var(--ox), var(--oy)) scaleY(1); }
+  55% { transform: translate(var(--ox), calc(var(--oy) + 1px)) scaleY(0.82); } /* "uhum" */
+  65% { transform: translate(var(--ox), var(--oy)) scaleY(1); }
+}
+/* ondinhas de voz saindo do lado */
+.olhos[data-humor="chamada"] .ondas { display: block; position: absolute; right: calc(-9px * var(--e)); top: 50%; transform: translateY(-50%); width: calc(8px * var(--e)); height: calc(12px * var(--e)); }
+.olhos[data-humor="chamada"] .ondas i {
+  position: absolute; left: 0; top: 50%; width: calc(8px * var(--e)); height: calc(8px * var(--e));
+  border: calc(1.4px * var(--e)) solid var(--verde); border-left-color: transparent; border-top-color: transparent; border-bottom-color: transparent;
+  border-radius: 50%; transform: translate(-50%, -50%) scale(0.4); opacity: 0;
+  animation: onda-voz 1.6s ease-out infinite;
+}
+.olhos[data-humor="chamada"] .ondas i:nth-child(2) { animation-delay: 0.8s; }
+@keyframes onda-voz {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-20%, -50%) scale(1.6); }
+}
+
+/* indicador no notch: pílula verde com telefone balançando e o tempo da chamada */
+.chamada-mini {
+  display: none; align-items: center; gap: 4px; padding: 2px 7px 2px 5px; border-radius: 999px;
+  background: rgba(52, 211, 153, 0.16); color: var(--verde); font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.chamada-mini svg { width: 12px; height: 12px; fill: currentColor; animation: telefone 2.4s ease-in-out infinite; transform-origin: 50% 60%; }
+@keyframes telefone { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-14deg); } 80% { transform: rotate(12deg); } 85% { transform: rotate(-8deg); } 90% { transform: rotate(4deg); } }
+.ilha.em-chamada[data-estado="compacta"] .chamada-mini { display: inline-flex; }
+.ilha.em-chamada[data-estado="compacta"] .equalizador,
+.ilha.em-chamada[data-estado="compacta"] .capa-mini,
+.ilha.em-chamada[data-estado="compacta"] .ativ { display: none !important; }
+/* contorno verde "respirando" na ilha durante a chamada */
+.ilha.em-chamada { box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.55), 0 0 14px rgba(52, 211, 153, 0.25); animation: respira-chamada 3s ease-in-out infinite; }
+@keyframes respira-chamada { 50% { box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.25), 0 0 4px rgba(52, 211, 153, 0.1); } }
+/* no modo discreto (só olhinhos), o fone continua aparecendo */
+.ilha.discreta.em-chamada[data-estado="compacta"] { --cor-olhos: var(--verde); }
