@@ -300,11 +300,11 @@ export function iniciarWidgets(ctx) {
     let mudou = false;
     for (const ev of todosEventos()) {
       ev.avisos = ev.avisos || [];
-      // dia inteiro: um aviso às 8h do dia
+      // dia inteiro: um aviso às 9h do dia
       if (!ev.hora) {
         const [a, m, d] = String(ev.data).split('-').map(Number);
-        const oito = new Date(a, m - 1, d, 8, 0).getTime();
-        if (agora >= oito && agora < oito + 4 * 3600000 && !ev.avisos.includes('dia')) {
+        const nove = new Date(a, m - 1, d, 9, 0).getTime();
+        if (agora >= nove && agora < nove + 4 * 3600000 && !ev.avisos.includes('dia')) {
           ev.avisos.push('dia'); mudou = true;
           enfileirar(2, () => {
             aviso('Hoje: ' + ev.titulo, 'Compromisso do dia inteiro' + de(ev), { icone: '📅', tipo: 'agenda', ms: 9000 });
@@ -354,7 +354,7 @@ export function iniciarWidgets(ctx) {
       .filter((e) => e.data === hojeIso && (!e.hora || (inicioEvento(e) || 0) > Date.now() - 5 * 60000))
       .sort((a, b) => (a.hora || '00:00').localeCompare(b.hora || '00:00'));
     if (!restantes.length) return;
-    // o resumo já falou dos compromissos de dia inteiro: não repete o aviso das 8h
+    // o resumo já falou dos compromissos de dia inteiro: não repete o aviso das 9h
     let marcou = false;
     for (const e of restantes) if (!e.hora) { e.avisos = e.avisos || []; if (!e.avisos.includes('dia')) { e.avisos.push('dia'); marcou = true; } }
     if (marcou) salvar('eventos');

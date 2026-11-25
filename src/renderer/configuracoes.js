@@ -370,7 +370,7 @@ function desenhar() {
     pontual: 'Avisa na véspera, 1 hora, 30 e 10 minutos antes e na hora.',
   };
   const dica = document.getElementById('dicaAlerta');
-  if (dica) dica.textContent = (DICAS_ALERTA[cfg.alertaAgenda] || DICAS_ALERTA.padrao) + ' Compromissos de dia inteiro avisam às 8h.';
+  if (dica) dica.textContent = (DICAS_ALERTA[cfg.alertaAgenda] || DICAS_ALERTA.padrao) + ' Compromissos de dia inteiro avisam às 9h.';
   document.querySelectorAll('[data-atalho]').forEach((el) => { if (document.activeElement !== el) el.value = bonito(cfg[el.dataset.atalho]); });
   desenharWidgets();
   desenharTags('listaJogos', 'jogosExtras');
