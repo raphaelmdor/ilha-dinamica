@@ -128,6 +128,17 @@
       <label class="chave"><input type="checkbox" data-chave="focoAuto"><span></span>Começar a próxima fase do Pomodoro sozinho</label>
       <label class="chave"><input type="checkbox" data-chave="focoSilencia"><span></span>Pausar as notificações do Windows durante o foco <small>(voltam sozinhas na pausa)</small></label>
       <div class="campo">
+        <label>Alertas dos compromissos</label>
+        <div class="opcoes" data-chave="alertaAgenda">
+          <button data-valor="tranquilo" title="Só na hora do compromisso">Tranquilo</button>
+          <button data-valor="padrao" title="10 minutos antes e na hora">Padrão</button>
+          <button data-valor="precavido" title="1 hora antes, 15 minutos antes e na hora">Precavido</button>
+          <button data-valor="pontual" title="Na véspera, 1 hora, 30 e 10 minutos antes e na hora">Nunca me atraso</button>
+        </div>
+        <p class="dica" id="dicaAlerta"></p>
+        <label class="chave"><input type="checkbox" data-chave="resumoDoDia"><span></span>Resumo do dia: na primeira vez que você usar o PC no dia, a ilha conta os compromissos de hoje</label>
+      </div>
+      <div class="campo">
         <label>Agendas: Google, Apple e Outlook <small>(só leitura — os compromissos aparecem na Agenda da ilha, com lembretes)</small></label>
         <p class="dica"><b>Google:</b> no computador, abra calendar.google.com › ⚙ Configurações › clique na sua agenda (à esquerda) ›
           role até <b>"Endereço secreto no formato iCal"</b> › copie e cole aqui.</p>

@@ -363,6 +363,14 @@ function desenhar() {
   if (document.activeElement !== $('cidade')) $('cidade').value = cfg.cidade || '';
   if (document.activeElement !== $('palavraAtivacao')) $('palavraAtivacao').value = cfg.palavraAtivacao || 'ilha';
   document.querySelectorAll('[data-num]').forEach((el) => { if (document.activeElement !== el) el.value = cfg[el.dataset.num]; });
+  const DICAS_ALERTA = {
+    tranquilo: 'Avisa só na hora do compromisso.',
+    padrao: 'Avisa 10 minutos antes e na hora.',
+    precavido: 'Avisa 1 hora antes, 15 minutos antes e na hora.',
+    pontual: 'Avisa na véspera, 1 hora, 30 e 10 minutos antes e na hora.',
+  };
+  const dica = document.getElementById('dicaAlerta');
+  if (dica) dica.textContent = (DICAS_ALERTA[cfg.alertaAgenda] || DICAS_ALERTA.padrao) + ' Compromissos de dia inteiro avisam às 8h.';
   document.querySelectorAll('[data-atalho]').forEach((el) => { if (document.activeElement !== el) el.value = bonito(cfg[el.dataset.atalho]); });
   desenharWidgets();
   desenharTags('listaJogos', 'jogosExtras');

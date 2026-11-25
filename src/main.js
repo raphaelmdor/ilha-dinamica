@@ -84,6 +84,8 @@ const CONFIG_PADRAO = {
   pausaLongaMin: 15,
   focoAuto: false,
   historicoCopiados: true,
+  alertaAgenda: 'padrao',         // modelo de alerta dos compromissos: tranquilo | padrao | precavido | pontual
+  resumoDoDia: true,              // "Bom dia! Hoje você tem…" no primeiro uso do dia
   // Jogos
   esconderEmJogos: true,
   agendasIcs: [],                 // links iCal da Google Agenda, Apple (iCloud) ou Outlook — só leitura
@@ -1305,6 +1307,8 @@ const VALIDADORES = {
   pausaMin: (v) => Number.isInteger(v) && v >= 1 && v <= 60,
   pausaLongaMin: (v) => Number.isInteger(v) && v >= 1 && v <= 120,
   focoAuto: (v) => typeof v === 'boolean', historicoCopiados: (v) => typeof v === 'boolean',
+  alertaAgenda: (v) => ['tranquilo', 'padrao', 'precavido', 'pontual'].includes(v),
+  resumoDoDia: (v) => typeof v === 'boolean',
   esconderEmJogos: (v) => typeof v === 'boolean',
   agendasIcs: (v) => Array.isArray(v) && v.length <= 5 && v.every((x) => typeof x === 'string' && x.length <= 2000 && /^(https|webcal):\/\//i.test(x)),
   focoSilencia: (v) => typeof v === 'boolean',

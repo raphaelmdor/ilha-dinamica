@@ -252,30 +252,121 @@ export function iniciarWidgets(ctx) {
     const [hh, mm] = ev.hora.split(':').map(Number);
     return new Date(a, m - 1, d, hh, mm).getTime();
   }
+  // ---------------- Alertas dos compromissos ----------------
+  // Modelos: quantos minutos antes avisar (0 = na hora)
+  const MODELOS_ALERTA = {
+    tranquilo: [0],
+    padrao: [10, 0],
+    precavido: [60, 15, 0],
+    pontual: [1440, 60, 30, 10, 0],
+  };
+  const adiados = new Map(); // id -> horário do novo aviso ("Adiar 5 min")
+  // Fila: se vários alertas vencem juntos, aparecem um depois do outro (o "na hora" primeiro)
+  const fila = [];
+  let filaAte = 0;
+  function enfileirar(prioridade, mostrarAlerta, dura = 9000) {
+    fila.push({ prioridade, mostrarAlerta, dura });
+    fila.sort((a, b) => a.prioridade - b.prioridade);
+    if (Date.now() >= filaAte) proximoDaFila();
+  }
+  function proximoDaFila() {
+    const item = fila.shift();
+    if (!item) return;
+    item.mostrarAlerta();
+    filaAte = Date.now() + item.dura;
+    if (fila.length) setTimeout(proximoDaFila, item.dura);
+  }
+  const de = (ev) => (ev.fonte ? ` · agenda ${ev.fonte}` : '');
+  function quandoFalta(min) {
+    if (min >= 1440) return 'Amanhã';
+    if (min >= 60) return `Daqui a ${Math.round(min / 60)} hora${min >= 120 ? 's' : ''}`;
+    return `Daqui a ${min} minutos`;
+  }
+  function alertarNaHora(ev, adiado = false) {
+    aviso((adiado ? 'Lembrete: ' : 'Agora: ') + ev.titulo, `${ev.hora || 'Hoje'}${de(ev)}`, {
+      icone: '🔔', tipo: 'agenda', ms: 20000,
+      botoes: [
+        { texto: 'Adiar 5 min', acao: () => { adiados.set(ev.id, Date.now() + 5 * 60000); olhos.fazer?.('piscadela'); } },
+        { texto: 'Ok', acao: () => olhos.fazer?.('carinho') },
+      ],
+    });
+    olhos.fazer ? olhos.fazer('pulinho') : olhos.reagir('surpreso', 2000);
+    bipar(3);
+    falar((adiado ? 'Lembrete de novo: ' : 'Hora do compromisso: ') + ev.titulo);
+  }
   function verificarLembretes() {
     const agora = Date.now();
+    const offsets = MODELOS_ALERTA[config.alertaAgenda] || MODELOS_ALERTA.padrao;
     let mudou = false;
     for (const ev of todosEventos()) {
+      ev.avisos = ev.avisos || [];
+      // dia inteiro: um aviso às 8h do dia
+      if (!ev.hora) {
+        const [a, m, d] = String(ev.data).split('-').map(Number);
+        const oito = new Date(a, m - 1, d, 8, 0).getTime();
+        if (agora >= oito && agora < oito + 4 * 3600000 && !ev.avisos.includes('dia')) {
+          ev.avisos.push('dia'); mudou = true;
+          enfileirar(2, () => {
+            aviso('Hoje: ' + ev.titulo, 'Compromisso do dia inteiro' + de(ev), { icone: '📅', tipo: 'agenda', ms: 9000 });
+            olhos.fazer?.('curioso');
+          });
+        }
+        continue;
+      }
       const t = inicioEvento(ev);
       if (!t) continue;
-      ev.avisos = ev.avisos || [];
-      if (agora >= t - 10 * 60000 && agora < t && !ev.avisos.includes('10')) {
-        ev.avisos.push('10'); mudou = true;
-        aviso('Daqui a 10 minutos', `${ev.hora} · ${ev.titulo}`, { icone: '📅', tipo: 'timer', ms: 8000 });
-        olhos.reagir('surpreso', 1500);
-        bipar(2);
+      // avisa só o aviso mais recente que já venceu (sem empilhar vários se o PC estava desligado)
+      for (const min of offsets) {
+        const chave = String(min);
+        const quando = t - min * 60000;
+        const janela = min === 0 ? 5 * 60000 : Math.min(min * 60000, 30 * 60000);
+        if (agora >= quando && agora < quando + janela && agora < t + 5 * 60000 && !ev.avisos.includes(chave)) {
+          for (const outro of offsets) if (outro >= min && !ev.avisos.includes(String(outro))) ev.avisos.push(String(outro));
+          mudou = true;
+          if (min === 0) { enfileirar(0, () => alertarNaHora(ev), 20000); break; }
+          enfileirar(1, () => {
+            aviso(quandoFalta(min), `${ev.hora} · ${ev.titulo}${de(ev)}`, { icone: '⏰', tipo: 'agenda', ms: 9000 });
+            olhos.fazer ? olhos.fazer(min >= 60 ? 'curioso' : 'desconfiado') : olhos.reagir('surpreso', 1500);
+            bipar(min >= 60 ? 1 : 2);
+          });
+          break;
+        }
       }
-      if (agora >= t && agora < t + 5 * 60000 && !ev.avisos.includes('0')) {
-        ev.avisos.push('0'); mudou = true;
-        aviso('Agora: ' + ev.titulo, ev.hora, { icone: '📅', tipo: 'timer', ms: 10000 });
-        olhos.reagir('surpreso', 3000);
-        bipar();
-        falar('Lembrete: ' + ev.titulo);
-      }
+      const adiado = adiados.get(ev.id);
+      if (adiado && agora >= adiado) { adiados.delete(ev.id); enfileirar(0, () => alertarNaHora(ev, true), 20000); }
     }
     if (mudou) salvar('eventos');
   }
   setInterval(verificarLembretes, 15000);
+
+  // Resumo do dia: na primeira vez que você mexe no PC no dia, a ilha conta o que tem hoje
+  let agendasCarregadas = false;
+  function lerResumoVisto() { try { return localStorage.getItem('ilha-resumo-dia') || ''; } catch { return ''; } }
+  function marcarResumoVisto(d) { try { localStorage.setItem('ilha-resumo-dia', d); } catch { /* ignora */ } }
+  let resumoVistoMem = lerResumoVisto();
+  function talvezResumoDoDia() {
+    if (config.resumoDoDia === false || !agendasCarregadas) return;
+    const agora = new Date();
+    const hojeIso = dataISO(agora);
+    if (resumoVistoMem === hojeIso || agora.getHours() < 5) return;
+    resumoVistoMem = hojeIso; marcarResumoVisto(hojeIso);
+    const restantes = todosEventos()
+      .filter((e) => e.data === hojeIso && (!e.hora || (inicioEvento(e) || 0) > Date.now() - 5 * 60000))
+      .sort((a, b) => (a.hora || '00:00').localeCompare(b.hora || '00:00'));
+    if (!restantes.length) return;
+    // o resumo já falou dos compromissos de dia inteiro: não repete o aviso das 8h
+    let marcou = false;
+    for (const e of restantes) if (!e.hora) { e.avisos = e.avisos || []; if (!e.avisos.includes('dia')) { e.avisos.push('dia'); marcou = true; } }
+    if (marcou) salvar('eventos');
+    const h = agora.getHours();
+    const saudacao = h < 12 ? 'Bom dia!' : h < 18 ? 'Boa tarde!' : 'Boa noite!';
+    const n = restantes.length;
+    aviso(`${saudacao} Hoje você tem ${n} compromisso${n === 1 ? '' : 's'}`,
+      restantes.slice(0, 6).map((e) => `${e.hora || 'Dia todo'} · ${e.titulo}${e.fonte ? ' (' + e.fonte + ')' : ''}`),
+      { icone: '☀️', tipo: 'agenda', ms: 12000, alto: true });
+    olhos.fazer?.('pulinho');
+  }
+  api.on('cursor', () => { if (agendasCarregadas && resumoVistoMem !== dataISO(new Date())) talvezResumoDoDia(); });
 
   function proximoEvento() {
     const agora = Date.now();
@@ -830,7 +921,11 @@ export function iniciarWidgets(ctx) {
   // (a lista daqui pode ainda não ter recebido a agenda que acabou de ser ligada)
   async function carregarAgendasExternas() {
     const r = await api.agendas();
-    externos = (r?.eventos || []).map((e) => ({ ...e, avisos: (externos.find((x) => x.id === e.id)?.avisos) || [] }));
+    externos = (r?.eventos || []).map((e) => {
+      const antes = externos.find((x) => x.id === e.id)?.avisos;
+      return { ...e, avisos: antes || [] };
+    });
+    agendasCarregadas = true;
     desenharCalendario();
     atualizarResumo();
   }

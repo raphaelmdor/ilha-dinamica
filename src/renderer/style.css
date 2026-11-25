@@ -1381,3 +1381,13 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 .olhos.grandes[data-humor="chamada"] { margin-right: calc(9px * var(--e)); }
 /* os olhos grandes não têm o recuo da esquerda: fone bem centralizado em cima deles */
 .olhos.grandes[data-humor="chamada"] .fone { transform: translateX(-50%); }
+
+/* =========================================================
+   Alertas dos compromissos
+   ========================================================= */
+/* ícone do alerta: sininho tocando */
+.aviso-icone.agenda { background: rgba(165, 180, 252, 0.18); color: #a5b4fc; transform-origin: 50% 15%; animation: sininho 1.6s ease-in-out infinite; }
+@keyframes sininho {
+  0%, 55%, 100% { rotate: 0deg; }
+  10% { rotate: 16deg; } 20% { rotate: -14deg; } 30% { rotate: 10deg; } 40% { rotate: -6deg; } 48% { rotate: 2deg; }
+}
