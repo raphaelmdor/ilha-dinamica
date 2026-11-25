@@ -53,7 +53,7 @@ export class Olhos {
 
   gestoEspontaneo() {
     const parado = Date.now() - this.ultimoMovimento;
-    if (!this.livre() || parado < 5000) return;
+    if (this.pausado || !this.livre() || parado < 5000) return;
     // quase pegando no sono: um bocejo antes de dormir
     if (!this.bocejou && parado > SONO_MS - 40000) { this.bocejou = true; this.fazer('bocejo'); return; }
     const opcoes = this.noite
@@ -212,7 +212,11 @@ export class Olhos {
   }
 
   /** Uma notinha ♪ sobe e some ao lado dos olhinhos (só nos que estão aparecendo) */
+  // Escondida (ex.: durante um jogo): nada de desenhar o que ninguém vê
+  pausar(sim) { this.pausado = !!sim; }
+
   soltarNota() {
+    if (this.pausado) return;
     for (const g of this.grupos) {
       if (!g.getBoundingClientRect().width) continue;
       const n = document.createElement('span');
@@ -315,7 +319,7 @@ export class Olhos {
 
   /** Parado há um tempo: olha para pontos aleatórios, como quem está distraído */
   vaguear() {
-    if (this.dormindo || Date.now() - this.ultimoMovimento < 4000 || Date.now() < this.olhandoAte) return;
+    if (this.pausado || this.dormindo || Date.now() - this.ultimoMovimento < 4000 || Date.now() < this.olhandoAte) return;
     if (Math.random() < 0.45) {
       const x = window.innerWidth * (0.2 + Math.random() * 0.6);
       const y = Math.random() < 0.5 ? 400 : -100;
@@ -326,7 +330,7 @@ export class Olhos {
   agendarPiscada() {
     const espera = 2200 + Math.random() * 4200;
     setTimeout(() => {
-      if (!this.dormindo) {
+      if (!this.dormindo && !this.pausado) {
         this.piscar();
         if (Math.random() < 0.2) setTimeout(() => this.piscar(), 260); // piscada dupla
       }

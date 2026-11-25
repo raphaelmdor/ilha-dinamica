@@ -244,6 +244,13 @@ function abrirPainel() {
 // Atalho do painel: abre (fica aberto até você passar o mouse e sair, ou apertar de novo)
 let timeoutPainelTeclado = null;
 // Ctrl+Alt+I durante um jogo: painel aberto e pegando mouse e teclado até você sair
+// Ilha escondida (jogo, ou escondida pelo atalho): pausa todas as animações e os gestos;
+// volta exatamente de onde parou quando reaparece
+api.on('janela:pausar', (sim) => {
+  document.documentElement.classList.toggle('pausada', !!sim);
+  olhos.pausar?.(sim);
+});
+
 // Avisos pedidos pelo processo principal
 api.on('aviso:mostrar', (d) => {
   if (!d) return;

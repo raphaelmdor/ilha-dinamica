@@ -1391,3 +1391,6 @@ input[type="range"] { touch-action: none; cursor: pointer; }
   0%, 55%, 100% { rotate: 0deg; }
   10% { rotate: 16deg; } 20% { rotate: -14deg; } 30% { rotate: 10deg; } 40% { rotate: -6deg; } 48% { rotate: 2deg; }
 }
+
+/* Ilha escondida: congela todas as animações (ninguém está vendo, e isso pesa no jogo) */
+html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-state: paused !important; }

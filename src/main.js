@@ -816,6 +816,7 @@ function aplicarVisibilidadeReal() {
   const mostrar = visivel && (!ocultaPorJogo || mostrarMesmoEmJogo || vozEmJogo);
   if (mostrar) {
     const estavaEscondida = !janela.isVisible();
+    if (estavaEscondida) janela.webContents.send('janela:pausar', false);
     janela.showInactive(); semBarraDeTarefas();
     janela.setAlwaysOnTop(true, 'screen-saver');
     if (estavaEscondida) {
@@ -831,6 +832,11 @@ function aplicarVisibilidadeReal() {
   } else {
     if (lancadorAberto) fecharLancador();
     janela.hide();
+    // Desliga o "gancho" de mouse do Windows que repassa os movimentos para os olhinhos:
+    // com a ilha escondida ele não serve para nada, e ganchos de mouse atrapalham jogos
+    // (faziam o ponteiro piscar no PUBG). Ao reaparecer, o modo de clique é refeito do zero.
+    try { janela.setIgnoreMouseEvents(true); } catch { /* ignora */ }
+    janela.webContents.send('janela:pausar', true);
   }
 }
 
@@ -1600,7 +1606,10 @@ function aplicarInicioAutomatico() {
 // IPC com a interface
 // ---------------------------------------------------------------------------
 ipcMain.on('interativo', (_e, sim) => {
-  janela?.setIgnoreMouseEvents(!sim, { forward: true });
+  if (!janela || janela.isDestroyed()) return;
+  // escondida: sem o gancho de mouse (ver aplicarVisibilidadeReal)
+  if (!janela.isVisible()) { janela.setIgnoreMouseEvents(true); return; }
+  janela.setIgnoreMouseEvents(!sim, { forward: true });
   if (diagClique) log('Clique-diag: interativo', !!sim);
 });
 // Diagnóstico de cliques (por 10 minutos depois de abrir, ou depois de um jogo)
