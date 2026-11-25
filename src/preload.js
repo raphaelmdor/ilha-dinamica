@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer, webUtils, webFrame } = require('electron');
 
 const CANAIS = ['toque', 'sons', 'dispositivos', 'janela:reexibida', 'jogo:interagir', 'whisper:status', 'nivel', 'config', 'tela', 'midia', 'modelo:status', 'voz:ativar', 'cursor', 'modoApp', 'sistema', 'lancador:abrir', 'lancador:fechar', 'copiados', 'teclado:fim', 'painel:alternar',
-  'osd', 'saida', 'download', 'privacidade', 'agendas:recarregar', 'atualizacao', 'atualizado'];
+  'osd', 'saida', 'download', 'privacidade', 'agendas:recarregar', 'atualizacao', 'atualizado', 'aviso:mostrar'];
 
 // Qualquer erro da interface vai para o ilha-log.txt
 window.addEventListener('error', (e) => ipcRenderer.send('erro-interface', `${e.message} @ ${e.filename}:${e.lineno}`));

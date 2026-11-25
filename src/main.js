@@ -769,8 +769,20 @@ let janelaDoJogo = 0;
 let ultimaTrocaJogo = 0;
 let entrouNoJogoEm = 0;
 let refocosNoJogo = 0;
+// Jogo em tela cheia EXCLUSIVA: o Windows não deixa nenhuma janela aparecer por cima
+// (se a ilha pegasse o foco, o jogo seria minimizado). Nesse caso a ilha não abre por cima
+// e, quando o jogo fechar, explica como trocar o modo de tela.
+let avisarModoDeTela = false;
+function jogoEmTelaCheiaExclusiva() {
+  try { return !!janelasWin.telaCheiaExclusiva?.(); } catch { return false; }
+}
 function entrarNaIlhaNoJogo() {
   if (Date.now() - ultimaTrocaJogo < 600) return; // atalho repetido sem querer
+  if (jogoEmTelaCheiaExclusiva()) {
+    if (!avisarModoDeTela) log('Jogo em tela cheia exclusiva: a ilha não abre por cima (o jogo seria minimizado)');
+    avisarModoDeTela = true;
+    return;
+  }
   ultimaTrocaJogo = Date.now();
   entrouNoJogoEm = Date.now();
   refocosNoJogo = 0;
@@ -836,6 +848,16 @@ function definirJogo(ativo, motivo) {
   if (!ativo) { mostrarMesmoEmJogo = false; vozEmJogo = false; jogoInterativo = false; }
   log(ativo ? `Jogo detectado: ${motivo} — ilha escondida` : 'Jogo fechado — ilha de volta');
   aplicarVisibilidadeReal();
+  if (!ativo && avisarModoDeTela) {
+    avisarModoDeTela = false;
+    setTimeout(() => janela?.webContents.send('aviso:mostrar', {
+      titulo: 'Para abrir a ilha dentro do jogo',
+      sub: ['O jogo estava em tela cheia exclusiva: nesse modo o Windows minimiza o jogo se algo aparecer por cima.',
+        'Nas configurações de vídeo do jogo, troque o modo de tela para "Tela cheia (janela)" ou "Janela sem bordas".',
+        'Depois disso, o atalho abre a ilha por cima do jogo normalmente.'],
+      icone: '🎮', tipo: 'info', ms: 20000, alto: true,
+    }), 1500);
+  }
   atualizarMenuBandeja();
 }
 
@@ -937,11 +959,16 @@ function registrarAtalhos() {
   // Voz funciona até no jogo: a ilha aparece só enquanto ouve e responde, sem tirar o foco do jogo
   tentar('atalhoVoz', config.atalhoVoz, () => {
     if (ocultaPorJogo && !mostrarMesmoEmJogo) {
-      vozEmJogo = true;
-      clearTimeout(timerVozEmJogo);
-      timerVozEmJogo = setTimeout(encerrarVozEmJogo, 30000); // segurança
-      aplicarVisibilidadeReal();
-      log('Voz durante o jogo');
+      if (jogoEmTelaCheiaExclusiva()) {
+        // tela cheia exclusiva: ouve e responde falando, sem aparecer (aparecer minimizaria o jogo)
+        log('Voz durante o jogo (sem aparecer: tela cheia exclusiva)');
+      } else {
+        vozEmJogo = true;
+        clearTimeout(timerVozEmJogo);
+        timerVozEmJogo = setTimeout(encerrarVozEmJogo, 30000); // segurança
+        aplicarVisibilidadeReal();
+        log('Voz durante o jogo');
+      }
     }
     janela?.webContents.send('voz:ativar');
   });

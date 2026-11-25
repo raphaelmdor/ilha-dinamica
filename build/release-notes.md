@@ -1,6 +1,5 @@
-## Novidades da 5.8.3
+## Novidades da 5.8.4
 
-- **Ilha quieta durante o jogo:** a ilha só volta depois de 4 segundos fora do jogo (antes, 1,5 s). Telas de carregamento e menus do jogo não a fazem mais aparecer por cima, e o ponteiro do mouse para de surgir na tela.
-- **Abrir a ilha no jogo ficou firme:** jogos que puxam o foco de volta (como o PUBG) não fecham mais a ilha logo depois de abrir. Ela também não "acha" que o jogo acabou só porque está aberta por cima dele.
-- Atalho apertado repetido sem querer não fica abrindo e fechando a ilha.
-- Inclui a 5.8.2: atalho do painel funciona dentro do jogo.
+- **Jogos em tela cheia exclusiva não minimizam mais:** nesse modo o Windows minimiza o jogo se qualquer janela aparecer por cima. Agora a ilha percebe isso e não abre por cima. A voz continua funcionando: ela ouve e responde falando, sem aparecer.
+- Quando o jogo fechar, a ilha explica como trocar o modo de tela do jogo ("Tela cheia (janela)" ou "Janela sem bordas") para poder abrir a ilha por cima dele.
+- Inclui a 5.8.3: ilha quieta durante o jogo e abertura firme por cima do jogo.

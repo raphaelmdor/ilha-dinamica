@@ -244,6 +244,12 @@ function abrirPainel() {
 // Atalho do painel: abre (fica aberto até você passar o mouse e sair, ou apertar de novo)
 let timeoutPainelTeclado = null;
 // Ctrl+Alt+I durante um jogo: painel aberto e pegando mouse e teclado até você sair
+// Avisos pedidos pelo processo principal
+api.on('aviso:mostrar', (d) => {
+  if (!d) return;
+  aviso(d.titulo || '', d.sub || '', { icone: d.icone || 'ℹ️', tipo: d.tipo || 'info', ms: d.ms || 9000, alto: !!d.alto });
+});
+
 api.on('jogo:interagir', (sim) => {
   estado.jogo = !!sim;
   if (sim) {

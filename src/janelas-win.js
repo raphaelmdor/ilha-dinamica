@@ -259,4 +259,4 @@ function focarJanela(hwnd) {
   } catch { return false; }
 }
 
-module.exports = { iniciar, estadoPrimeiroPlano, botaoMouseApertado, vkDaPosicao, posicaoConhecida, teclaApertada, seqAreaTransferencia, trazerParaFrente, janelaDaFrente, focarJanela };
+module.exports = { iniciar, estadoPrimeiroPlano, telaCheiaExclusiva, botaoMouseApertado, vkDaPosicao, posicaoConhecida, teclaApertada, seqAreaTransferencia, trazerParaFrente, janelaDaFrente, focarJanela };
