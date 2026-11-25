@@ -766,7 +766,14 @@ function alternarVisibilidade(forcar) {
 
 let jogoInterativo = false;
 let janelaDoJogo = 0;
+let ultimaTrocaJogo = 0;
+let entrouNoJogoEm = 0;
+let refocosNoJogo = 0;
 function entrarNaIlhaNoJogo() {
+  if (Date.now() - ultimaTrocaJogo < 600) return; // atalho repetido sem querer
+  ultimaTrocaJogo = Date.now();
+  entrouNoJogoEm = Date.now();
+  refocosNoJogo = 0;
   janelaDoJogo = janelasWin.janelaDaFrente();
   mostrarMesmoEmJogo = true;
   jogoInterativo = true;
@@ -781,6 +788,7 @@ function entrarNaIlhaNoJogo() {
 }
 function sairDaIlhaNoJogo() {
   if (!jogoInterativo && !mostrarMesmoEmJogo) return;
+  ultimaTrocaJogo = Date.now();
   jogoInterativo = false;
   mostrarMesmoEmJogo = false;
   janela.webContents.send('jogo:interagir', false);
@@ -1736,8 +1744,18 @@ function medirDesempenho() {
         }
         if (lancadorAberto) fecharLancador();
         if (tecladoAtivo) { log('Teclado: a ilha perdeu o foco'); ativarTeclado(false); }
-        // clicou de volta no jogo: a ilha some sozinha
-        if (jogoInterativo && ocultaPorJogo) sairDaIlhaNoJogo();
+        if (jogoInterativo && ocultaPorJogo) {
+          // alguns jogos (ex.: PUBG) puxam o foco de volta logo que a ilha abre: pega de volta (até 3 vezes)
+          if (Date.now() - entrouNoJogoEm < 2000 && refocosNoJogo < 3) {
+            refocosNoJogo++;
+            janelasWin.trazerParaFrente(janela.getNativeWindowHandle());
+            janela.focus();
+            janela.webContents.focus();
+            return;
+          }
+          // depois disso, perder o foco = você clicou de volta no jogo: a ilha some sozinha
+          sairDaIlhaNoJogo();
+        }
       }, 160);
     });
     vigiarCopiados();
@@ -1782,14 +1800,19 @@ function medirDesempenho() {
         // Jogo aberto? Some depois de 0,5 s; volta 1,5 s depois de sair (evita piscar em telas de carregamento)
         const { jogo, motivo } = config.esconderEmJogos === false ? { jogo: false } : jogos.ehJogo(info, config);
         const agora = Date.now();
-        if (jogo) {
+        // a própria ilha na frente (aberta por cima do jogo) não quer dizer que o jogo acabou
+        const souEu = info.exe && path.win32.basename(info.exe).toLowerCase() === path.basename(process.execPath).toLowerCase();
+        if (ocultaPorJogo && souEu) { semJogoDesde = 0; }
+        else if (jogo) {
           semJogoDesde = 0;
           jogoDesde = jogoDesde || agora;
           if (!ocultaPorJogo && agora - jogoDesde >= 500) definirJogo(true, motivo);
         } else {
           jogoDesde = 0;
           semJogoDesde = semJogoDesde || agora;
-          if (ocultaPorJogo && agora - semJogoDesde >= 1500) definirJogo(false);
+          // só volta depois de 4 s fora do jogo: telas de carregamento e menus do jogo trocam de janela rapidinho,
+          // e cada aparição da ilha por cima faz o Windows mostrar o ponteiro no jogo
+          if (ocultaPorJogo && agora - semJogoDesde >= 4000) definirJogo(false);
         }
         const nomeApp = info.exe ? path.win32.basename(info.exe) : '';
         if (nomeApp && info.modo !== 'normal' && nomeApp !== ultimoAppGrande) {
