@@ -1343,7 +1343,10 @@ function salvarConfigParcial(parcial) {
   }
   if (config.iniciarComWindows !== anterior.iniciarComWindows) aplicarInicioAutomatico();
   if (config.tamanho !== anterior.tamanho) posicionarJanela();
-  if (JSON.stringify(config.agendasIcs) !== JSON.stringify(anterior.agendasIcs)) janela?.webContents.send('agendas:recarregar');
+  if (JSON.stringify(config.agendasIcs) !== JSON.stringify(anterior.agendasIcs)) {
+    // espera a tela receber a configuração nova antes de recarregar
+    setTimeout(() => janela?.webContents.send('agendas:recarregar'), 300);
+  }
   salvarConfig();
   janelaConfig?.webContents.send('config', config);
   atualizarMenuBandeja();
@@ -1577,7 +1580,7 @@ ipcMain.on('lancador:fechar', () => fecharLancador());
 ipcMain.on('sistema', (_e, cmd) => enviarSistema(cmd));
 ipcMain.on('teclado', (_e, sim) => ativarTeclado(!!sim));
 ipcMain.on('erro-interface', (_e, msg) => log('[ERRO interface]', String(msg).slice(0, 600)));
-ipcMain.handle('agendas', () => servicos.buscarAgendas(config.agendasIcs || []));
+ipcMain.handle('agendas', () => ((config.agendasIcs || []).length ? servicos.buscarAgendas(config.agendasIcs) : { eventos: [], erros: [] }));
 ipcMain.handle('apps:listar', () => lancador.listarApps());
 ipcMain.on('foco:silenciar', (_e, sim) => silenciarNoFoco(!!sim));
 ipcMain.on('atualizar:agora', () => instalarAtualizacaoAgora());

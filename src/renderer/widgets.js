@@ -826,8 +826,9 @@ export function iniciarWidgets(ctx) {
   // -------------------------------------------------------------------------
   // Google Agenda (link iCal configurado nas configurações)
   // -------------------------------------------------------------------------
+  // Quem sabe quais agendas estão ligadas é o processo principal: sempre pergunta a ele
+  // (a lista daqui pode ainda não ter recebido a agenda que acabou de ser ligada)
   async function carregarAgendasExternas() {
-    if (!(config.agendasIcs || []).length) { externos = []; desenharCalendario(); atualizarResumo(); return; }
     const r = await api.agendas();
     externos = (r?.eventos || []).map((e) => ({ ...e, avisos: (externos.find((x) => x.id === e.id)?.avisos) || [] }));
     desenharCalendario();

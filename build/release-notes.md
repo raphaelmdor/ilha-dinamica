@@ -1,4 +1,4 @@
-## Novidades da 5.7.2
+## Novidades da 5.7.3
 
-- **Sem ícone na barra de tarefas:** a ilha não aparece mais na barra de tarefas. Antes o ícone surgia ao usar a busca, digitar em algum campo, interagir no jogo ou quando a ilha voltava depois de escondida.
-- Inclui a 5.7.1: atalhos ABNT2 desde a abertura e menos memória com música.
+- **Agenda ligada aparece na hora:** ao ligar uma agenda (Google, Apple ou Outlook), os compromissos aparecem logo no widget. Antes, a ilha às vezes ignorava a agenda recém-ligada até ser reaberta.
+- Inclui a 5.7.2: a ilha não aparece mais na barra de tarefas.
