@@ -738,7 +738,7 @@ function criarJanela() {
   janela.loadURL(`http://127.0.0.1:${PORTA}/`);
   janela.once('ready-to-show', () => {
     posicionarJanela();
-    janela.showInactive();
+    janela.showInactive(); semBarraDeTarefas();
   });
   janela.webContents.on('did-finish-load', () => {
     janela.webContents.send('config', config);
@@ -769,7 +769,7 @@ function entrarNaIlhaNoJogo() {
   mostrarMesmoEmJogo = true;
   jogoInterativo = true;
   aplicarVisibilidadeReal();
-  janela.setFocusable(true);
+  janela.setFocusable(true); semBarraDeTarefas();
   janela.setIgnoreMouseEvents(false);
   janelasWin.trazerParaFrente(janela.getNativeWindowHandle());
   janela.focus();
@@ -783,7 +783,7 @@ function sairDaIlhaNoJogo() {
   mostrarMesmoEmJogo = false;
   janela.webContents.send('jogo:interagir', false);
   janela.setIgnoreMouseEvents(true, { forward: true });
-  janela.setFocusable(false);
+  janela.setFocusable(false); semBarraDeTarefas();
   aplicarVisibilidadeReal();
   if (janelaDoJogo) janelasWin.focarJanela(janelaDoJogo); // devolve o foco (e o mouse) ao jogo
   log('Jogo: ilha fechada, foco de volta ao jogo');
@@ -794,14 +794,14 @@ function aplicarVisibilidadeReal() {
   const mostrar = visivel && (!ocultaPorJogo || mostrarMesmoEmJogo || vozEmJogo);
   if (mostrar) {
     const estavaEscondida = !janela.isVisible();
-    janela.showInactive();
+    janela.showInactive(); semBarraDeTarefas();
     janela.setAlwaysOnTop(true, 'screen-saver');
     if (estavaEscondida) {
       // voltando (ex.: depois de um jogo): o Windows às vezes "esquece" o modo de clique da janela.
       // Recomeça do zero: clicável só com o mouse em cima, e a interface volta ao estado normal.
       janela.setIgnoreMouseEvents(false);
       janela.setIgnoreMouseEvents(true, { forward: true });
-      janela.setFocusable(false);
+      janela.setFocusable(false); semBarraDeTarefas();
       janela.webContents.send('janela:reexibida');
       log('Ilha reexibida: modo de clique reiniciado');
       ligarDiagClique();
@@ -839,9 +839,9 @@ function abrirLancador() {
   if (lancadorAberto) { fecharLancador(); return; } // o mesmo atalho fecha
   if (!visivel) alternarVisibilidade(true);
   lancadorAberto = true;
-  janela.setFocusable(true);
+  janela.setFocusable(true); semBarraDeTarefas();
   janela.setIgnoreMouseEvents(false);
-  janela.show();
+  janela.show(); semBarraDeTarefas();
   janela.focus();
   janela.webContents.focus();
   janela.setAlwaysOnTop(true, 'screen-saver');
@@ -853,7 +853,7 @@ function fecharLancador() {
   if (!janela || !lancadorAberto) return;
   lancadorAberto = false;
   janela.webContents.send('lancador:fechar');
-  janela.setFocusable(false);
+  janela.setFocusable(false); semBarraDeTarefas();
   janela.setIgnoreMouseEvents(true, { forward: true });
   janela.blur();
   janela.setAlwaysOnTop(true, 'screen-saver');
@@ -958,7 +958,7 @@ function ativarTeclado(sim) {
     tecladoAtivo = true;
     tecladoDesde = Date.now();
     log('Teclado: ligado');
-    janela.setFocusable(true);
+    janela.setFocusable(true); semBarraDeTarefas();
     janela.setIgnoreMouseEvents(false);
     // sem isso o Windows não deixa a ilha pegar o teclado e o que você digita vai para o outro app
     janelasWin.trazerParaFrente(janela.getNativeWindowHandle());
@@ -975,7 +975,7 @@ function ativarTeclado(sim) {
     tecladoAtivo = false;
     janela.webContents.send('teclado:fim');
     if (!lancadorAberto) {
-      janela.setFocusable(false);
+      janela.setFocusable(false); semBarraDeTarefas();
       janela.blur();
     }
     janela.setAlwaysOnTop(true, 'screen-saver');
@@ -1507,6 +1507,17 @@ function limparInicioAntigo() {
 }
 
 let reforcoTopo = 0;
+// A ilha nunca aparece na barra de tarefas. O Windows recoloca o ícone quando a janela vira "focável"
+// (busca, digitação, interagir no jogo) ou é reexibida, então reafirma depois de cada uma dessas trocas.
+function semBarraDeTarefas() {
+  try {
+    if (!janela || janela.isDestroyed()) return;
+    janela.setSkipTaskbar(true);
+    // alguns Windows só obedecem na próxima volta do processamento da janela
+    setTimeout(() => { try { if (janela && !janela.isDestroyed()) janela.setSkipTaskbar(true); } catch { /* ignora */ } }, 150);
+  } catch { /* ignora */ }
+}
+
 function reforcarTopo(forcar = false) {
   if (!janela || janela.isDestroyed() || encerrando || !janela.isVisible()) return;
   // Nunca mexe na janela com o mouse em cima dela ou com o botão apertado:
