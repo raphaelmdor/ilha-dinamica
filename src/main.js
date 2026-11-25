@@ -777,7 +777,7 @@ function entrarNaIlhaNoJogo() {
   janela.focus();
   janela.webContents.focus();
   janela.webContents.send('jogo:interagir', true);
-  log('Jogo: ilha aberta por cima (Ctrl+Alt+I)');
+  log('Jogo: ilha aberta por cima');
 }
 function sairDaIlhaNoJogo() {
   if (!jogoInterativo && !mostrarMesmoEmJogo) return;
@@ -939,7 +939,15 @@ function registrarAtalhos() {
   });
   tentar('atalhoMostrar', config.atalhoMostrar, () => alternarVisibilidade());
   atalhoBuscaAtivo = tentar('atalhoBusca', config.atalhoBusca, foraDeJogo(abrirLancador));
-  tentar('atalhoPainel', config.atalhoPainel, foraDeJogo(alternarPainel));
+  // O atalho do painel funciona também no jogo: abre a ilha por cima (como o Ctrl+Alt+I) e, apertando de novo, devolve o jogo
+  tentar('atalhoPainel', config.atalhoPainel, () => {
+    if (ocultaPorJogo) {
+      if (jogoInterativo) sairDaIlhaNoJogo();
+      else entrarNaIlhaNoJogo();
+      return;
+    }
+    alternarPainel();
+  });
   if (!atalhoBuscaAtivo && config.atalhoBusca === CONFIG_PADRAO.atalhoBusca) {
     atalhoBuscaAtivo = tentar('atalhoBusca2', 'Control+Alt+P', foraDeJogo(abrirLancador));
     if (atalhoBuscaAtivo) delete erros.atalhoBusca;
