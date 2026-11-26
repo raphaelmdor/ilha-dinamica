@@ -57,6 +57,18 @@ function iniciar(log = () => {}, handlePropria = null) {
     w.BringWindowToTopI = user32.func('__stdcall', 'BringWindowToTop', 'bool', ['intptr']);
     w.GetCurrentThreadId = kernel32.func('__stdcall', 'GetCurrentThreadId', 'uint32', []);
     // 3 = jogo/app DirectX em tela cheia exclusiva
+    // memória: ler quanto cada processo usa e devolver ao Windows o que está parado
+    try {
+      const psapi = koffi.load('psapi.dll');
+      const PMC = koffi.struct('PROCESS_MEMORY_COUNTERS_EX', {
+        cb: 'uint32', PageFaultCount: 'uint32', PeakWorkingSetSize: 'size_t', WorkingSetSize: 'size_t',
+        QuotaPeakPagedPoolUsage: 'size_t', QuotaPagedPoolUsage: 'size_t', QuotaPeakNonPagedPoolUsage: 'size_t',
+        QuotaNonPagedPoolUsage: 'size_t', PagefileUsage: 'size_t', PeakPagefileUsage: 'size_t', PrivateUsage: 'size_t',
+      });
+      w.PMC_SIZE = koffi.sizeof(PMC);
+      w.GetProcessMemoryInfo = psapi.func('__stdcall', 'GetProcessMemoryInfo', 'bool', ['void *', koffi.inout(koffi.pointer(PMC)), 'uint32']);
+      w.EmptyWorkingSet = psapi.func('__stdcall', 'EmptyWorkingSet', 'bool', ['void *']);
+    } catch { /* sem leitura de memória */ }
     w.SHQueryUserNotificationState = shell32.func('__stdcall', 'SHQueryUserNotificationState', 'long', [koffi.out(koffi.pointer('int'))]);
     try {
       const dwm = koffi.load('dwmapi.dll');
@@ -219,6 +231,29 @@ function teclaApertada(vk) {
   try { return !!w && (w.GetAsyncKeyState(vk) & 0x8000) !== 0; } catch { return false; }
 }
 
+/** Memória de um processo (MB): o que o Gerenciador de Tarefas mostra (conjunto de trabalho) e o privado */
+function memoriaDoProcesso(pid) {
+  if (!w?.GetProcessMemoryInfo || !pid) return null;
+  const h = w.OpenProcess(0x1000 | 0x0010, false, pid); // QUERY_LIMITED_INFORMATION | VM_READ
+  if (!h) return null;
+  try {
+    const c = { cb: w.PMC_SIZE };
+    if (!w.GetProcessMemoryInfo(h, c, w.PMC_SIZE)) return null;
+    return { ws: Math.round(Number(c.WorkingSetSize) / 1048576), privado: Math.round(Number(c.PrivateUsage) / 1048576) };
+  } catch { return null; } finally { w.CloseHandle(h); }
+}
+/** Devolve ao Windows a memória parada dos processos (volta sozinha se for usada de novo) */
+function aliviarMemoria(pids) {
+  if (!w?.EmptyWorkingSet) return 0;
+  let n = 0;
+  for (const pid of pids) {
+    const h = w.OpenProcess(0x0100 | 0x0400, false, pid); // SET_QUOTA | QUERY_INFORMATION
+    if (!h) continue;
+    try { if (w.EmptyWorkingSet(h)) n++; } catch { /* ignora */ } finally { w.CloseHandle(h); }
+  }
+  return n;
+}
+
 function botaoMouseApertado() {
   try { return !!w && (w.GetAsyncKeyState(0x01) & 0x8000) !== 0; } catch { return false; }
 }
@@ -259,4 +294,4 @@ function focarJanela(hwnd) {
   } catch { return false; }
 }
 
-module.exports = { iniciar, estadoPrimeiroPlano, telaCheiaExclusiva, botaoMouseApertado, vkDaPosicao, posicaoConhecida, teclaApertada, seqAreaTransferencia, trazerParaFrente, janelaDaFrente, focarJanela };
+module.exports = { iniciar, estadoPrimeiroPlano, telaCheiaExclusiva, memoriaDoProcesso, aliviarMemoria, botaoMouseApertado, vkDaPosicao, posicaoConhecida, teclaApertada, seqAreaTransferencia, trazerParaFrente, janelaDaFrente, focarJanela };

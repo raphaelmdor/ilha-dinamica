@@ -251,6 +251,9 @@ api.on('janela:pausar', (sim) => {
   olhos.pausar?.(sim);
 });
 
+// Faxina de memória (a cada 10 min e ao entrar num jogo): solta imagens e caches que não estão em uso
+api.on('memoria:liberar', () => api.liberarMemoria?.());
+
 // Avisos pedidos pelo processo principal
 api.on('aviso:mostrar', (d) => {
   if (!d) return;

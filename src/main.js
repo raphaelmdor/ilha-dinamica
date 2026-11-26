@@ -240,7 +240,7 @@ function garantirWhisper() {
   if (process.platform !== 'win32' || !exeWhisper()) return Promise.resolve(false);
   try {
     if (fs.statSync(ARQ_WHISPER).size > 100 * 1024 * 1024) {
-      if (!whisperPronto) { whisperPronto = true; setTimeout(() => preaquecerWhisperGpu().catch(() => {}), 8000); }
+      whisperPronto = true;
       return Promise.resolve(true);
     }
   } catch { /* baixa */ }
@@ -270,7 +270,6 @@ function garantirWhisper() {
       fs.renameSync(parcial, ARQ_WHISPER);
       whisperPronto = true;
       log('Whisper: modelo pronto');
-      setTimeout(() => preaquecerWhisperGpu().catch(() => {}), 5000);
       janela?.webContents.send('whisper:status', { fase: 'pronto' });
       return true;
     })().catch((e) => {
@@ -326,10 +325,18 @@ function desligarServidorWhisper(tipo) {
     if (s) { s.desligadoPorMim = true; try { s.proc.kill(); } catch { /* ignora */ } }
   }
   if (!tipo || tipo === 'cpu') clearTimeout(timerDesligarCpu);
+  if (!tipo || tipo === 'gpu') clearTimeout(timerDesligarGpu);
 }
+// Sem uso, os servidores saem (cada um ocupa 200–400 MB): o do processador em 3 min, o da placa em 5 min.
+// Voltam sozinhos na próxima vez que você chamar a ilha (o do processador liga em menos de 1 s).
+let timerDesligarGpu = null;
 function adiarDesligarCpu() {
   clearTimeout(timerDesligarCpu);
-  timerDesligarCpu = setTimeout(() => { if (servidoresWhisper.cpu) { log('Whisper: servidor do processador desligado (10 min sem uso)'); desligarServidorWhisper('cpu'); } }, 10 * 60 * 1000);
+  timerDesligarCpu = setTimeout(() => { if (servidoresWhisper.cpu) { log('Whisper: servidor do processador desligado (3 min sem uso)'); desligarServidorWhisper('cpu'); } }, 3 * 60 * 1000);
+}
+function adiarDesligarGpu() {
+  clearTimeout(timerDesligarGpu);
+  timerDesligarGpu = setTimeout(() => { if (servidoresWhisper.gpu) { log('Whisper: servidor da placa de vídeo desligado (5 min sem uso)'); desligarServidorWhisper('gpu'); } }, 5 * 60 * 1000);
 }
 async function ligarProcessoWhisper(tipo) {
   const exe = exeServidorWhisper(tipo);
@@ -377,6 +384,7 @@ async function preaquecerWhisperGpu() {
   const s = await ligarProcessoWhisper('gpu');
   if (!s) return;
   servidoresWhisper.gpu = s;
+  adiarDesligarGpu();
   log('Whisper: preparando a placa de vídeo em segundo plano…');
   const ok = await s.pronto;
   if (!ok && !s.desligadoPorMim) {
@@ -385,12 +393,13 @@ async function preaquecerWhisperGpu() {
     desligarServidorWhisper('gpu');
   }
   // com a placa pronta, o do processador não é mais necessário
-  if (ok && servidoresWhisper.cpu) setTimeout(() => { if (servidoresWhisper.gpu?.prontoJa) desligarServidorWhisper('cpu'); }, 60 * 1000);
+  if (ok && servidoresWhisper.cpu) setTimeout(() => { if (servidoresWhisper.gpu?.prontoJa) desligarServidorWhisper('cpu'); }, 30 * 1000);
 }
 async function garantirServidorWhisper() {
   if (!whisperPronto) return null;
   preaquecerWhisperGpu().catch(() => {});
   const gpu = servidoresWhisper.gpu;
+  if (gpu && !gpu.morto) adiarDesligarGpu();
   if (gpu && gpu.prontoJa && !gpu.morto) return gpu;
   // placa ainda preparando (ou indisponível): o processador responde
   let cpu = servidoresWhisper.cpu;
@@ -1008,7 +1017,8 @@ function definirJogo(ativo, motivo) {
   aplicarVisibilidadeReal();
   // a memória da placa de vídeo é do jogo: o Whisper da placa sai e volta 20 s depois do jogo
   if (ativo && servidoresWhisper.gpu) { desligarServidorWhisper('gpu'); log('Whisper: placa de vídeo liberada para o jogo'); }
-  if (!ativo) setTimeout(() => preaquecerWhisperGpu().catch(() => {}), 20000);
+  // (volta sozinho na próxima vez que você falar com a ilha)
+  if (ativo) setTimeout(() => aliviarMemoriaDaIlha(true), 5000);
   if (!ativo && avisarModoDeTela) {
     avisarModoDeTela = false;
     setTimeout(() => janela?.webContents.send('aviso:mostrar', {
@@ -1862,6 +1872,25 @@ if (copiaDeTeste) {
 } else if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
+// Devolve ao Windows a memória parada (o que for usado de novo volta sozinho, sem você perceber).
+// Escondida (jogo): todos os processos. Visível: só os que não desenham a tela.
+function pidsDaIlha() {
+  const lista = [];
+  try { for (const p of app.getAppMetrics()) lista.push({ pid: p.pid, tipo: p.type }); } catch { /* ignora */ }
+  if (ajudanteMidia?.pid) lista.push({ pid: ajudanteMidia.pid, tipo: 'ajudante' });
+  for (const t of ['gpu', 'cpu']) if (servidoresWhisper[t]?.proc?.pid) lista.push({ pid: servidoresWhisper[t].proc.pid, tipo: 'whisper-' + t });
+  return lista;
+}
+function aliviarMemoriaDaIlha(tudo = false) {
+  try {
+    const escondida = tudo || !janela?.isVisible();
+    janela?.webContents.send('memoria:liberar');
+    const pids = pidsDaIlha().filter((p) => escondida || !['Tab', 'GPU'].includes(p.tipo)).map((p) => p.pid);
+    janelasWin.aliviarMemoria?.(pids);
+  } catch { /* ignora */ }
+}
+setInterval(() => aliviarMemoriaDaIlha(false), 10 * 60 * 1000);
+
 // Mede o consumo da ilha e anota no log: a cada minuto nos primeiros 15 min, depois a cada 30 min
 function medirDesempenho() {
   let quando = 0;
@@ -1888,6 +1917,11 @@ function medirDesempenho() {
         mem += (p.memory?.workingSetSize || 0) / 1024;
       }
       const partes = Object.entries(porTipo).map(([t, v]) => `${t} ${v.cpu.toFixed(1)}%/${Math.round(v.mem)}MB`).join(', ');
+      // detalhe: cada processo do Electron e os ajudantes (que o Gerenciador de Tarefas soma junto)
+      const detalhe = m.map((p) => `${p.type}${p.serviceName ? ':' + p.serviceName.replace(/^.*\./, '') : p.name ? ':' + p.name : ''} ${Math.round((p.memory?.workingSetSize || 0) / 1024)}`).join(', ');
+      const filhos = pidsDaIlha().filter((p) => !['Browser', 'Tab', 'GPU', 'Utility', 'Zygote', 'Sandbox helper', 'Unknown'].includes(p.tipo))
+        .map((p) => { const mm = janelasWin.memoriaDoProcesso?.(p.pid); return mm ? `${p.tipo} ${mm.ws}MB` : null; }).filter(Boolean).join(', ');
+      log(`Memória por processo (MB): ${detalhe}${filhos ? ' | ajudantes: ' + filhos : ''}`);
       const abertos = Object.entries(processosAbertos).map(([k, v]) => `${k}×${v}`).join(' ') || 'nenhum';
       for (const k of Object.keys(processosAbertos)) delete processosAbertos[k];
       log(`Desempenho: CPU ${cpu.toFixed(1)}% | memória ${Math.round(mem)} MB (${partes}) | programas abertos desde a última medição: ${abertos}${dentro}${ocultaPorJogo ? ' | em jogo' : ''}`);
