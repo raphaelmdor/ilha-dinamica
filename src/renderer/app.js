@@ -321,14 +321,12 @@ const fmtData = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-dig
 
 // Relógio do topo: números que rolam como odômetro, dois-pontos pulsando e um mini relógio de ponteiros
 // cuja cor acompanha a hora do dia (madrugada, manhã, tarde, pôr do sol, noite)
-let molde = '';
 const giro = { h: null, m: null, s: null }; // graus acumulados (o ponteiro nunca "volta" de 359° para 0°)
-function rolarPara(fita, n) { fita.style.transform = `translateY(${-n}em)`; }
-function desenharDigitos(texto) {
-  const caixa = $('horaGrande');
+function rolarPara(fita, n) { fita.style.transform = `translateY(${(-n * 1.3).toFixed(2)}em)`; } // 1,3em por dígito (com folga, sem aparecer o vizinho)
+function desenharDigitos(texto, caixa = $('horaGrande'), olhinhos = false) {
   const forma = texto.replace(/\d/g, '0');
-  if (forma !== molde) {
-    molde = forma;
+  if (forma !== caixa.dataset.molde) {
+    caixa.dataset.molde = forma;
     caixa.replaceChildren();
     for (const ch of texto) {
       if (/\d/.test(ch)) {
@@ -339,7 +337,9 @@ function desenharDigitos(texto) {
       } else {
         const sep = document.createElement('span');
         sep.className = ch === ':' ? 'sep' : 'letra';
-        sep.textContent = ch;
+        // no notch, os dois-pontos são dois olhinhos que piscam
+        if (ch === ':' && olhinhos) { sep.classList.add('olhinhos'); sep.append(document.createElement('i'), document.createElement('i')); }
+        else sep.textContent = ch;
         caixa.append(sep);
       }
     }
@@ -371,6 +371,22 @@ function periodoDoDia(h) {
 }
 const fmtDataLonga = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 let ultimaHoraCheia = -1;
+let ultimoMinuto = -1;
+// O minuto virou: o mascote dá uma espiadinha no relógio do notch enquanto os números rolam
+function espiarRelogio(horaCheia) {
+  const caixa = $('textoCompacto');
+  if (estado.vista !== 'compacta' || caixa?.dataset.modo !== 'relogio' || document.documentElement.classList.contains('pausada')) return;
+  if (horaCheia) {
+    caixa.classList.remove('hora-cheia'); void caixa.offsetWidth; caixa.classList.add('hora-cheia');
+    olhos.fazer?.('pulinho');
+  }
+  if (olhos.livre && !olhos.livre()) return;
+  const r = caixa.getBoundingClientRect();
+  if (!r.width) return;
+  olhos.olhandoAte = Date.now() + 1500;
+  olhos.olharPara(r.left + r.width / 2, r.top + r.height / 2);
+  setTimeout(() => { if (olhos.cursor) olhos.olharPara(olhos.cursor.x, olhos.cursor.y); }, 1500);
+}
 function atualizarRelogio() {
   const agora = new Date();
   desenharDigitos(fmtHora.format(agora));
@@ -391,13 +407,31 @@ function atualizarRelogio() {
       relogio.classList.remove('hora-cheia'); void relogio.offsetWidth; relogio.classList.add('hora-cheia');
     }
   }
+  $('textoCompacto').dataset.periodo = periodoDoDia(h);
   atualizarTextoCompacto();
+  if (ultimoMinuto !== -1 && ultimoMinuto !== m) espiarRelogio(m === 0);
+  ultimoMinuto = m;
 }
 
 function atualizarTextoCompacto() {
   const m = estado.midia;
-  const texto = m.ativo && m.status === 'Playing' ? m.titulo : fmtHora.format(new Date());
+  const tocando = m.ativo && m.status === 'Playing';
+  const texto = tocando ? m.titulo : fmtHora.format(new Date());
   const caixa = $('textoCompacto');
+  // sem música: o relógio do notch (números que rolam e dois-pontos que piscam)
+  if (!tocando) {
+    if (caixa.dataset.modo !== 'relogio') {
+      caixa.dataset.modo = 'relogio';
+      caixa.dataset.texto = '';
+      caixa.classList.remove('rolando');
+      const d = document.createElement('span');
+      d.className = 'digitos relogio-notch';
+      caixa.replaceChildren(d);
+    }
+    desenharDigitos(texto, caixa.firstElementChild, true);
+    return;
+  }
+  caixa.dataset.modo = 'texto';
   if (caixa.dataset.texto === texto) { conferirLetreiro(); return; }
   caixa.dataset.texto = texto;
   caixa.classList.remove('rolando');
@@ -411,6 +445,7 @@ function atualizarTextoCompacto() {
 // Nome grande demais: passa em looping (letreiro), sem cortar com "..."
 function conferirLetreiro() {
   const caixa = $('textoCompacto');
+  if (caixa.dataset.modo === 'relogio') return;
   const span = caixa.firstElementChild;
   if (!span || !caixa.clientWidth) return;
   // largura do nome sozinho (guardada antes de duplicar o texto para o letreiro)

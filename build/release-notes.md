@@ -1,9 +1,7 @@
-## Novidades da 5.11.0: relógio novo
+## Novidades da 5.11.1: relógio do notch
 
-- **Maior e mais visível:** números grandes, com um brilho suave na cor de relógio que você escolheu.
-- **Números que rolam:** quando o minuto vira, o dígito rola como num odômetro, com um quiquezinho no fim.
-- **Dois-pontos pulsando** a cada segundo.
-- **Mini relógio de ponteiros** ao lado, com o ponteiro dos segundos andando. A cor dele acompanha o dia: amarelo de manhã, laranja à tarde, rosa no pôr do sol, lilás à noite e azul de madrugada.
-- **Hora cheia:** os números fazem uma ondinha e o mini relógio balança como um sino.
-- Passe o mouse no relógio para ver a data completa.
-- Inclui a 5.10.2: menos memória.
+- **Números que rolam** no notch também, como um odômetro, quando o minuto vira.
+- **Dois-pontos que são olhinhos:** duas bolinhas na cor do período do dia (azul de madrugada, amarelo de manhã, laranja à tarde, rosa no pôr do sol, lilás à noite), que pulsam e de vez em quando piscam como o mascote.
+- **O mascote espia o relógio:** a cada minuto novo, os olhinhos dão uma olhadinha nos números enquanto eles rolam.
+- **Hora cheia:** os números fazem uma onda e o mascote dá um pulinho de alegria.
+- Inclui a 5.11.0: relógio novo no painel.
