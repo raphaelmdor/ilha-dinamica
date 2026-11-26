@@ -1,5 +1,5 @@
 import { Voz, falar } from './voice.js';
-import { interpretar, LISTA_AJUDA, frasesDeComando, acharApp, escolherIntencao } from './intents.js';
+import { interpretar, LISTA_AJUDA, frasesDeComando, acharApp, escolherIntencao, fraseMaisParecida, mesmoComando, normalizar } from './intents.js';
 import { Olhos } from './olhos.js';
 import { iniciarWidgets } from './widgets.js';
 
@@ -625,9 +625,30 @@ function animarOnda() {
   passo();
 }
 
+// "Tlin": dois tons suaves quando a ilha começa a ouvir (dá para saber que pode falar sem olhar)
+let ctxTlin = null;
+let ultimoTlin = 0;
+function tlin() {
+  if (Date.now() - ultimoTlin < 1500) return;
+  ultimoTlin = Date.now();
+  try {
+    ctxTlin ||= new AudioContext();
+    const t = ctxTlin.currentTime;
+    [[880, 0], [1320, 0.09]].forEach(([f, atraso]) => {
+      const o = ctxTlin.createOscillator(); const g = ctxTlin.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t + atraso);
+      g.gain.linearRampToValueAtTime(0.05, t + atraso + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + atraso + 0.22);
+      o.connect(g).connect(ctxTlin.destination);
+      o.start(t + atraso); o.stop(t + atraso + 0.25);
+    });
+  } catch { /* sem som */ }
+}
 voz.addEventListener('ouvindo', (e) => {
   olhos.definirBase(e.detail ? 'ouvindo' : (estado.midia.status === 'Playing' ? 'musica' : 'normal'));
   if (e.detail) {
+    tlin();
     clearTimeout(timeoutAviso);
     $('transcricao').textContent = 'Ouvindo…';
     $('transcricao').classList.add('vazia');
@@ -651,27 +672,74 @@ voz.addEventListener('silencio', () => {
 voz.addEventListener('comando', async (e) => {
   try { await tratarComando(e.detail); } finally { api.vozFim?.(); } // no jogo, a ilha some de novo depois
 });
+// Tira a palavra de ativação do começo ("Ilha, passar a música" -> "passar a música")
+function semAtivacao(texto) {
+  const palavra = normalizar(estado.config.palavraAtivacao || 'ilha');
+  const partes = String(texto).trim().split(/\s+/);
+  const i = partes.slice(0, 3).findIndex((p) => normalizar(p) === palavra);
+  return (i >= 0 ? partes.slice(i + 1) : partes).join(' ').replace(/^[,.!?\s]+/, '').trim();
+}
+let frasesConhecidas = [];
 async function tratarComando(d) {
   if (typeof d === 'string') { await executarFrase(d); return; }
-  // Whisper: entende muito melhor que o reconhecimento rápido; se não estiver pronto, usa o rápido
+  const t0 = performance.now();
+  const ms = () => Math.round(performance.now() - t0);
+  const livre = interpretar(d.texto);
+  const daGramatica = d.alternativa ? interpretar(d.alternativa) : null;
+
+  // 1) Os dois reconhecedores rápidos concordam num comando simples: executa NA HORA
+  if (mesmoComando(livre, daGramatica)) {
+    api.logVoz?.(`na hora: "${d.texto}" = "${d.alternativa}" → ${livre.tipo}${livre.cmd ? ' ' + livre.cmd : ''} (${ms()} ms)`);
+    await executarFrase(d.alternativa);
+    return;
+  }
+
+  // 2) Whisper (entende muito melhor; o servidor já foi ligado enquanto você falava)
   if (d.audio && api.transcrever && estado.whisper !== false) {
     $('transcricao').textContent = 'Entendendo…';
     olhos.reagir('pensando', 4000);
     try {
       const r = await api.transcrever(d.audio);
       if (r?.ok && r.texto) {
-        const { intencao } = escolherIntencao(r.texto, '');
-        // o Whisper vale mais; se ele não virou comando, tenta o que o reconhecimento rápido achou
-        if (intencao && intencao.tipo !== 'nao-entendi') { executarFrase(r.texto); return; }
+        const ouvido = d.ativacao ? semAtivacao(r.texto) : r.texto;
+        const doWhisper = escolherIntencao(ouvido, '').intencao;
+        if (doWhisper && doWhisper.tipo !== 'nao-entendi') {
+          api.logVoz?.(`whisper: "${r.texto}" → ${doWhisper.tipo}${doWhisper.cmd ? ' ' + doWhisper.cmd : ''} (${ms()} ms; rápido ouviu "${d.texto}")`);
+          await executarFrase(ouvido);
+          return;
+        }
+        // 3) Whisper ouviu algo torto: procura o comando conhecido com o som mais parecido
+        const parecida = fraseMaisParecida(ouvido, frasesConhecidas);
+        if (parecida) {
+          api.logVoz?.(`whisper: "${r.texto}" ≈ "${parecida}" (${ms()} ms)`);
+          await executarFrase(parecida);
+          return;
+        }
         const rapido = escolherIntencao(d.texto, d.alternativa).intencao;
-        if (rapido && rapido.tipo !== 'nao-entendi') { executarFrase(d.texto, d.alternativa); return; }
-        executarFrase(r.texto); // mostra o que o Whisper ouviu no "não entendi"
+        if (rapido && rapido.tipo !== 'nao-entendi') {
+          api.logVoz?.(`whisper não entendeu "${r.texto}"; usou o rápido "${d.texto}" (${ms()} ms)`);
+          await executarFrase(d.texto, d.alternativa);
+          return;
+        }
+        api.logVoz?.(`não entendi: whisper "${r.texto}", rápido "${d.texto}" (${ms()} ms)`);
+        await executarFrase(ouvido); // mostra o que o Whisper ouviu no "não entendi"
         return;
       }
     } catch { /* usa o rápido */ }
   }
+  api.logVoz?.(`só o rápido: "${d.texto}" / "${d.alternativa}" (${ms()} ms)`);
   await executarFrase(d.texto, d.alternativa);
 }
+// Começou a falar: liga o Whisper enquanto isso
+voz.addEventListener('preparar', () => api.prepararWhisper?.());
+// "Ilha, …": a ilha já mostra que ouviu o próprio nome
+let ultimoAcenoAtivacao = 0;
+voz.addEventListener('parcial-ativacao', () => {
+  if (Date.now() - ultimoAcenoAtivacao < 2500) return;
+  ultimoAcenoAtivacao = Date.now();
+  olhos.reagir('ouvindo', 2200);
+  tlin();
+});
 api.on('whisper:status', (s) => {
   if (s.fase === 'baixando') {
     estado.whisperBaixando = Math.round((s.progresso || 0) * 100);
@@ -685,7 +753,10 @@ api.on('whisper:status', (s) => {
 let appsParaVoz = [];
 async function prepararVocabulario() {
   try { appsParaVoz = (await api.listarApps()) || []; } catch { appsParaVoz = []; }
-  try { voz.definirGramatica(frasesDeComando(appsParaVoz.map((a) => a.nome))); } catch (e) { console.warn(e); }
+  try {
+    frasesConhecidas = frasesDeComando(appsParaVoz.map((a) => a.nome));
+    voz.definirGramatica(frasesConhecidas);
+  } catch (e) { console.warn(e); }
 }
 
 async function ativarVoz() {

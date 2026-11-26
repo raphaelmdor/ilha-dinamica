@@ -31,14 +31,46 @@ jobs:
           git clone --depth 1 --branch v1.7.4 https://github.com/ggml-org/whisper.cpp wcpp
           cmake -S wcpp -B wcpp/build -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_SDL2=OFF `
             -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON
-          cmake --build wcpp/build --config Release --target whisper-cli -j 4
+          cmake --build wcpp/build --config Release --target whisper-cli whisper-server -j 4
           if ($LASTEXITCODE -ne 0) { cmake --build wcpp/build --config Release --target main -j 4 }
           New-Item -ItemType Directory -Force build/whisper | Out-Null
           $exe = Get-ChildItem wcpp/build -Recurse -Include whisper-cli.exe, main.exe | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1
           if (-not $exe) { throw 'whisper-cli.exe não foi gerado' }
           Copy-Item $exe.FullName build/whisper/whisper-cli.exe
           Get-ChildItem (Split-Path $exe.FullName) -Filter *.dll | Copy-Item -Destination build/whisper/
+          $srv = Get-ChildItem wcpp/build -Recurse -Include whisper-server.exe | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1
+          if ($srv) { Copy-Item $srv.FullName build/whisper/whisper-server.exe } else { Write-Warning 'whisper-server.exe não foi gerado' }
           Get-ChildItem build/whisper
+
+      # Whisper com placa de vídeo (Vulkan: NVIDIA, AMD e Intel). Se algo aqui falhar, o instalador sai só com a versão do processador.
+      - name: Instalar o Vulkan SDK
+        id: vulkan
+        continue-on-error: true
+        shell: pwsh
+        env:
+          VULKAN_VERSION: 1.3.296.0
+        run: |
+          curl.exe -sL -o "$env:RUNNER_TEMP\VulkanSDK-Installer.exe" "https://sdk.lunarg.com/sdk/download/$env:VULKAN_VERSION/windows/VulkanSDK-$env:VULKAN_VERSION-Installer.exe"
+          & "$env:RUNNER_TEMP\VulkanSDK-Installer.exe" --accept-licenses --default-answer --confirm-command install | Out-Host
+          if (-not (Test-Path "C:\VulkanSDK\$env:VULKAN_VERSION\Bin\glslc.exe")) { throw 'Vulkan SDK não instalou' }
+          Add-Content $env:GITHUB_ENV "VULKAN_SDK=C:\VulkanSDK\$env:VULKAN_VERSION"
+          Add-Content $env:GITHUB_PATH "C:\VulkanSDK\$env:VULKAN_VERSION\Bin"
+
+      - name: Compilar o Whisper com placa de vídeo
+        if: steps.vulkan.outcome == 'success'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          cmake -S wcpp -B wcpp/build-vk -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_SDL2=OFF `
+            -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_VULKAN=ON
+          cmake --build wcpp/build-vk --config Release --target whisper-server -j 4
+          if ($LASTEXITCODE -ne 0) { throw 'falhou' }
+          $srv = Get-ChildItem wcpp/build-vk -Recurse -Include whisper-server.exe | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1
+          if (-not $srv) { throw 'whisper-server.exe (Vulkan) não foi gerado' }
+          New-Item -ItemType Directory -Force build/whisper/gpu | Out-Null
+          Copy-Item $srv.FullName build/whisper/gpu/whisper-server.exe
+          Get-ChildItem (Split-Path $srv.FullName) -Filter *.dll | Copy-Item -Destination build/whisper/gpu/
+          Get-ChildItem build/whisper/gpu
 
       - name: Gerar e publicar o instalador
         run: npx electron-builder --win nsis --publish always

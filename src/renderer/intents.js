@@ -225,7 +225,40 @@ export function interpretar(frase) {
   if (tem(t, 'esconder', 'esconde', 'sumir', 'some')) return { tipo: 'esconder' };
   if (tem(t, 'cancelar', 'cancela', 'nada', 'deixa', 'esquece')) return { tipo: 'cancelar' };
 
+  // Último recurso: palavras "parecidas" com os comandos de mídia ("passarmos", "pulei", "pausei"...)
+  const palavras = t.split(' ');
+  const comeca = (...raizes) => palavras.some((p) => raizes.some((r) => p.startsWith(r)));
+  if (palavras.length <= 4) {
+    if (comeca('pass', 'pul', 'avanc', 'proxim', 'seguint', 'skip', 'next')) return { tipo: 'midia', cmd: 'next' };
+    if (comeca('anterio', 'previous', 'back') || (comeca('volt') && comeca('music', 'faix'))) return { tipo: 'midia', cmd: 'prev' };
+    if (comeca('paus', 'despaus', 'play', 'retom', 'continu', 'resum')) return { tipo: 'midia', cmd: 'toggle' };
+    if (comeca('mut', 'silenc')) return { tipo: 'midia', cmd: 'mute' };
+  }
+
   return { tipo: 'nao-entendi' };
+}
+
+/** A frase de comando conhecida mais parecida (pelo som) com o que foi ouvido, ou null */
+export function fraseMaisParecida(texto, frases, minimo = 0.78) {
+  const alvo = soar(texto);
+  if (alvo.length < 3) return null;
+  let melhor = null;
+  for (const f of frases || []) {
+    const s = soar(f);
+    if (Math.abs(s.length - alvo.length) > Math.max(4, alvo.length * 0.5)) continue;
+    const nota = parecido(alvo, s);
+    if (!melhor || nota > melhor.nota) melhor = { frase: f, nota };
+  }
+  return melhor && melhor.nota >= minimo ? melhor.frase : null;
+}
+
+/** Os dois reconhecedores entenderam o mesmo comando? (aí dá para executar na hora, sem esperar o Whisper) */
+const FECHADOS = new Set(['midia', 'sistema', 'abrir', 'abrir-instalado', 'widget', 'hora', 'data', 'bateria', 'tocando',
+  'bloquear', 'captura', 'esconder', 'cancelar', 'foco', 'timer-cancelar', 'busca', 'ajuda']);
+export function mesmoComando(a, b) {
+  if (!a || !b || a.tipo !== b.tipo || !FECHADOS.has(a.tipo)) return false;
+  const chave = (x) => JSON.stringify({ ...x, nome: x.nome ? normalizar(x.nome) : undefined, vezes: undefined });
+  return chave(a) === chave(b);
 }
 
 export const LISTA_AJUDA = [
@@ -278,6 +311,9 @@ export function frasesDeComando(nomesApps = []) {
 // Simplifica a "pronúncia" para comparar nomes ouvidos errado ("gugou crome" ~ "google chrome")
 function soar(texto) {
   return normalizar(texto)
+    // jeito brasileiro de falar nomes em inglês: "istim" = steam, "discordi" = discord, "aipad" = ipad
+    .split(' ').map((p) => p.replace(/^[ie]s(?=[bcdfgkmnpqrtv])/, 's').replace(/([bcdfgkmnprt])i$/, '$1')).join(' ')
+    .replace(/ea|ee/g, 'i')
     .replace(/ch|sh/g, 'x').replace(/ph/g, 'f').replace(/qu|k/g, 'c').replace(/w/g, 'u').replace(/y/g, 'i')
     .replace(/z/g, 's').replace(/h/g, '').replace(/ou/g, 'o').replace(/oo/g, 'u').replace(/(.)\1+/g, '$1')
     .replace(/\s+/g, '');
@@ -297,7 +333,17 @@ function parecido(a, b) {
 }
 
 /** Acha o app instalado mais parecido com o nome falado (ou null) */
+// Apelidos e jeitos de falar o nome dos apps
+const APELIDOS = {
+  zap: 'whatsapp', zapzap: 'whatsapp', 'zap zap': 'whatsapp', uatsap: 'whatsapp', wpp: 'whatsapp',
+  insta: 'instagram', face: 'facebook', yt: 'youtube', 'you tube': 'youtube', iutubi: 'youtube',
+  vscode: 'visual studio code', 'vs code': 'visual studio code', code: 'visual studio code',
+  'gerenciador': 'gerenciador de tarefas', 'bloco': 'bloco de notas', 'explorer': 'explorador',
+  'pubg': 'pubg', 'pub g': 'pubg', 'pubi g': 'pubg', 'pubiji': 'pubg', 'pabg': 'pubg',
+};
 export function acharApp(nomeFalado, apps) {
+  const apelido = APELIDOS[normalizar(nomeFalado)];
+  if (apelido) nomeFalado = apelido;
   const alvo = normalizar(nomeFalado);
   const som = soar(nomeFalado);
   let melhor = null;

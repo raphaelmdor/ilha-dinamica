@@ -281,21 +281,142 @@ function garantirWhisper() {
 function dicaWhisper() {
   const apps = lancador.listarApps().map((a) => a.nome)
     .filter((n) => n.length <= 24 && !/(help|ajuda|uninstall|desinstal|odbc|config|legal|error|reporter|recovery|documents)/i.test(n)).slice(0, 40);
-  return 'Comandos para a ilha: abrir Google Chrome, abrir Spotify, pausar, próxima música, volume 50, brilho 70, '
-    + 'ligar wi-fi, desligar bluetooth, modo escuro, nova tarefa, anotar, marcar, timer de 5 minutos, pesquisar. Apps: '
-    + apps.join(', ') + '.';
+  // O Whisper imita o estilo do texto de contexto: frases curtas de comando, do jeito que se fala
+  return 'Ilha, abrir o Google Chrome. Passar a música. Próxima música. Voltar a música. Pausar. Tocar. '
+    + 'Aumentar o volume. Volume 50. Brilho 70. Ligar o Wi-Fi. Desligar o Bluetooth. Modo escuro. '
+    + 'Timer de 5 minutos. Nova tarefa comprar pão. Anotar ligar pro João. Marcar 14:30 dentista. '
+    + 'Pesquisar receita de bolo. Tocar lo-fi no YouTube. Que horas são? Abrir ' + apps.join(', abrir ') + '.';
+}
+
+// ---------------------------------------------------------------------------
+// Whisper como servidor: fica aberto com o modelo carregado (não recarrega 190 MB a cada comando),
+// usa a placa de vídeo quando dá (Vulkan) e processa só o tamanho da frase (não 30 s fixos).
+// Liga quando você começa a falar e desliga sozinho depois de 10 min sem uso.
+// ---------------------------------------------------------------------------
+let servidorWhisper = null; // { proc, porta, tipo: 'gpu'|'cpu', pronto: Promise<boolean> }
+let timerDesligarWhisper = null;
+let gpuFalhou = false;
+function exeServidorWhisper(tipo) {
+  const sub = tipo === 'gpu' ? ['gpu', 'whisper-server.exe'] : ['whisper-server.exe'];
+  const opcoes = [
+    path.join(process.resourcesPath || '', 'whisper', ...sub),
+    path.join(__dirname, '..', 'build', 'whisper', ...sub),
+  ];
+  return opcoes.find((p) => fs.existsSync(p)) || null;
+}
+function portaLivre() {
+  return new Promise((resolve) => {
+    const srv = require('net').createServer();
+    srv.listen(0, '127.0.0.1', () => { const p = srv.address().port; srv.close(() => resolve(p)); });
+    srv.on('error', () => resolve(41790 + Math.floor(Math.random() * 100)));
+  });
+}
+function desligarServidorWhisper() {
+  clearTimeout(timerDesligarWhisper);
+  const s = servidorWhisper;
+  servidorWhisper = null;
+  try { s?.proc.kill(); } catch { /* ignora */ }
+}
+function adiarDesligarWhisper() {
+  clearTimeout(timerDesligarWhisper);
+  timerDesligarWhisper = setTimeout(() => { log('Whisper: servidor desligado (10 min sem uso)'); desligarServidorWhisper(); }, 10 * 60 * 1000);
+}
+async function iniciarServidor(tipo) {
+  const exe = exeServidorWhisper(tipo);
+  if (!exe) return null;
+  const porta = await portaLivre();
+  const fios = Math.max(2, Math.min(8, os.cpus().length - 1));
+  const args = ['-m', ARQ_WHISPER, '-l', 'pt', '-t', String(fios), '-nt', '--host', '127.0.0.1', '--port', String(porta)];
+  if (tipo === 'gpu') args.push('-fa'); else args.push('-ng');
+  const inicio = Date.now();
+  const proc = spawn(exe, args, { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  let errs = '';
+  proc.stderr.on('data', (d) => { errs = (errs + d.toString()).slice(-4000); });
+  const s = { proc, porta, tipo, morto: false };
+  proc.on('exit', (codigo) => {
+    s.morto = true;
+    if (servidorWhisper === s) servidorWhisper = null;
+    if (!encerrando) log(`Whisper: servidor ${tipo} saiu (código ${codigo})`, errs.split(/\r?\n/).filter(Boolean).slice(-3).join(' | ').slice(0, 400));
+  });
+  proc.on('error', () => { s.morto = true; });
+  // pronto quando responde na porta (o modelo já carregou)
+  s.pronto = (async () => {
+    for (let i = 0; i < 200 && !s.morto; i++) {
+      try {
+        const r = await fetch(`http://127.0.0.1:${porta}/`, { signal: AbortSignal.timeout(800) });
+        if (r.ok) {
+          const placa = (errs.match(/ggml_vulkan: \d+ = ([^|(\r\n]+)/) || [])[1];
+          log(`Whisper: servidor ${tipo === 'gpu' ? 'com placa de vídeo' + (placa ? ' (' + placa.trim() + ')' : '') : 'no processador'} pronto em ${Date.now() - inicio} ms`);
+          return true;
+        }
+      } catch { /* ainda carregando */ }
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    return false;
+  })();
+  return s;
+}
+async function garantirServidorWhisper() {
+  if (!whisperPronto) return null;
+  if (servidorWhisper && !servidorWhisper.morto) { adiarDesligarWhisper(); return (await servidorWhisper.pronto) ? servidorWhisper : null; }
+  // 1º tenta com a placa de vídeo; se não abrir (sem Vulkan, driver antigo), usa o processador
+  for (const tipo of gpuFalhou ? ['cpu'] : ['gpu', 'cpu']) {
+    const s = await iniciarServidor(tipo);
+    if (!s) continue;
+    servidorWhisper = s;
+    if (await s.pronto) { adiarDesligarWhisper(); return s; }
+    try { s.proc.kill(); } catch { /* ignora */ }
+    servidorWhisper = null;
+    if (tipo === 'gpu') { gpuFalhou = true; log('Whisper: placa de vídeo indisponível, usando o processador'); }
+  }
+  return null;
+}
+// Tamanho do trecho a processar: ~50 por segundo de fala (+ folga). 1500 = os 30 s inteiros.
+function contextoDoAudio(wav) {
+  const seg = Math.max(0, (wav.length - 44) / 32000);
+  if (seg > 9) return 1500;
+  return Math.min(1500, Math.max(512, Math.ceil(seg * 50) + 96));
+}
+async function transcreverNoServidor(wav) {
+  const s = await garantirServidorWhisper();
+  if (!s) return null;
+  const inicio = Date.now();
+  const form = new FormData();
+  form.append('file', new Blob([wav], { type: 'audio/wav' }), 'voz.wav');
+  form.append('language', 'pt');
+  form.append('response_format', 'json');
+  form.append('temperature', '0');
+  form.append('no_timestamps', 'true');
+  form.append('beam_size', '3');
+  form.append('audio_ctx', String(contextoDoAudio(wav)));
+  form.append('prompt', dicaWhisper());
+  try {
+    const r = await fetch(`http://127.0.0.1:${s.porta}/inference`, { method: 'POST', body: form, signal: AbortSignal.timeout(20000) });
+    const j = await r.json();
+    const texto = String(j.text || '').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
+    log(`Whisper ${s.tipo === 'gpu' ? 'placa de vídeo' : 'processador'} (${Date.now() - inicio} ms, ${((wav.length - 44) / 32000).toFixed(1)} s de fala): "${texto}"`);
+    if (j.error) { log('Whisper: erro do servidor', String(j.error).slice(0, 200)); return null; }
+    return { ok: !!texto, texto };
+  } catch (e) {
+    log('Whisper: servidor não respondeu', e.message);
+    if (s.tipo === 'gpu') { gpuFalhou = true; desligarServidorWhisper(); }
+    return null;
+  }
 }
 
 async function transcreverWhisper(wav) {
   // ainda baixando o modelo: não espera (o reconhecimento rápido resolve enquanto isso)
   if (!whisperPronto) { garantirWhisper(); return { ok: false, motivo: 'indisponível' }; }
+  const doServidor = await transcreverNoServidor(wav);
+  if (doServidor) return doServidor;
+  // reserva: o programa de linha de comando (mais lento, carrega o modelo a cada vez)
   const exe = exeWhisper();
   const tmp = path.join(DIR_WHISPER, `voz-${Date.now()}.wav`);
   fs.writeFileSync(tmp, wav);
   const fios = Math.max(2, Math.min(8, os.cpus().length - 1));
   const inicio = Date.now();
   return new Promise((resolve) => {
-    execFile(exe, ['-m', ARQ_WHISPER, '-f', tmp, '-l', 'pt', '-nt', '-np', '-t', String(fios), '--prompt', dicaWhisper()],
+    execFile(exe, ['-m', ARQ_WHISPER, '-f', tmp, '-l', 'pt', '-nt', '-np', '-t', String(fios), '-ac', String(contextoDoAudio(wav)), '--prompt', dicaWhisper()],
       { windowsHide: true, timeout: 25000, maxBuffer: 1024 * 1024, encoding: 'utf8' }, (erro, saida, errs) => {
         fs.rm(tmp, { force: true }, () => {});
         if (erro) { log('Whisper: falhou (código', erro.code, ')', String(errs || '').trim().split(/\r?\n/).slice(-6).join(' | ').slice(0, 700)); resolve({ ok: false }); return; }
@@ -1673,6 +1794,10 @@ ipcMain.handle('voz:transcrever', (_e, wav) => {
   return transcreverWhisper(ArrayBuffer.isView(wav) ? Buffer.from(wav.buffer, wav.byteOffset, wav.byteLength) : Buffer.from(wav));
 });
 ipcMain.handle('whisper:garantir', () => garantirWhisper());
+// Você começou a falar: liga o Whisper enquanto isso (quando terminar a frase, ele já está pronto)
+ipcMain.on('whisper:preparar', () => { if (whisperPronto) garantirServidorWhisper().catch(() => {}); });
+// Registro de cada comando de voz (para medir e melhorar)
+ipcMain.on('voz:log', (_e, msg) => log('Voz:', String(msg).slice(0, 400)));
 ipcMain.handle('modelo:garantir', async () => {
   try {
     await garantirModelo();
@@ -1885,6 +2010,7 @@ function medirDesempenho() {
 
   app.on('before-quit', () => {
     encerrando = true;
+    desligarServidorWhisper();
     if (dados.silenciouNotif) silenciarNoFoco(false);
     globalShortcut.unregisterAll();
     ajudanteMidia?.kill();

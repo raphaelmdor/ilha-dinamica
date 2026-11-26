@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('ilhaAPI', {
   definirAudio: (id) => ipcRenderer.send('audio:padrao', String(id)),
   diagClique: (msg) => ipcRenderer.send('diag:clique', String(msg)),
   diagSempre: (msg) => ipcRenderer.send('diag:sempre', String(msg)),
+  prepararWhisper: () => ipcRenderer.send('whisper:preparar'),
+  logVoz: (msg) => ipcRenderer.send('voz:log', String(msg)),
   // solta da memória o que a tela não usa mais (ex.: capas de músicas anteriores)
   liberarMemoria: () => { try { webFrame.clearCache(); } catch { /* ignora */ } },
   transcrever: (wav) => ipcRenderer.invoke('voz:transcrever', wav),

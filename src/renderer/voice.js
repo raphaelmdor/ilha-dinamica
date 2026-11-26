@@ -20,6 +20,8 @@ export class Voz extends EventTarget {
     this.gramatica = null;         // frases de comando conhecidas (melhora muito o acerto)
     this.comandos = null;          // 2º reconhecedor, limitado às frases de comando
     this.ultimoComando = '';
+    this.anel = [];          // últimos ~10 s de áudio (modo "ilha …"), para o Whisper ouvir a frase inteira
+    this.falaDesde = 0;      // quando começou a frase atual (modo "ilha …")
   }
 
   /** Lista de frases que o reconhecedor de comandos aceita (comandos + nomes dos apps) */
@@ -34,7 +36,10 @@ export class Voz extends EventTarget {
     try {
       this.comandos = new this.modelo.KaldiRecognizer(this.contexto.sampleRate, this.gramatica);
       this.comandos.on('partialresult', (msg) => { if (msg.result.partial) this.ultimoComando = msg.result.partial; });
-      this.comandos.on('result', (msg) => { if (msg.result.text) this.ultimoComando = msg.result.text; });
+      this.comandos.on('result', (msg) => {
+        if (msg.result.text) this.ultimoComando = msg.result.text;
+        if (this.esperaPalpite) this.esperaPalpite(msg.result.text || '');
+      });
     } catch (e) { console.warn('Reconhecedor de comandos indisponível', e); this.comandos = null; }
   }
 
@@ -63,6 +68,14 @@ export class Voz extends EventTarget {
     this.reconhecedor.on('partialresult', (msg) => {
       const parcial = msg.result.partial;
       if (parcial && this.escutandoComando) this.emitir('parcial', parcial);
+      // modo "ilha …": marca quando a frase começou e, se ela começa com "ilha", já liga o Whisper
+      if (parcial && this.continua && !this.escutandoComando) {
+        if (!this.falaDesde) this.falaDesde = performance.now();
+        if (parcial.split(' ').slice(0, 3).includes(this.palavraAtivacao)) {
+          if (!this.avisouPreparo) { this.avisouPreparo = true; this.emitir('preparar'); }
+          this.emitir('parcial-ativacao', parcial);
+        }
+      }
     });
     this.reconhecedor.on('result', (msg) => this.aoResultado(msg.result.text || ''));
     this.criarReconhecedorComandos();
@@ -76,6 +89,12 @@ export class Voz extends EventTarget {
     this.processador.onaudioprocess = (e) => {
       if (this.escutandoComando || this.continua) {
         try { this.reconhecedor.acceptWaveform(e.inputBuffer); } catch { /* ignora */ }
+        // modo "ilha …": guarda os últimos ~10 s
+        if (this.continua && !this.escutandoComando) {
+          this.anel.push({ t: performance.now(), d: new Float32Array(e.inputBuffer.getChannelData(0)) });
+          const limite = Math.ceil((10 * (this.contexto?.sampleRate || 48000)) / 4096);
+          if (this.anel.length > limite) this.anel.splice(0, this.anel.length - limite);
+        }
         // guarda o áudio do comando para o Whisper (no máximo ~12 s)
         if (this.escutandoComando && this.gravacao && this.gravacao.length < 150) {
           this.gravacao.push(new Float32Array(e.inputBuffer.getChannelData(0)));
@@ -91,10 +110,27 @@ export class Voz extends EventTarget {
 
   /** Junta os pedaços gravados, reamostra para 16 kHz mono e monta um .wav (PCM 16 bits) */
   wav16k(pedacos, taxa) {
-    const total = pedacos.reduce((n, p) => n + p.length, 0);
-    const junto = new Float32Array(total);
+    const totalBruto = pedacos.reduce((n, p) => n + p.length, 0);
+    const bruto = new Float32Array(totalBruto);
     let o = 0;
-    for (const p of pedacos) { junto.set(p, o); o += p.length; }
+    for (const p of pedacos) { bruto.set(p, o); o += p.length; }
+    // corta o silêncio do começo e do fim (o Whisper processa só a fala: mais rápido e sem "alucinar")
+    const quadro = Math.round(taxa * 0.02);
+    const energias = [];
+    for (let i = 0; i + quadro <= totalBruto; i += quadro) {
+      let soma = 0; for (let k = i; k < i + quadro; k++) soma += bruto[k] * bruto[k];
+      energias.push(Math.sqrt(soma / quadro));
+    }
+    const pico = Math.max(0.0001, ...energias);
+    const limiar = Math.max(0.008, pico * 0.12);
+    let ini = energias.findIndex((e) => e > limiar);
+    let fim = energias.length - 1 - [...energias].reverse().findIndex((e) => e > limiar);
+    if (ini < 0) { ini = 0; fim = energias.length - 1; }
+    const folga = Math.round(0.25 / 0.02); // 250 ms de folga de cada lado
+    const a = Math.max(0, (ini - folga) * quadro);
+    const b = Math.min(totalBruto, (fim + 1 + folga) * quadro);
+    const junto = bruto.subarray(a, b);
+    const total = junto.length;
     const passo = taxa / 16000;
     const n = Math.floor(total / passo);
     const dados = new DataView(new ArrayBuffer(44 + n * 2));
@@ -144,6 +180,7 @@ export class Voz extends EventTarget {
     this.ultimoComando = '';
     this.gravacao = [];
     this.emitir('ouvindo', true);
+    this.emitir('preparar'); // liga o Whisper enquanto você fala
     this.reiniciarTimeout(8000);
   }
 
@@ -195,16 +232,60 @@ export class Voz extends EventTarget {
 
     // Escuta contínua: só reage se a frase começar com a palavra de ativação
     if (this.continua) {
+      const desde = this.falaDesde;
+      this.falaDesde = 0;
+      this.avisouPreparo = false;
       const palavras = texto.split(' ');
       const idx = palavras.findIndex((p) => p === this.palavraAtivacao);
       if (idx === -1 || idx > 1) return; // aceita "ô ilha", "ei ilha"
       const resto = palavras.slice(idx + 1).join(' ').trim();
       if (resto) {
-        this.emitir('comando', resto);
+        // a frase inteira ("ilha passar a música") vai para o Whisper, e o reconhecedor de comandos dá um 2º palpite
+        const pedacos = this.anel.filter((p) => !desde || p.t >= desde - 900).map((p) => p.d);
+        this.anel = [];
+        const audio = pedacos.length ? this.wav16k(pedacos, this.contexto?.sampleRate || 48000) : null;
+        this.palpiteComandos(pedacos).then((alternativa) => {
+          this.emitir('comando', { texto: resto, alternativa, audio, ativacao: true });
+        });
       } else {
+        this.anel = [];
         this.ouvirComando(); // disse só "ilha": espera o comando
       }
     }
+  }
+
+  /** Passa um trecho já gravado pelo reconhecedor de comandos (frases conhecidas) e devolve o palpite dele */
+  palpiteComandos(pedacos) {
+    return new Promise((resolve) => {
+      const rec = this.comandos;
+      if (!rec || !pedacos.length || !this.contexto) { resolve(''); return; }
+      let feito = false;
+      const terminar = (txt) => {
+        if (feito) return;
+        feito = true;
+        this.esperaPalpite = null;
+        const limpo = String(txt || '').replace(/\[unk\]/g, ' ').replace(/\s+/g, ' ').trim();
+        resolve(limpo);
+      };
+      // a frase pode chegar em mais de um pedaço (pausa depois do "ilha"): junta todos
+      const partes = [];
+      let timerJunta = null;
+      try {
+        this.ultimoComando = '';
+        this.esperaPalpite = (txt) => {
+          if (txt) partes.push(txt);
+          clearTimeout(timerJunta);
+          timerJunta = setTimeout(() => terminar(partes.join(' ')), 150);
+        };
+        for (const d of pedacos) {
+          const buf = new AudioBuffer({ length: d.length, sampleRate: this.contexto.sampleRate, numberOfChannels: 1 });
+          buf.copyToChannel(d, 0);
+          rec.acceptWaveform(buf);
+        }
+        rec.retrieveFinalResult();
+      } catch { terminar(''); }
+      setTimeout(() => terminar(partes.join(' ') || this.ultimoComando || ''), 700);
+    });
   }
 }
 
