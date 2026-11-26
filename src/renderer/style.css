@@ -1507,7 +1507,7 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
 .digitos .rolo { display: inline-block; height: 1.3em; overflow: hidden; width: 0.62em; text-align: center; }
 .digitos .fita { display: flex; flex-direction: column; transition: transform 0.6s cubic-bezier(0.3, 1.45, 0.5, 1); }
 .digitos .fita i { font-style: normal; height: 1.3em; line-height: 1.3em; display: block; }
-.digitos .sep { display: inline-block; width: 0.32em; text-align: center; translate: 0 -0.06em; animation: pulsar-sep 1s ease-in-out infinite; }
+.digitos .sep { display: inline-block; width: 0.32em; text-align: center; height: 1.3em; line-height: 1.3em; animation: pulsar-sep 1s ease-in-out infinite; }
 @keyframes pulsar-sep { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .digitos .letra { font-size: 0.55em; margin-left: 0.2em; color: var(--suave); }
 .exp-hora small { font-size: calc(11.5px * var(--escala)); font-weight: 500; }
@@ -1550,13 +1550,11 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
 .centro[data-periodo="tarde"] { --tom: #fdba74; }
 .centro[data-periodo="por-do-sol"] { --tom: #f9a8d4; }
 .centro[data-periodo="noite"] { --tom: #c4b5fd; }
-.relogio-notch .sep.olhinhos { display: inline-flex; flex-direction: column; justify-content: center; gap: 0.16em; width: 0.36em; height: 1em; align-items: center; animation: none; translate: 0 -0.18em; } /* centro óptico dos números */
-.relogio-notch .sep.olhinhos i {
-  width: 0.17em; height: 0.2em; border-radius: 50%;
-  background: var(--tom); box-shadow: 0 0 5px color-mix(in srgb, var(--tom) 70%, transparent);
+.relogio-notch .sep.olhinhos {
+  display: inline-block; width: 0.36em; text-align: center; height: 1.3em; line-height: 1.3em;
+  color: var(--tom); text-shadow: 0 0 6px color-mix(in srgb, var(--tom) 75%, transparent);
   animation: olhinho-relogio 4.3s ease-in-out infinite;
 }
-.relogio-notch .sep.olhinhos i + i { animation-delay: 0.04s; }
 /* piscam de vez em quando (e pulsam de leve a cada segundo) */
 @keyframes olhinho-relogio {
   0%, 100% { scale: 1 1; opacity: 1; }

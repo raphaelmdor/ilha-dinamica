@@ -1,6 +1,6 @@
-## Novidades da 5.11.2
+## Novidades da 5.11.3
 
-- **Dois-pontos do notch centralizados:** as bolinhas ficam exatamente no meio dos números.
+- **Dois-pontos alinhados de verdade:** o relógio usa o próprio ":" da fonte e mede, na fonte do seu PC, quanto ele precisa subir para ficar no meio dos números. Fica certo em qualquer fonte e em qualquer tamanho da ilha.
 
 ## Da 5.11.1: relógio do notch
 

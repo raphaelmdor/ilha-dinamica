@@ -323,6 +323,19 @@ const fmtData = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-dig
 // cuja cor acompanha a hora do dia (madrugada, manhã, tarde, pôr do sol, noite)
 const giro = { h: null, m: null, s: null }; // graus acumulados (o ponteiro nunca "volta" de 359° para 0°)
 function rolarPara(fita, n) { fita.style.transform = `translateY(${(-n * 1.3).toFixed(2)}em)`; } // 1,3em por dígito (com folga, sem aparecer o vizinho)
+// O ":" fica naturalmente mais baixo que o meio dos números (e quanto, depende da fonte de cada PC).
+// Mede na própria fonte da ilha onde está o meio de "0" e o de ":" e sobe o ":" exatamente a diferença.
+const reguaTexto = document.createElement('canvas').getContext('2d');
+function centralizarDoisPontos(caixa) {
+  for (const sep of caixa.querySelectorAll('.sep')) {
+    const cs = getComputedStyle(sep);
+    reguaTexto.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const meio = (t) => { const m = reguaTexto.measureText(t); return (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2; };
+    const tamanho = parseFloat(cs.fontSize) || 12;
+    const sobe = (meio('0') - meio(':')) / tamanho; // em "em": vale para qualquer tamanho da ilha
+    if (Number.isFinite(sobe)) sep.style.translate = `0 ${(-sobe).toFixed(3)}em`;
+  }
+}
 function desenharDigitos(texto, caixa = $('horaGrande'), olhinhos = false) {
   const forma = texto.replace(/\d/g, '0');
   if (forma !== caixa.dataset.molde) {
@@ -338,11 +351,13 @@ function desenharDigitos(texto, caixa = $('horaGrande'), olhinhos = false) {
         const sep = document.createElement('span');
         sep.className = ch === ':' ? 'sep' : 'letra';
         // no notch, os dois-pontos são dois olhinhos que piscam
-        if (ch === ':' && olhinhos) { sep.classList.add('olhinhos'); sep.append(document.createElement('i'), document.createElement('i')); }
-        else sep.textContent = ch;
+        // no notch, os dois-pontos são "olhinhos" que piscam (o próprio ":" da fonte: sempre alinhado com os números)
+        if (ch === ':' && olhinhos) sep.classList.add('olhinhos');
+        sep.textContent = ch;
         caixa.append(sep);
       }
     }
+    requestAnimationFrame(() => centralizarDoisPontos(caixa));
   }
   let k = 0;
   for (const ch of texto) {
