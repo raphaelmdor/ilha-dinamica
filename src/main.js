@@ -321,7 +321,7 @@ function adiarDesligarWhisper() {
   clearTimeout(timerDesligarWhisper);
   timerDesligarWhisper = setTimeout(() => { log('Whisper: servidor desligado (10 min sem uso)'); desligarServidorWhisper(); }, 10 * 60 * 1000);
 }
-async function iniciarServidor(tipo) {
+async function ligarProcessoWhisper(tipo) {
   const exe = exeServidorWhisper(tipo);
   if (!exe) return null;
   const porta = await portaLivre();
@@ -361,7 +361,7 @@ async function garantirServidorWhisper() {
   if (servidorWhisper && !servidorWhisper.morto) { adiarDesligarWhisper(); return (await servidorWhisper.pronto) ? servidorWhisper : null; }
   // 1º tenta com a placa de vídeo; se não abrir (sem Vulkan, driver antigo), usa o processador
   for (const tipo of gpuFalhou ? ['cpu'] : ['gpu', 'cpu']) {
-    const s = await iniciarServidor(tipo);
+    const s = await ligarProcessoWhisper(tipo);
     if (!s) continue;
     servidorWhisper = s;
     if (await s.pronto) { adiarDesligarWhisper(); return s; }
