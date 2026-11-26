@@ -204,8 +204,13 @@ export class Voz extends EventTarget {
     const folga = Math.round(0.25 / 0.02); // 250 ms de folga de cada lado
     const a = Math.max(0, (ini - folga) * quadro);
     const b = Math.min(totalBruto, (fim + 1 + folga) * quadro);
-    const junto = bruto.subarray(a, b);
+    const junto = bruto.slice(a, b);
     const total = junto.length;
+    // volume: deixa a fala alta e clara para o Whisper (você não precisa gritar)
+    let picoAmostra = 0;
+    for (let k = 0; k < total; k++) { const v = Math.abs(junto[k]); if (v > picoAmostra) picoAmostra = v; }
+    const ganho = picoAmostra > 0.001 ? Math.min(12, 0.9 / picoAmostra) : 1;
+    if (ganho > 1.05) for (let k = 0; k < total; k++) junto[k] *= ganho;
     const passo = taxa / 16000;
     const n = Math.floor(total / passo);
     const dados = new DataView(new ArrayBuffer(44 + n * 2));

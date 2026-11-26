@@ -716,7 +716,13 @@ voz.addEventListener('comando', async (e) => {
 function semAtivacao(texto) {
   const palavra = normalizar(estado.config.palavraAtivacao || 'ilha');
   const partes = String(texto).trim().split(/\s+/);
-  const i = partes.slice(0, 3).findIndex((p) => normalizar(p) === palavra);
+  let i = partes.slice(0, 3).findIndex((p) => normalizar(p) === palavra);
+  // o nome escrito errado na 1ª palavra ("Ile", "Ilia", "Or", "Ela", "Ia"): também sai
+  if (i < 0 && partes.length > 1) {
+    const p0 = normalizar(partes[0]);
+    const parecida = p0.length <= 4 || p0.startsWith(palavra.slice(0, 2)) || /^(e|o|oi|ei|ou|ah|ai|ia|ela|ele|olha|ilia|ilya|ile|ila|ira)$/.test(p0);
+    if (parecida && escolherIntencao(partes.slice(1).join(' '), '').intencao?.tipo !== 'nao-entendi') i = 0;
+  }
   return (i >= 0 ? partes.slice(i + 1) : partes).join(' ').replace(/^[,.!?\s]+/, '').trim();
 }
 let frasesConhecidas = [];
@@ -744,11 +750,12 @@ async function tratarComando(d) {
     try {
       const r = await api.transcrever(d.audio);
       if (r?.ok && r.texto) {
-        // "ilha" sozinho (ou algo que não começa com "ilha", ex.: "minha filha"): não executa nada
-        const nome = normalizar(estado.config.palavraAtivacao || 'ilha');
-        const comNome = normalizar(r.texto).split(' ').slice(0, 3).includes(nome);
+        // O ouvido dedicado já reconheceu o nome: o Whisper às vezes escreve "ilha" errado ("Ile", "Or", "Ela"…),
+        // então a 1ª palavra parecida com o nome é descartada e o resto vira o comando
         const ouvido = d.ativacao ? semAtivacao(r.texto) : r.texto;
-        if (d.ativacao && !comNome && !d.alternativa) {
+        const comandoDoWhisper = escolherIntencao(ouvido, '').intencao;
+        if (d.ativacao && normalizar(ouvido) && comandoDoWhisper?.tipo === 'nao-entendi' && !d.alternativa && !normalizar(d.texto)) {
+          // nada parecido com comando e nenhum palpite dos reconhecedores rápidos: provavelmente não era comigo
           api.logVoz?.(`ignorado (não era comigo): "${r.texto}" (${ms()} ms)`);
           mostrar(vistaPadrao());
           return;
