@@ -31,7 +31,18 @@
     <!-- Expandida: mídia + widgets -->
     <div class="vista vista-expandida">
       <div class="exp-topo">
-        <div class="exp-hora"><span id="horaGrande"></span><small id="dataGrande"></small></div>
+        <div class="exp-hora" id="relogioTopo">
+          <svg class="mini-relogio" viewBox="0 0 24 24" aria-hidden="true">
+            <circle class="aro" cx="12" cy="12" r="10.2"/>
+            <g class="marcas"><line x1="12" y1="2.9" x2="12" y2="4.6"/><line x1="21.1" y1="12" x2="19.4" y2="12"/><line x1="12" y1="21.1" x2="12" y2="19.4"/><line x1="2.9" y1="12" x2="4.6" y2="12"/></g>
+            <line class="ph" id="ponteiroH" x1="12" y1="12" x2="12" y2="7.2"/>
+            <line class="pm" id="ponteiroM" x1="12" y1="12" x2="12" y2="4.8"/>
+            <line class="ps" id="ponteiroS" x1="12" y1="14" x2="12" y2="4"/>
+            <circle class="eixo" cx="12" cy="12" r="1.25"/>
+          </svg>
+          <span class="digitos" id="horaGrande"></span>
+          <small id="dataGrande"></small>
+        </div>
         <div class="exp-meio">
           <div class="pontos" id="pontos"></div>
           <div class="nome-pagina" id="nomePagina"></div>

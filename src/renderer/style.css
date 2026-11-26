@@ -577,7 +577,7 @@ body {
 
 .exp-topo { display: flex; align-items: center; gap: 8px; height: 28px; flex: none; }
 .exp-hora { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-variant-numeric: tabular-nums; }
-.exp-hora span { font-weight: 700; font-size: calc(15px * var(--escala)); color: var(--cor-relogio); }
+.exp-hora > span { font-weight: 700; color: var(--cor-relogio); }
 .exp-hora small { color: var(--suave); font-size: calc(11.5px * var(--escala)); white-space: nowrap; }
 .exp-meio { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
 .pontos { display: flex; gap: 5px; align-items: center; height: 12px; padding: 2px 0; }
@@ -1498,3 +1498,40 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
 /* "Sim?": chamou só o nome; pisca duas vezes e fica esperando */
 .vista-escuta.sim .olhos .olho { animation: piscadinha-dupla 0.7s ease-in-out; }
 @keyframes piscadinha-dupla { 0%, 40%, 100% { scale: 1 1; } 15%, 55% { scale: 1 0.15; } }
+
+/* =========================================================
+   Relógio do topo
+   ========================================================= */
+.exp-hora { align-items: center; gap: calc(7px * var(--escala)); }
+.exp-hora span.digitos { display: inline-flex; align-items: center; font-weight: 750; font-size: calc(19px * var(--escala)); line-height: 1; color: var(--cor-relogio); letter-spacing: -0.3px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--cor-relogio) 30%, transparent)); }
+.digitos .rolo { display: inline-block; height: 1em; overflow: hidden; width: 0.62em; text-align: center; }
+.digitos .fita { display: flex; flex-direction: column; transition: transform 0.6s cubic-bezier(0.3, 1.45, 0.5, 1); }
+.digitos .fita i { font-style: normal; height: 1em; line-height: 1; display: block; }
+.digitos .sep { display: inline-block; width: 0.32em; text-align: center; translate: 0 -0.06em; animation: pulsar-sep 1s ease-in-out infinite; }
+@keyframes pulsar-sep { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.digitos .letra { font-size: 0.55em; margin-left: 0.2em; color: var(--suave); }
+.exp-hora small { font-size: calc(11.5px * var(--escala)); font-weight: 500; }
+
+/* mini relógio de ponteiros */
+.mini-relogio { width: calc(19px * var(--escala)); height: calc(19px * var(--escala)); flex: none; overflow: visible; --tom: #fde68a; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tom) 55%, transparent)); }
+.mini-relogio .aro { fill: color-mix(in srgb, var(--tom) 14%, transparent); stroke: var(--tom); stroke-width: 1.6; }
+.mini-relogio .marcas line { stroke: var(--tom); stroke-width: 1.2; stroke-linecap: round; opacity: 0.7; }
+.mini-relogio line.ph, .mini-relogio line.pm, .mini-relogio line.ps { stroke-linecap: round; transform-box: view-box; transform-origin: 12px 12px; }
+.mini-relogio .ph { stroke: var(--cor-relogio); stroke-width: 2.1; transition: transform 1s ease; }
+.mini-relogio .pm { stroke: var(--cor-relogio); stroke-width: 1.5; transition: transform 1s ease; }
+.mini-relogio .ps { stroke: var(--tom); stroke-width: 0.9; transition: transform 0.35s cubic-bezier(0.4, 2.2, 0.6, 1); }
+.mini-relogio .eixo { fill: var(--tom); }
+.exp-hora[data-periodo="madrugada"] .mini-relogio { --tom: #93c5fd; }
+.exp-hora[data-periodo="manha"] .mini-relogio { --tom: #fde68a; }
+.exp-hora[data-periodo="tarde"] .mini-relogio { --tom: #fdba74; }
+.exp-hora[data-periodo="por-do-sol"] .mini-relogio { --tom: #f9a8d4; }
+.exp-hora[data-periodo="noite"] .mini-relogio { --tom: #c4b5fd; }
+
+/* hora cheia: ondinha nos números */
+.exp-hora.hora-cheia .digitos > * { animation: onda-hora 0.9s ease-in-out; }
+.exp-hora.hora-cheia .digitos > *:nth-child(2) { animation-delay: 0.07s; }
+.exp-hora.hora-cheia .digitos > *:nth-child(3) { animation-delay: 0.14s; }
+.exp-hora.hora-cheia .digitos > *:nth-child(4) { animation-delay: 0.21s; }
+.exp-hora.hora-cheia .digitos > *:nth-child(5) { animation-delay: 0.28s; }
+@keyframes onda-hora { 0%, 100% { translate: 0 0; } 40% { translate: 0 -0.22em; } }
+.exp-hora.hora-cheia .mini-relogio { animation: sininho 1.2s ease-in-out 2; transform-origin: 50% 10%; }

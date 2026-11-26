@@ -319,10 +319,78 @@ function montarRelogio(c) {
 }
 const fmtData = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
 
+// Relógio do topo: números que rolam como odômetro, dois-pontos pulsando e um mini relógio de ponteiros
+// cuja cor acompanha a hora do dia (madrugada, manhã, tarde, pôr do sol, noite)
+let molde = '';
+const giro = { h: null, m: null, s: null }; // graus acumulados (o ponteiro nunca "volta" de 359° para 0°)
+function rolarPara(fita, n) { fita.style.transform = `translateY(${-n}em)`; }
+function desenharDigitos(texto) {
+  const caixa = $('horaGrande');
+  const forma = texto.replace(/\d/g, '0');
+  if (forma !== molde) {
+    molde = forma;
+    caixa.replaceChildren();
+    for (const ch of texto) {
+      if (/\d/.test(ch)) {
+        const rolo = document.createElement('span'); rolo.className = 'rolo';
+        const fita = document.createElement('span'); fita.className = 'fita';
+        for (let d = 0; d <= 9; d++) { const i = document.createElement('i'); i.textContent = d; fita.append(i); }
+        rolo.append(fita); caixa.append(rolo);
+      } else {
+        const sep = document.createElement('span');
+        sep.className = ch === ':' ? 'sep' : 'letra';
+        sep.textContent = ch;
+        caixa.append(sep);
+      }
+    }
+  }
+  let k = 0;
+  for (const ch of texto) {
+    const el = caixa.children[k++];
+    if (el?.classList.contains('rolo')) rolarPara(el.firstChild, Number(ch));
+  }
+}
+function girarPonteiro(id, chave, graus) {
+  const el = $(id);
+  if (!el) return;
+  if (giro[chave] === null) giro[chave] = graus;
+  else {
+    let delta = graus - (giro[chave] % 360 + 360) % 360;
+    if (delta < -180) delta += 360;
+    if (delta > 180) delta -= 360;
+    giro[chave] += delta;
+  }
+  el.style.transform = `rotate(${giro[chave]}deg)`;
+}
+function periodoDoDia(h) {
+  if (h < 5) return 'madrugada';
+  if (h < 11) return 'manha';
+  if (h < 17) return 'tarde';
+  if (h < 19) return 'por-do-sol';
+  return 'noite';
+}
+const fmtDataLonga = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+let ultimaHoraCheia = -1;
 function atualizarRelogio() {
   const agora = new Date();
-  $('horaGrande').textContent = fmtHora.format(agora);
-  $('dataGrande').textContent = fmtData.format(agora).replace(/\./g, '');
+  desenharDigitos(fmtHora.format(agora));
+  const dataCurta = fmtData.format(agora).replace(/\./g, '');
+  $('dataGrande').textContent = dataCurta.charAt(0).toUpperCase() + dataCurta.slice(1);
+  const h = agora.getHours(), m = agora.getMinutes(), s = agora.getSeconds();
+  girarPonteiro('ponteiroH', 'h', (h % 12) * 30 + m * 0.5);
+  girarPonteiro('ponteiroM', 'm', m * 6 + s * 0.1);
+  girarPonteiro('ponteiroS', 's', s * 6);
+  const relogio = $('relogioTopo');
+  if (relogio) {
+    relogio.dataset.periodo = periodoDoDia(h);
+    const longa = fmtDataLonga.format(agora);
+    relogio.title = longa.charAt(0).toUpperCase() + longa.slice(1);
+    // hora cheia: os números fazem uma ondinha
+    if (m === 0 && s < 2 && ultimaHoraCheia !== h) {
+      ultimaHoraCheia = h;
+      relogio.classList.remove('hora-cheia'); void relogio.offsetWidth; relogio.classList.add('hora-cheia');
+    }
+  }
   atualizarTextoCompacto();
 }
 
