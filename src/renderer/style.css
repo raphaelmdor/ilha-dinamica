@@ -1550,7 +1550,7 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
 .centro[data-periodo="tarde"] { --tom: #fdba74; }
 .centro[data-periodo="por-do-sol"] { --tom: #f9a8d4; }
 .centro[data-periodo="noite"] { --tom: #c4b5fd; }
-.relogio-notch .sep.olhinhos { display: inline-flex; flex-direction: column; justify-content: center; gap: 0.16em; width: 0.36em; height: 1em; align-items: center; animation: none; }
+.relogio-notch .sep.olhinhos { display: inline-flex; flex-direction: column; justify-content: center; gap: 0.16em; width: 0.36em; height: 1em; align-items: center; animation: none; translate: 0 -0.18em; } /* centro óptico dos números */
 .relogio-notch .sep.olhinhos i {
   width: 0.17em; height: 0.2em; border-radius: 50%;
   background: var(--tom); box-shadow: 0 0 5px color-mix(in srgb, var(--tom) 70%, transparent);

@@ -1,4 +1,8 @@
-## Novidades da 5.11.1: relógio do notch
+## Novidades da 5.11.2
+
+- **Dois-pontos do notch centralizados:** as bolinhas ficam exatamente no meio dos números.
+
+## Da 5.11.1: relógio do notch
 
 - **Números que rolam** no notch também, como um odômetro, quando o minuto vira.
 - **Dois-pontos que são olhinhos:** duas bolinhas na cor do período do dia (azul de madrugada, amarelo de manhã, laranja à tarde, rosa no pôr do sol, lilás à noite), que pulsam e de vez em quando piscam como o mascote.
