@@ -238,7 +238,12 @@ let promessaWhisper = null;
 function garantirWhisper() {
   if (whisperPronto) return Promise.resolve(true);
   if (process.platform !== 'win32' || !exeWhisper()) return Promise.resolve(false);
-  try { if (fs.statSync(ARQ_WHISPER).size > 100 * 1024 * 1024) { whisperPronto = true; return Promise.resolve(true); } } catch { /* baixa */ }
+  try {
+    if (fs.statSync(ARQ_WHISPER).size > 100 * 1024 * 1024) {
+      if (!whisperPronto) { whisperPronto = true; setTimeout(() => preaquecerWhisperGpu().catch(() => {}), 8000); }
+      return Promise.resolve(true);
+    }
+  } catch { /* baixa */ }
   if (!promessaWhisper) {
     promessaWhisper = (async () => {
       fs.mkdirSync(DIR_WHISPER, { recursive: true });
@@ -265,6 +270,7 @@ function garantirWhisper() {
       fs.renameSync(parcial, ARQ_WHISPER);
       whisperPronto = true;
       log('Whisper: modelo pronto');
+      setTimeout(() => preaquecerWhisperGpu().catch(() => {}), 5000);
       janela?.webContents.send('whisper:status', { fase: 'pronto' });
       return true;
     })().catch((e) => {
@@ -293,8 +299,10 @@ function dicaWhisper() {
 // usa a placa de vídeo quando dá (Vulkan) e processa só o tamanho da frase (não 30 s fixos).
 // Liga quando você começa a falar e desliga sozinho depois de 10 min sem uso.
 // ---------------------------------------------------------------------------
-let servidorWhisper = null; // { proc, porta, tipo: 'gpu'|'cpu', pronto: Promise<boolean> }
-let timerDesligarWhisper = null;
+// Dois servidores: o da placa de vídeo (rápido; na 1ª vez demora para preparar a placa) e o do processador
+// (reserva, liga em 1 s). O da placa fica pronto em segundo plano e é desligado durante os jogos.
+const servidoresWhisper = { gpu: null, cpu: null };
+let timerDesligarCpu = null;
 let gpuFalhou = false;
 function exeServidorWhisper(tipo) {
   const sub = tipo === 'gpu' ? ['gpu', 'whisper-server.exe'] : ['whisper-server.exe'];
@@ -311,65 +319,88 @@ function portaLivre() {
     srv.on('error', () => resolve(41790 + Math.floor(Math.random() * 100)));
   });
 }
-function desligarServidorWhisper() {
-  clearTimeout(timerDesligarWhisper);
-  const s = servidorWhisper;
-  servidorWhisper = null;
-  try { s?.proc.kill(); } catch { /* ignora */ }
+function desligarServidorWhisper(tipo) {
+  for (const t of tipo ? [tipo] : ['gpu', 'cpu']) {
+    const s = servidoresWhisper[t];
+    servidoresWhisper[t] = null;
+    if (s) { s.desligadoPorMim = true; try { s.proc.kill(); } catch { /* ignora */ } }
+  }
+  if (!tipo || tipo === 'cpu') clearTimeout(timerDesligarCpu);
 }
-function adiarDesligarWhisper() {
-  clearTimeout(timerDesligarWhisper);
-  timerDesligarWhisper = setTimeout(() => { log('Whisper: servidor desligado (10 min sem uso)'); desligarServidorWhisper(); }, 10 * 60 * 1000);
+function adiarDesligarCpu() {
+  clearTimeout(timerDesligarCpu);
+  timerDesligarCpu = setTimeout(() => { if (servidoresWhisper.cpu) { log('Whisper: servidor do processador desligado (10 min sem uso)'); desligarServidorWhisper('cpu'); } }, 10 * 60 * 1000);
 }
 async function ligarProcessoWhisper(tipo) {
   const exe = exeServidorWhisper(tipo);
   if (!exe) return null;
   const porta = await portaLivre();
   const fios = Math.max(2, Math.min(8, os.cpus().length - 1));
-  const args = ['-m', ARQ_WHISPER, '-l', 'pt', '-t', String(fios), '-nt', '--host', '127.0.0.1', '--port', String(porta)];
+  const args = ['-m', ARQ_WHISPER, '-l', 'pt', '-t', String(tipo === 'gpu' ? 4 : fios), '-nt', '--host', '127.0.0.1', '--port', String(porta)];
   if (tipo === 'gpu') args.push('-fa'); else args.push('-ng');
   const inicio = Date.now();
   const proc = spawn(exe, args, { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
   let errs = '';
   proc.stderr.on('data', (d) => { errs = (errs + d.toString()).slice(-4000); });
-  const s = { proc, porta, tipo, morto: false };
+  const s = { proc, porta, tipo, morto: false, prontoJa: false, desligadoPorMim: false };
   proc.on('exit', (codigo) => {
     s.morto = true;
-    if (servidorWhisper === s) servidorWhisper = null;
-    if (!encerrando) log(`Whisper: servidor ${tipo} saiu (código ${codigo})`, errs.split(/\r?\n/).filter(Boolean).slice(-3).join(' | ').slice(0, 400));
+    if (servidoresWhisper[tipo] === s) servidoresWhisper[tipo] = null;
+    if (encerrando || s.desligadoPorMim) return;
+    log(`Whisper: servidor ${tipo} saiu (código ${codigo})`, errs.split(/\r?\n/).filter(Boolean).slice(-3).join(' | ').slice(0, 400));
+    if (tipo === 'gpu') gpuFalhou = true;
   });
   proc.on('error', () => { s.morto = true; });
-  // pronto quando responde na porta (o modelo já carregou)
+  // pronto quando responde na porta (o modelo carregou). A placa de vídeo, na 1ª vez, pode levar uns minutos
+  const limite = Date.now() + (tipo === 'gpu' ? 6 * 60 * 1000 : 40 * 1000);
   s.pronto = (async () => {
-    for (let i = 0; i < 200 && !s.morto; i++) {
+    while (!s.morto && Date.now() < limite) {
       try {
         const r = await fetch(`http://127.0.0.1:${porta}/`, { signal: AbortSignal.timeout(800) });
         if (r.ok) {
-          const placa = (errs.match(/ggml_vulkan: \d+ = ([^|(\r\n]+)/) || [])[1];
+          s.prontoJa = true;
+          const placa = (errs.match(/using device Vulkan\d+ \(([^)]+)\)/) || errs.match(/ggml_vulkan: \d+ = ([^|(\r\n]+)/) || [])[1];
           log(`Whisper: servidor ${tipo === 'gpu' ? 'com placa de vídeo' + (placa ? ' (' + placa.trim() + ')' : '') : 'no processador'} pronto em ${Date.now() - inicio} ms`);
           return true;
         }
       } catch { /* ainda carregando */ }
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 250));
     }
     return false;
   })();
   return s;
 }
+// Prepara a placa de vídeo em segundo plano (ao abrir a ilha e depois de cada jogo)
+async function preaquecerWhisperGpu() {
+  if (!whisperPronto || gpuFalhou || ocultaPorJogo || servidoresWhisper.gpu || encerrando) return;
+  if (!exeServidorWhisper('gpu')) return;
+  const s = await ligarProcessoWhisper('gpu');
+  if (!s) return;
+  servidoresWhisper.gpu = s;
+  log('Whisper: preparando a placa de vídeo em segundo plano…');
+  const ok = await s.pronto;
+  if (!ok && !s.desligadoPorMim) {
+    gpuFalhou = true;
+    log('Whisper: a placa de vídeo não ficou pronta, seguindo com o processador');
+    desligarServidorWhisper('gpu');
+  }
+  // com a placa pronta, o do processador não é mais necessário
+  if (ok && servidoresWhisper.cpu) setTimeout(() => { if (servidoresWhisper.gpu?.prontoJa) desligarServidorWhisper('cpu'); }, 60 * 1000);
+}
 async function garantirServidorWhisper() {
   if (!whisperPronto) return null;
-  if (servidorWhisper && !servidorWhisper.morto) { adiarDesligarWhisper(); return (await servidorWhisper.pronto) ? servidorWhisper : null; }
-  // 1º tenta com a placa de vídeo; se não abrir (sem Vulkan, driver antigo), usa o processador
-  for (const tipo of gpuFalhou ? ['cpu'] : ['gpu', 'cpu']) {
-    const s = await ligarProcessoWhisper(tipo);
-    if (!s) continue;
-    servidorWhisper = s;
-    if (await s.pronto) { adiarDesligarWhisper(); return s; }
-    try { s.proc.kill(); } catch { /* ignora */ }
-    servidorWhisper = null;
-    if (tipo === 'gpu') { gpuFalhou = true; log('Whisper: placa de vídeo indisponível, usando o processador'); }
+  preaquecerWhisperGpu().catch(() => {});
+  const gpu = servidoresWhisper.gpu;
+  if (gpu && gpu.prontoJa && !gpu.morto) return gpu;
+  // placa ainda preparando (ou indisponível): o processador responde
+  let cpu = servidoresWhisper.cpu;
+  if (!cpu || cpu.morto) {
+    cpu = await ligarProcessoWhisper('cpu');
+    if (!cpu) return null;
+    servidoresWhisper.cpu = cpu;
   }
-  return null;
+  adiarDesligarCpu();
+  return (await cpu.pronto) ? cpu : null;
 }
 // Tamanho do trecho a processar: ~50 por segundo de fala (+ folga). 1500 = os 30 s inteiros.
 function contextoDoAudio(wav) {
@@ -399,7 +430,7 @@ async function transcreverNoServidor(wav) {
     return { ok: !!texto, texto };
   } catch (e) {
     log('Whisper: servidor não respondeu', e.message);
-    if (s.tipo === 'gpu') { gpuFalhou = true; desligarServidorWhisper(); }
+    if (s.tipo === 'gpu') { gpuFalhou = true; desligarServidorWhisper('gpu'); return transcreverNoServidor(wav); }
     return null;
   }
 }
@@ -975,6 +1006,9 @@ function definirJogo(ativo, motivo) {
   if (!ativo) { mostrarMesmoEmJogo = false; vozEmJogo = false; jogoInterativo = false; }
   log(ativo ? `Jogo detectado: ${motivo} — ilha escondida` : 'Jogo fechado — ilha de volta');
   aplicarVisibilidadeReal();
+  // a memória da placa de vídeo é do jogo: o Whisper da placa sai e volta 20 s depois do jogo
+  if (ativo && servidoresWhisper.gpu) { desligarServidorWhisper('gpu'); log('Whisper: placa de vídeo liberada para o jogo'); }
+  if (!ativo) setTimeout(() => preaquecerWhisperGpu().catch(() => {}), 20000);
   if (!ativo && avisarModoDeTela) {
     avisarModoDeTela = false;
     setTimeout(() => janela?.webContents.send('aviso:mostrar', {

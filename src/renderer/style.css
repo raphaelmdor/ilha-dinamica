@@ -1394,3 +1394,107 @@ input[type="range"] { touch-action: none; cursor: pointer; }
 
 /* Ilha escondida: congela todas as animações (ninguém está vendo, e isso pesa no jogo) */
 html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-state: paused !important; }
+
+/* =========================================================
+   Falando com a ilha: o mascote é a interface (sem texto)
+   ========================================================= */
+.ilha[data-estado="escuta"] {
+  width: calc(190px * var(--escala));
+  height: calc(64px * var(--escala));
+  border-radius: calc(32px * var(--escala));
+}
+.vista-escuta { justify-content: center; padding: 0; overflow: visible; --voz: 0; }
+.vista-escuta .transcricao, .vista-escuta .onda { display: none !important; }
+.vista-escuta .olhos.grandes { --e: calc(var(--escala) * 1.75); z-index: 2; transition: scale 0.08s linear, rotate 0.25s ease; }
+
+/* acordou ("ilha!"): um pulinho de susto feliz */
+.vista-escuta.acordou .olhos { animation: acordou 0.55s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes acordou {
+  0% { scale: 0.6 0.6; }
+  45% { scale: 1.25 1.25; translate: 0 calc(-2px * var(--escala)); }
+  100% { scale: 1 1; translate: 0 0; }
+}
+
+/* ouvindo: os olhos "respiram" com a sua voz e ondas saem deles */
+.vista-escuta.ouvindo .olhos { scale: calc(1 + var(--voz) * 0.14) calc(1 + var(--voz) * 0.32); }
+.vista-escuta.ouvindo .olhos .olho { background: #dbeafe; box-shadow: 0 0 calc(6px + 10px * var(--voz)) rgba(96, 165, 250, calc(0.5 + var(--voz) * 0.5)); }
+.aura { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 1; }
+.aura i {
+  position: absolute;
+  width: calc(46px * var(--escala));
+  height: calc(46px * var(--escala));
+  border-radius: 50%;
+  border: calc(2px * var(--escala)) solid rgba(96, 165, 250, 0.9);
+  opacity: 0;
+}
+.vista-escuta.ouvindo .aura i { animation: aura 1.5s ease-out infinite; }
+.vista-escuta.ouvindo .aura i:nth-child(2) { animation-delay: 0.5s; }
+.vista-escuta.ouvindo .aura i:nth-child(3) { animation-delay: 1s; }
+@keyframes aura {
+  0% { scale: 0.55; opacity: calc(0.15 + var(--voz) * 0.85); }
+  100% { scale: calc(1.6 + var(--voz) * 0.9) 1.25; opacity: 0; }
+}
+
+/* pensando: olha pra cima, três pontinhos pulando e um anel girando */
+.pontinhos { position: absolute; right: calc(48px * var(--escala)); top: calc(17px * var(--escala)); display: flex; gap: calc(3px * var(--escala)); opacity: 0; transition: opacity 0.2s; z-index: 2; }
+.pontinhos i { width: calc(4px * var(--escala)); height: calc(4px * var(--escala)); border-radius: 50%; background: #c4b5fd; }
+.vista-escuta.pensando .pontinhos { opacity: 1; }
+.vista-escuta.pensando .pontinhos i { animation: pontinho 0.9s ease-in-out infinite; }
+.vista-escuta.pensando .pontinhos i:nth-child(2) { animation-delay: 0.15s; }
+.vista-escuta.pensando .pontinhos i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes pontinho { 0%, 60%, 100% { translate: 0 0; opacity: 0.4; } 30% { translate: 0 calc(-4px * var(--escala)); opacity: 1; } }
+.vista-escuta.pensando .olhos { rotate: -6deg; }
+.vista-escuta.pensando .olhos .olho { animation: pensar 1.1s ease-in-out infinite; background: #ede9fe; box-shadow: 0 0 8px rgba(167, 139, 250, 0.7); }
+.vista-escuta.pensando::before {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: calc(50px * var(--escala)); height: calc(50px * var(--escala)); margin: calc(-25px * var(--escala)) 0 0 calc(-25px * var(--escala));
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 60%, rgba(167, 139, 250, 0.55) 85%, transparent 100%);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%);
+  mask: radial-gradient(circle, transparent 62%, #000 64%);
+  animation: girar-anel 0.9s linear infinite;
+}
+@keyframes girar-anel { to { rotate: 360deg; } }
+
+/* entendeu: ^ ^, pulinho, o ícone da ação salta dos olhos com faíscas */
+.vista-escuta.entendeu .olhos { animation: pulinho 0.6s cubic-bezier(0.3, 0.7, 0.4, 1); }
+.vista-escuta.entendeu .olhos .olho {
+  height: calc(6px * var(--e)); width: calc(8.5px * var(--e)); background: transparent;
+  border: calc(2.4px * var(--e)) solid var(--cor-olhos); border-bottom: 0;
+  border-radius: calc(6px * var(--e)) calc(6px * var(--e)) 0 0; box-shadow: none;
+}
+.estalo {
+  position: absolute; left: 50%; top: 50%; z-index: 3;
+  font-size: calc(18px * var(--escala)); line-height: 1;
+  translate: -50% -50%; opacity: 0; pointer-events: none;
+}
+.vista-escuta.entendeu .estalo { animation: estalo 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) forwards; }
+@keyframes estalo {
+  0% { opacity: 0; scale: 0.3; translate: -50% -40%; }
+  30% { opacity: 1; scale: 1.25; translate: 80% -95%; }
+  70% { opacity: 1; scale: 1; translate: 95% -110%; }
+  100% { opacity: 0; scale: 0.9; translate: 105% -150%; }
+}
+.faiscas { position: absolute; left: 50%; top: 50%; pointer-events: none; z-index: 3; }
+.faiscas i { position: absolute; width: calc(4px * var(--escala)); height: calc(4px * var(--escala)); border-radius: 50%; background: #fde68a; opacity: 0; }
+.vista-escuta.entendeu .faiscas i { animation: faisca 0.7s ease-out forwards; }
+.faiscas i:nth-child(1) { --dx: -26px; --dy: -14px; }
+.faiscas i:nth-child(2) { --dx: 24px; --dy: -16px; background: #a5f3fc; }
+.faiscas i:nth-child(3) { --dx: -18px; --dy: 14px; background: #f9a8d4; }
+.faiscas i:nth-child(4) { --dx: 28px; --dy: 10px; }
+.faiscas i:nth-child(5) { --dx: 2px; --dy: -24px; background: #c4b5fd; }
+@keyframes faisca {
+  0% { opacity: 1; translate: 0 0; scale: 1; }
+  100% { opacity: 0; translate: calc(var(--dx) * var(--escala)) calc(var(--dy) * var(--escala)); scale: 0.3; }
+}
+
+/* não entendeu: cabeça de lado, um olho maior e um "?" balançando */
+.vista-escuta.confuso .olhos { rotate: 12deg; }
+.vista-escuta.confuso .olhos .olho + .olho { height: calc(13px * var(--e)); }
+.vista-escuta.confuso .olhos .olho:first-child { height: calc(7px * var(--e)); translate: 0 calc(2px * var(--e)); }
+.vista-escuta.confuso .estalo { opacity: 1; translate: 120% -110%; animation: interrogacao 0.9s ease-in-out infinite; }
+@keyframes interrogacao { 0%, 100% { rotate: -12deg; } 50% { rotate: 12deg; } }
+
+/* "Sim?": chamou só o nome; pisca duas vezes e fica esperando */
+.vista-escuta.sim .olhos .olho { animation: piscadinha-dupla 0.7s ease-in-out; }
+@keyframes piscadinha-dupla { 0%, 40%, 100% { scale: 1 1; } 15%, 55% { scale: 1 0.15; } }

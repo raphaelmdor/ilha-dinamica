@@ -611,18 +611,47 @@ function responder(texto) {
   if (estado.config.respostaFalada) falar(texto);
 }
 
+let vozSuave = 0;
 function animarOnda() {
-  const barras = [...$('onda').children];
+  const palco = $('vistaEscuta');
   const passo = () => {
-    const n = voz.nivel();
-    barras.forEach((b, i) => {
-      const fator = 0.45 + 0.55 * Math.abs(Math.sin(Date.now() / 140 + i * 0.9));
-      b.style.height = Math.max(14, Math.min(100, n * 100 * fator + 14)) + '%';
-    });
+    const n = Math.min(1, voz.nivel() * 1.6);
+    // sobe rápido, desce macio (parece que o mascote "escuta" cada sílaba)
+    vozSuave = n > vozSuave ? vozSuave + (n - vozSuave) * 0.55 : vozSuave + (n - vozSuave) * 0.12;
+    palco?.style.setProperty('--voz', vozSuave.toFixed(3));
     animacaoOnda = requestAnimationFrame(passo);
   };
   cancelAnimationFrame(animacaoOnda);
   passo();
+}
+
+// Palco da voz: ouvindo → pensando → entendeu / confuso (sem texto: o mascote mostra tudo)
+let timerPalco = null;
+function palco(estadoNovo, icone = '') {
+  const el = $('vistaEscuta');
+  if (!el) return;
+  el.classList.remove('ouvindo', 'pensando', 'entendeu', 'confuso', 'sim', 'acordou');
+  void el.offsetWidth; // reinicia as animações
+  if (estadoNovo) el.classList.add(estadoNovo);
+  $('estalo').textContent = icone;
+}
+const ICONES_ACAO = {
+  next: '⏭', prev: '⏮', toggle: '⏯', mute: '🔇', volup: '🔊', voldown: '🔉',
+  abrir: '🚀', 'abrir-instalado': '🚀', timer: '⏱', 'timer-cancelar': '🛑', tarefa: '✅', nota: '📝', evento: '📅',
+  pesquisar: '🔎', youtube: '▶', claude: '✨', hora: '🕐', data: '📆', bateria: '🔋', tocando: '🎵', sistema: '⚙',
+  bloquear: '🔒', captura: '📸', esconder: '👋', cancelar: '👌', widget: '🗂', busca: '🔎', ajuda: '💡', foco: '🍅',
+};
+function iconeDaAcao(i) { return (i?.tipo === 'midia' ? ICONES_ACAO[i.cmd] : ICONES_ACAO[i?.tipo]) || '✨'; }
+/** Reação do mascote antes de executar: entendeu (ícone saltando) ou confuso ("?") */
+function reagirAoComando(intencao) {
+  clearTimeout(timerPalco);
+  if (estado.vista !== 'escuta') mostrar('escuta');
+  if (!intencao || intencao.tipo === 'nao-entendi') {
+    palco('confuso', '❓');
+    return new Promise((r) => setTimeout(r, 1100));
+  }
+  palco('entendeu', iconeDaAcao(intencao));
+  return new Promise((r) => setTimeout(r, 650));
 }
 
 // "Tlin": dois tons suaves quando a ilha começa a ouvir (dá para saber que pode falar sem olhar)
@@ -650,19 +679,30 @@ voz.addEventListener('ouvindo', (e) => {
   if (e.detail) {
     tlin();
     clearTimeout(timeoutAviso);
-    $('transcricao').textContent = 'Ouvindo…';
-    $('transcricao').classList.add('vazia');
+    clearTimeout(timerPalco);
     mostrar('escuta');
+    palco('ouvindo');
     animarOnda();
   } else {
     cancelAnimationFrame(animacaoOnda);
-    if (estado.vista === 'escuta') mostrar(vistaPadrao());
+    $('vistaEscuta')?.style.setProperty('--voz', '0');
+    // terminou de falar: pensa (se nenhum comando chegar, volta ao normal)
+    if (estado.vista === 'escuta') {
+      palco('pensando');
+      clearTimeout(timerPalco);
+      timerPalco = setTimeout(() => { if (estado.vista === 'escuta') mostrar(vistaPadrao()); }, 2500);
+    }
   }
 });
-voz.addEventListener('parcial', (e) => {
-  $('transcricao').textContent = e.detail;
-  $('transcricao').classList.remove('vazia');
-  voz.reiniciarTimeout(4000); // ainda falando: dá mais tempo
+voz.addEventListener('parcial', () => {
+  voz.reiniciarTimeout(4000); // ainda falando: dá mais tempo (o que você fala não aparece escrito)
+});
+// "Ilha!": acorda num pulinho, antes de qualquer outra coisa
+voz.addEventListener('ativacao', () => {
+  clearTimeout(timerPalco);
+  mostrar('escuta');
+  palco('acordou');
+  setTimeout(() => { if (voz.captura) palco('ouvindo'); }, 450);
 });
 voz.addEventListener('silencio', () => {
   api.vozFim?.();
@@ -688,23 +728,42 @@ async function tratarComando(d) {
   const daGramatica = d.alternativa ? interpretar(d.alternativa) : null;
 
   // 1) Os dois reconhecedores rápidos concordam num comando simples: executa NA HORA
+  clearTimeout(timerPalco);
   if (mesmoComando(livre, daGramatica)) {
     api.logVoz?.(`na hora: "${d.texto}" = "${d.alternativa}" → ${livre.tipo}${livre.cmd ? ' ' + livre.cmd : ''} (${ms()} ms)`);
+    await reagirAoComando(livre);
     await executarFrase(d.alternativa);
     return;
   }
 
   // 2) Whisper (entende muito melhor; o servidor já foi ligado enquanto você falava)
   if (d.audio && api.transcrever && estado.whisper !== false) {
-    $('transcricao').textContent = 'Entendendo…';
+    if (estado.vista !== 'escuta') mostrar('escuta');
+    palco('pensando');
     olhos.reagir('pensando', 4000);
     try {
       const r = await api.transcrever(d.audio);
       if (r?.ok && r.texto) {
+        // "ilha" sozinho (ou algo que não começa com "ilha", ex.: "minha filha"): não executa nada
+        const nome = normalizar(estado.config.palavraAtivacao || 'ilha');
+        const comNome = normalizar(r.texto).split(' ').slice(0, 3).includes(nome);
         const ouvido = d.ativacao ? semAtivacao(r.texto) : r.texto;
+        if (d.ativacao && !comNome && !d.alternativa) {
+          api.logVoz?.(`ignorado (não era comigo): "${r.texto}" (${ms()} ms)`);
+          mostrar(vistaPadrao());
+          return;
+        }
+        if (d.ativacao && !normalizar(ouvido)) {
+          // chamou só o nome: "Sim?" (pisca duas vezes) e escuta o comando
+          api.logVoz?.(`só o nome (${ms()} ms): esperando o comando`);
+          palco('sim');
+          setTimeout(() => ativarVoz(), 350);
+          return;
+        }
         const doWhisper = escolherIntencao(ouvido, '').intencao;
         if (doWhisper && doWhisper.tipo !== 'nao-entendi') {
           api.logVoz?.(`whisper: "${r.texto}" → ${doWhisper.tipo}${doWhisper.cmd ? ' ' + doWhisper.cmd : ''} (${ms()} ms; rápido ouviu "${d.texto}")`);
+          await reagirAoComando(doWhisper);
           await executarFrase(ouvido);
           return;
         }
@@ -712,22 +771,26 @@ async function tratarComando(d) {
         const parecida = fraseMaisParecida(ouvido, frasesConhecidas);
         if (parecida) {
           api.logVoz?.(`whisper: "${r.texto}" ≈ "${parecida}" (${ms()} ms)`);
+          await reagirAoComando(interpretar(parecida));
           await executarFrase(parecida);
           return;
         }
         const rapido = escolherIntencao(d.texto, d.alternativa).intencao;
         if (rapido && rapido.tipo !== 'nao-entendi') {
           api.logVoz?.(`whisper não entendeu "${r.texto}"; usou o rápido "${d.texto}" (${ms()} ms)`);
+          await reagirAoComando(rapido);
           await executarFrase(d.texto, d.alternativa);
           return;
         }
         api.logVoz?.(`não entendi: whisper "${r.texto}", rápido "${d.texto}" (${ms()} ms)`);
-        await executarFrase(ouvido); // mostra o que o Whisper ouviu no "não entendi"
+        await reagirAoComando(null);
+        await executarFrase(ouvido);
         return;
       }
     } catch { /* usa o rápido */ }
   }
   api.logVoz?.(`só o rápido: "${d.texto}" / "${d.alternativa}" (${ms()} ms)`);
+  await reagirAoComando(escolherIntencao(d.texto, d.alternativa).intencao);
   await executarFrase(d.texto, d.alternativa);
 }
 // Começou a falar: liga o Whisper enquanto isso
@@ -1102,7 +1165,7 @@ async function executarFrase(textoOuvido, alternativa = '') {
         next: 'Próxima', prev: 'Anterior', volup: 'Volume +', voldown: 'Volume −', mute: 'Mudo alternado',
       };
       const icones = { toggle: '⏯', next: '⏭', prev: '⏮', volup: '🔊', voldown: '🔉', mute: '🔇' };
-      aviso(nomes[intencao.cmd], `"${frase}"`, { icone: icones[intencao.cmd], ms: 1800 });
+      aviso(nomes[intencao.cmd], '', { icone: icones[intencao.cmd], ms: 1800 });
       break;
     }
     case 'timer':
@@ -1161,10 +1224,10 @@ async function executarFrase(textoOuvido, alternativa = '') {
       if (achado) {
         await api.acao({ tipo: 'abrirApp', appId: achado.appId });
         olhos.reagir('feliz', 1500);
-        aviso('Abrindo ' + achado.nome, `"${frase}"`, { icone: '↗' });
+        aviso('Abrindo ' + achado.nome, '', { icone: '↗' });
       } else {
         olhos.reagir('confuso', 2400);
-        aviso('Não achei esse app', `Ouvi: "${frase}"`, { icone: '?', tipo: 'info', ms: 4000 });
+        aviso('Não achei esse app', 'Tente falar o nome de outro jeito', { icone: '?', tipo: 'info', ms: 3500 });
       }
       break;
     }
@@ -1201,7 +1264,7 @@ async function executarFrase(textoOuvido, alternativa = '') {
         vol: `Volume em ${intencao.valor}%`, brilho: `Brilho em ${intencao.valor}%`,
         wifi: 'Wi-Fi', bt: 'Bluetooth', tema: 'Tema alternado', mudo: 'Som alternado',
       };
-      aviso(textos[intencao.id] || 'Feito', `"${frase}"`, { icone: '⚙', ms: 1800 });
+      aviso(textos[intencao.id] || 'Feito', '', { icone: '⚙', ms: 1800 });
       break;
     }
     case 'busca':
@@ -1234,7 +1297,7 @@ async function executarFrase(textoOuvido, alternativa = '') {
       aviso('Abrindo no Claude', intencao.texto, { icone: '✳', tipo: 'info', ms: 3000 });
       break;
     default:
-      aviso('Não entendi', intencao.dica || `"${frase}" · diga "ajuda"`, { icone: '?', tipo: 'erro', ms: 3200 });
+      aviso('Não entendi', intencao.dica || 'Diga "ilha, ajuda" para ver os comandos', { icone: '?', tipo: 'erro', ms: 3000 });
   }
 }
 

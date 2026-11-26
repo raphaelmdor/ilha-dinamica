@@ -22,6 +22,71 @@ export class Voz extends EventTarget {
     this.ultimoComando = '';
     this.anel = [];          // últimos ~10 s de áudio (modo "ilha …"), para o Whisper ouvir a frase inteira
     this.falaDesde = 0;      // quando começou a frase atual (modo "ilha …")
+    this.despertador = null; // 3º reconhecedor: só procura a palavra "ilha" (rápido e certeiro)
+    this.captura = null;     // gravando a frase depois do "ilha"
+    this.ultimaCaptura = 0;
+  }
+
+  /** Reconhecedor que só conhece a palavra de ativação: percebe o "ilha" em fração de segundo */
+  criarDespertador() {
+    if (this.despertador || !this.modelo || !this.contexto) return;
+    try {
+      const p = this.palavraAtivacao;
+      // palavras "vizinhas" entram na lista para não serem confundidas com o nome
+      const vizinhas = ['filha', 'milha', 'trilha', 'ilhas', 'pilha', 'olha', 'ela', 'isso', 'aqui', 'agora'].filter((x) => x !== p);
+      this.despertador = new this.modelo.KaldiRecognizer(this.contexto.sampleRate, JSON.stringify([p, ...vizinhas, '[unk]']));
+      this.despertador.on('partialresult', (msg) => this.ouviuNome(msg.result.partial || ''));
+      this.despertador.on('result', (msg) => this.ouviuNome(msg.result.text || ''));
+    } catch (e) { console.warn('Despertador indisponível', e); this.despertador = null; }
+  }
+
+  ouviuNome(texto) {
+    if (!this.continua || this.escutandoComando || this.captura) return;
+    if (!texto.split(' ').includes(this.palavraAtivacao)) return;
+    if (performance.now() - this.ultimaCaptura < 1500) return;
+    // começou: guarda desde ~1 s antes (o "ilha" já está no áudio) e grava até você parar de falar
+    const agora = performance.now();
+    const antes = this.anel.filter((p) => p.t >= agora - 1600);
+    const energias = this.anel.filter((p) => p.t < agora - 1600).map((p) => p.e).sort((a, b) => a - b);
+    const fundo = energias.length ? energias[Math.floor(energias.length / 2)] : 0.004; // barulho de fundo (mediana)
+    this.captura = {
+      inicio: agora, pedacos: antes.map((p) => p.d), ultimaVoz: agora,
+      limiar: Math.max(0.012, fundo * 2.2), falouDepois: false,
+    };
+    try { this.despertador.reset?.(); } catch { /* ignora */ }
+    this.emitir('ativacao');
+    this.emitir('ouvindo', true);
+    this.emitir('preparar');
+  }
+
+  /** Cada pedaço de áudio durante a captura: termina quando você fica ~0,8 s em silêncio (ou 9 s no total) */
+  seguirCaptura(dados, energia) {
+    const c = this.captura;
+    const agora = performance.now();
+    c.pedacos.push(dados);
+    if (energia > c.limiar) { c.ultimaVoz = agora; if (agora - c.inicio > 500) c.falouDepois = true; }
+    const silencio = agora - c.ultimaVoz;
+    const total = agora - c.inicio;
+    if ((silencio > 850 && total > 900) || total > 9000) this.terminarCaptura();
+  }
+
+  terminarCaptura() {
+    const c = this.captura;
+    if (!c) return;
+    this.captura = null;
+    this.ultimaCaptura = performance.now();
+    this.anel = [];
+    this.falaDesde = 0;
+    this.emitir('ouvindo', false);
+    const taxa = this.contexto?.sampleRate || 48000;
+    const audio = this.wav16k(c.pedacos, taxa);
+    const vosk = this.ultimoParcialLivre || '';
+    this.ultimoParcialLivre = '';
+    const p = this.palavraAtivacao;
+    const resto = vosk.split(' ').slice(Math.max(0, vosk.split(' ').indexOf(p) + 1)).join(' ').trim();
+    this.palpiteComandos(c.pedacos).then((alternativa) => {
+      this.emitir('comando', { texto: resto, alternativa, audio, ativacao: true, soNome: !c.falouDepois });
+    });
   }
 
   /** Lista de frases que o reconhecedor de comandos aceita (comandos + nomes dos apps) */
@@ -68,6 +133,7 @@ export class Voz extends EventTarget {
     this.reconhecedor.on('partialresult', (msg) => {
       const parcial = msg.result.partial;
       if (parcial && this.escutandoComando) this.emitir('parcial', parcial);
+      if (parcial && this.captura) this.ultimoParcialLivre = parcial;
       // modo "ilha …": marca quando a frase começou e, se ela começa com "ilha", já liga o Whisper
       if (parcial && this.continua && !this.escutandoComando) {
         if (!this.falaDesde) this.falaDesde = performance.now();
@@ -79,6 +145,7 @@ export class Voz extends EventTarget {
     });
     this.reconhecedor.on('result', (msg) => this.aoResultado(msg.result.text || ''));
     this.criarReconhecedorComandos();
+    this.criarDespertador();
 
     this.analisador = this.contexto.createAnalyser();
     this.analisador.fftSize = 256;
@@ -89,11 +156,19 @@ export class Voz extends EventTarget {
     this.processador.onaudioprocess = (e) => {
       if (this.escutandoComando || this.continua) {
         try { this.reconhecedor.acceptWaveform(e.inputBuffer); } catch { /* ignora */ }
-        // modo "ilha …": guarda os últimos ~10 s
+        // modo "ilha …": guarda os últimos ~10 s, procura o nome e, depois dele, grava a frase
         if (this.continua && !this.escutandoComando) {
-          this.anel.push({ t: performance.now(), d: new Float32Array(e.inputBuffer.getChannelData(0)) });
-          const limite = Math.ceil((10 * (this.contexto?.sampleRate || 48000)) / 4096);
-          if (this.anel.length > limite) this.anel.splice(0, this.anel.length - limite);
+          const dados = new Float32Array(e.inputBuffer.getChannelData(0));
+          let soma = 0; for (let i = 0; i < dados.length; i++) soma += dados[i] * dados[i];
+          const energia = Math.sqrt(soma / dados.length);
+          if (this.captura) {
+            this.seguirCaptura(dados, energia);
+          } else {
+            this.anel.push({ t: performance.now(), d: dados, e: energia });
+            const limite = Math.ceil((10 * (this.contexto?.sampleRate || 48000)) / 4096);
+            if (this.anel.length > limite) this.anel.splice(0, this.anel.length - limite);
+            try { this.despertador?.acceptWaveform(e.inputBuffer); } catch { /* ignora */ }
+          }
         }
         // guarda o áudio do comando para o Whisper (no máximo ~12 s)
         if (this.escutandoComando && this.gravacao && this.gravacao.length < 150) {
@@ -157,6 +232,9 @@ export class Voz extends EventTarget {
     this.reconhecedor?.remove();
     try { this.comandos?.remove(); } catch { /* ignora */ }
     this.comandos = null;
+    try { this.despertador?.remove(); } catch { /* ignora */ }
+    this.despertador = null;
+    this.captura = null;
     this.contexto?.close();
     this.microfone = this.contexto = this.reconhecedor = this.processador = this.analisador = null;
   }
@@ -199,10 +277,13 @@ export class Voz extends EventTarget {
   }
 
   async definirContinua(ativa, palavra) {
-    this.palavraAtivacao = (palavra || 'ilha').toLowerCase();
+    const nova = (palavra || 'ilha').toLowerCase();
+    if (nova !== this.palavraAtivacao && this.despertador) { try { this.despertador.remove(); } catch { /* ignora */ } this.despertador = null; }
+    this.palavraAtivacao = nova;
     this.continua = !!ativa;
     if (this.continua && this.pronta) {
       await this.abrirMicrofone();
+      this.criarDespertador();
     } else {
       this.fecharMicrofone();
     }
@@ -231,6 +312,11 @@ export class Voz extends EventTarget {
     }
 
     // Escuta contínua: só reage se a frase começar com a palavra de ativação
+    // (com o despertador ligado, quem cuida disso é ele; aqui é só a reserva)
+    if (this.continua && (this.despertador || this.captura || performance.now() - this.ultimaCaptura < 3000)) {
+      this.falaDesde = 0;
+      return;
+    }
     if (this.continua) {
       const desde = this.falaDesde;
       this.falaDesde = 0;

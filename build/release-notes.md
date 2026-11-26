@@ -1,14 +1,12 @@
-## Novidades da 5.9.1
+## Novidades da 5.10.0: falar com a ilha ficou outra coisa
 
-- **Corrige a ilha que não aparecia na 5.9.0.**
-
-## Da 5.9.0: comando de voz muito mais rápido e esperto
-
-- **"Ilha, …" agora usa o Whisper:** no modo da palavra de ativação, a frase inteira vai para o reconhecimento preciso. Antes só o reconhecimento rápido, bem mais fraco, ouvia esses comandos.
-- **Whisper sempre pronto:** ele liga assim que você começa a falar e fica com o modelo carregado. Antes recarregava 190 MB a cada comando.
-- **Placa de vídeo:** quando o PC tem uma (NVIDIA, AMD ou Intel), o Whisper usa ela. Se não der, usa o processador sozinho.
-- **Só a sua fala:** a ilha corta o silêncio do começo e do fim e processa só o tamanho da frase, não 30 segundos fixos.
-- **Na hora:** comandos simples ("passar música", "pausar", "volume 50"…) que os dois reconhecedores rápidos entendem igual são executados sem esperar o Whisper.
-- **Mais tolerante:** entende "passarmos", "pula essa", "pausei", "istim" (Steam), "zap" (WhatsApp), "insta" e outros jeitos de falar. Quando o Whisper ouve algo torto, a ilha procura o comando com o som mais parecido.
-- **"Tlin":** um som baixinho avisa que a ilha começou a te ouvir.
-- O log registra cada comando de voz com o tempo que levou.
+- **Ouve o "ilha" na hora:** um reconhecedor dedicado só à palavra de ativação percebe o nome em fração de segundo e grava a frase até você parar de falar.
+- **Placa de vídeo de verdade:** a ilha prepara o Whisper na sua placa de vídeo em segundo plano, logo ao abrir (na primeira vez pode levar alguns minutos). Enquanto isso, o processador responde. Durante os jogos, a placa fica livre para o jogo.
+- **O mascote é a interface:** nada do que você fala aparece escrito.
+  - **"Ilha!":** ele acorda num pulinho.
+  - **Enquanto você fala:** os olhinhos pulsam com a sua voz e soltam ondas azuis.
+  - **Pensando:** olha pra cima, com três pontinhos pulando e um anel girando.
+  - **Entendeu:** faz ^ ^, dá um pulinho e o ícone da ação salta dos olhos com faíscas.
+  - **Não entendeu:** inclina a cabeça, com um "?" balançando.
+  - **Chamou só "ilha":** pisca duas vezes ("Sim?") e espera o comando.
+- **Não reage à toa:** se o que veio depois não começar com "ilha" (ex.: "minha filha"), ela ignora.
