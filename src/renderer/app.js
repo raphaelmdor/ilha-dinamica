@@ -1306,6 +1306,8 @@ let micAgora = { mic: [], cam: [] };
 // Apps de voz: com o áudio de chamada aberto por um tempo, é chamada mesmo com o microfone mutado
 const APPS_VOZ = /discord|teams|zoom|skype|slack|teamspeak|ts3client|mumble|webex|guilded/i; // (WhatsApp/Telegram tocam áudios longos: só pelo microfone)
 const vistoDesde = new Map(); // "tipo:app" -> desde quando aparece sem parar
+// Programas que usam o microfone para outras coisas além de chamada (gravar mensagem de voz, ditado...)
+const MULTIUSO = /chrome|msedge|edge|firefox|opera|brave|vivaldi|whatsapp|telegram|webview|applicationframehost/i;
 function continuo(chave, presente, agora) {
   if (!presente) { vistoDesde.delete(chave); return 0; }
   if (!vistoDesde.has(chave)) vistoDesde.set(chave, agora);
@@ -1319,9 +1321,19 @@ function avaliarChamada(tocando, captura) {
   let achado = null;
   for (const m of mic) {
     const t = tocando.find((x) => mesmoApp(m, x));
-    if (continuo('mic:' + m, true, agora) >= 2400 && t) { achado = { m, t }; break; }
+    const tempoMic = continuo('mic:' + m, true, agora);
+    const tempoSom = continuo('som:' + m, !!t, agora);
+    if (!t) continue;
+    // Navegadores e WhatsApp/Telegram também gravam áudio (mensagem de voz) enquanto tocam outras coisas
+    // (avisos, vídeos em outra aba): para eles, só é chamada com microfone E som juntos por 30 s seguidos.
+    // Ligação recebida continua sendo reconhecida na hora, pelo toque.
+    const multiuso = MULTIUSO.test(m) || MULTIUSO.test(t);
+    const precisa = multiuso ? 30000 : 2400;
+    if (tempoMic >= precisa && tempoSom >= precisa) { achado = { m, t }; break; }
   }
-  for (const k of [...vistoDesde.keys()]) if (k.startsWith('mic:') && !mic.includes(k.slice(4))) vistoDesde.delete(k);
+  for (const k of [...vistoDesde.keys()]) {
+    if ((k.startsWith('mic:') || k.startsWith('som:')) && !mic.includes(k.slice(4))) vistoDesde.delete(k);
+  }
   if (!achado) {
     for (const t of tocando) {
       const voz = APPS_VOZ.test(t) || /webview/i.test(t) && mic.length;
