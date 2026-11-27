@@ -282,9 +282,21 @@ export function iniciarWidgets(ctx) {
     if (min >= 60) return `Daqui a ${Math.round(min / 60)} hora${min >= 120 ? 's' : ''}`;
     return `Daqui a ${min} minutos`;
   }
+  // dados do compromisso para o cartão do alerta
+  const cartaoDe = (ev, modo, chamada) => ({
+    modo, chamada, titulo: ev.titulo, hora: ev.hora, fim: ev.fim || null, local: ev.local || '',
+    fonte: ev.fonte || '', inicio: inicioEvento(ev) || (() => { const [a, m, d] = String(ev.data).split('-').map(Number); return new Date(a, m - 1, d, 9).getTime(); })(),
+  });
+  function chamadaDaHora(ev, adiado) {
+    const t = inicioEvento(ev);
+    const passou = t ? Math.round((Date.now() - t) / 60000) : 0;
+    if (adiado) return passou > 0 ? `Lembrete · começou há ${passou} min` : 'Lembrete';
+    return passou >= 2 ? `Começou há ${passou} min` : 'Começa agora';
+  }
   function alertarNaHora(ev, adiado = false) {
     aviso((adiado ? 'Lembrete: ' : 'Agora: ') + ev.titulo, `${ev.hora || 'Hoje'}${de(ev)}`, {
       icone: '🔔', tipo: 'agenda', ms: 20000,
+      cartao: cartaoDe(ev, adiado ? 'adiado' : 'agora', chamadaDaHora(ev, adiado)),
       botoes: [
         { texto: 'Adiar 5 min', acao: () => { adiados.set(ev.id, Date.now() + 5 * 60000); olhos.fazer?.('piscadela'); } },
         { texto: 'Ok', acao: () => olhos.fazer?.('carinho') },
@@ -307,7 +319,9 @@ export function iniciarWidgets(ctx) {
         if (agora >= nove && agora < nove + 4 * 3600000 && !ev.avisos.includes('dia')) {
           ev.avisos.push('dia'); mudou = true;
           enfileirar(2, () => {
-            aviso('Hoje: ' + ev.titulo, 'Compromisso do dia inteiro' + de(ev), { icone: '📅', tipo: 'agenda', ms: 9000 });
+            aviso('Hoje: ' + ev.titulo, 'Compromisso do dia inteiro' + de(ev), {
+              icone: '📅', tipo: 'agenda', ms: 10000, cartao: cartaoDe(ev, 'dia', 'Hoje · dia inteiro'),
+            });
             olhos.fazer?.('curioso');
           });
         }
@@ -325,7 +339,10 @@ export function iniciarWidgets(ctx) {
           mudou = true;
           if (min === 0) { enfileirar(0, () => alertarNaHora(ev), 20000); break; }
           enfileirar(1, () => {
-            aviso(quandoFalta(min), `${ev.hora} · ${ev.titulo}${de(ev)}`, { icone: '⏰', tipo: 'agenda', ms: 9000 });
+            aviso(quandoFalta(min), `${ev.hora} · ${ev.titulo}${de(ev)}`, {
+              icone: '⏰', tipo: 'agenda', ms: 10000,
+              cartao: min >= 1440 ? cartaoDe(ev, 'amanha', 'Amanhã') : cartaoDe(ev, 'antes', quandoFalta(min).replace('Daqui a', 'Em')),
+            });
             olhos.fazer ? olhos.fazer(min >= 60 ? 'curioso' : 'desconfiado') : olhos.reagir('surpreso', 1500);
             bipar(min >= 60 ? 1 : 2);
           });
@@ -361,9 +378,17 @@ export function iniciarWidgets(ctx) {
     const h = agora.getHours();
     const saudacao = h < 12 ? 'Bom dia!' : h < 18 ? 'Boa tarde!' : 'Boa noite!';
     const n = restantes.length;
+    const itens = restantes.slice(0, 6);
     aviso(`${saudacao} Hoje você tem ${n} compromisso${n === 1 ? '' : 's'}`,
-      restantes.slice(0, 6).map((e) => `${e.hora || 'Dia todo'} · ${e.titulo}${e.fonte ? ' (' + e.fonte + ')' : ''}`),
-      { icone: '☀️', tipo: 'agenda', ms: 12000, alto: true });
+      itens.map((e) => `${e.hora || 'Dia todo'} · ${e.titulo}${e.fonte ? ' (' + e.fonte + ')' : ''}`),
+      {
+        icone: '☀️', tipo: 'agenda', ms: 14000, alto: true,
+        cartao: {
+          modo: 'resumo', chamada: saudacao.replace('!', ''),
+          titulo: `${n} compromisso${n === 1 ? '' : 's'} hoje${n > itens.length ? ` · mostrando ${itens.length}` : ''}`,
+          itens: itens.map((e) => ({ hora: e.hora, titulo: e.titulo, fonte: e.fonte || '', local: e.local || '', inicio: inicioEvento(e) })),
+        },
+      });
     olhos.fazer?.('pulinho');
   }
   api.on('cursor', () => { if (agendasCarregadas && resumoVistoMem !== dataISO(new Date())) talvezResumoDoDia(); });

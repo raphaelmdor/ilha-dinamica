@@ -51,7 +51,7 @@ function mostrar(vista) {
   }
   estado.vista = vista;
   ilha.dataset.estado = vista;
-  if (vista !== 'aviso') ilha.classList.remove('alto', 'com-botoes');
+  if (vista !== 'aviso') ilha.classList.remove('alto', 'com-botoes', 'cartao-agenda', 'resumo');
 }
 
 // Clique "atravessa" a janela fora da ilha. Guarda o estado e, com o mouse em cima da ilha,
@@ -81,7 +81,129 @@ function fecharAvisoPeloUsuario() {
   voltarAoPadrao();
 }
 
-function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = false, botoes = [] } = {}) {
+// ---- Cartão de compromisso (alertas da agenda) ----
+const CORES_AGENDA = ['#60a5fa', '#f472b6', '#34d399', '#fbbf24', '#a78bfa', '#fb923c', '#22d3ee'];
+function corDaAgenda(fonte) {
+  if (!fonte) return getComputedStyle(document.documentElement).getPropertyValue('--destaque').trim() || '#60a5fa';
+  let h = 0;
+  for (const c of String(fonte)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return CORES_AGENDA[h % CORES_AGENDA.length];
+}
+const MESES_CURTOS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+const DIAS_CURTOS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+function el(tag, classe, texto) {
+  const e = document.createElement(tag);
+  if (classe) e.className = classe;
+  if (texto != null) e.textContent = texto;
+  return e;
+}
+// folhinha de calendário: faixa colorida com o mês e o dia grandão
+function folhinha(data, comSino) {
+  const f = el('div', 'ac-selo ac-folha');
+  const topo = el('div', 'ac-mes', MESES_CURTOS[data.getMonth()]);
+  const dia = el('div', 'ac-dia', String(data.getDate()));
+  const sem = el('div', 'ac-semana', DIAS_CURTOS[data.getDay()]);
+  f.append(topo, dia, sem);
+  if (comSino) f.append(el('span', 'ac-sino', '🔔'));
+  return f;
+}
+// anel da contagem regressiva (o arco é o tempo que falta dentro da última hora)
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function anel() {
+  const a = el('div', 'ac-selo ac-anel');
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 50 50');
+  for (const classe of ['ac-trilho', 'ac-arco']) {
+    const c = document.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('cx', '25'); c.setAttribute('cy', '25'); c.setAttribute('r', '21');
+    c.setAttribute('pathLength', '100'); c.setAttribute('class', classe);
+    svg.appendChild(c);
+  }
+  const num = el('div', 'ac-num');
+  const un = el('div', 'ac-un');
+  a.append(svg, el('div', 'ac-rotulo'));
+  a.lastChild.append(num, un);
+  return a;
+}
+function faltaTexto(ms) {
+  const seg = Math.max(0, Math.round(ms / 1000));
+  if (seg >= 3540) { // perto de 1 hora ou mais: em horas
+    const min = Math.round(seg / 60); const h = Math.floor(min / 60); const m = min % 60;
+    return [m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`, m ? '' : (h === 1 ? 'hora' : 'horas')];
+  }
+  if (seg >= 600) return [String(Math.ceil(seg / 60)), 'min']; // mais de 10 min: só os minutos
+  return [`${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`, 'min'];
+}
+let relogioCartao = null;
+function montarCartao(c) {
+  clearInterval(relogioCartao);
+  const caixa = $('avisoCartao');
+  caixa.innerHTML = '';
+  if (!c) return;
+  const cor = corDaAgenda(c.fonte);
+  ilha.style.setProperty('--cor-ag', cor);
+  caixa.dataset.modo = c.modo;
+  caixa.append(el('div', 'ac-aura'));
+  const inicio = c.inicio ? new Date(c.inicio) : new Date();
+
+  if (c.modo === 'resumo') {
+    const topo = el('div', 'ac-topo');
+    const textos = el('div', 'ac-corpo');
+    textos.append(el('div', 'ac-chamada', c.chamada), el('div', 'ac-titulo', c.titulo));
+    topo.append(folhinha(new Date(), false), textos);
+    const lista = el('div', 'ac-linhas');
+    const agora = Date.now();
+    let marcouProximo = false;
+    c.itens.forEach((it, i) => {
+      const linha = el('div', 'ac-linha');
+      linha.style.setProperty('--i', i);
+      linha.style.setProperty('--cor-ag', corDaAgenda(it.fonte));
+      if (!marcouProximo && it.inicio && it.inicio > agora) { linha.classList.add('proximo'); marcouProximo = true; }
+      const corpo = el('div', 'ac-lt');
+      corpo.append(el('span', 'ac-lt-titulo', it.titulo));
+      if (it.fonte || it.local) corpo.append(el('span', 'ac-lt-fonte', [it.local, it.fonte].filter(Boolean).join(' · ')));
+      linha.append(el('div', 'ac-lh', it.hora || 'dia todo'), el('i', 'ac-no'), corpo);
+      lista.appendChild(linha);
+    });
+    caixa.append(topo, lista);
+    const e = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--escala')) || 1;
+    ilha.style.setProperty('--altura-aviso', Math.min(window.innerHeight - 10, (84 + c.itens.length * 34) * e) + 'px');
+    return;
+  }
+
+  const selo = c.modo === 'antes' ? anel() : folhinha(inicio, c.modo === 'agora' || c.modo === 'adiado');
+  const corpo = el('div', 'ac-corpo');
+  const chamada = el('div', 'ac-chamada', c.chamada);
+  const titulo = el('div', 'ac-titulo', c.titulo);
+  titulo.title = c.titulo;
+  const info = el('div', 'ac-info');
+  info.append(el('i', 'ac-ponto'));
+  const quando = c.hora ? (c.fim ? `${c.hora} – ${c.fim}` : c.hora) : 'Dia inteiro';
+  info.append(el('span', 'ac-quando', quando));
+  if (c.local) info.append(el('span', 'ac-local', '📍 ' + c.local));
+  if (c.fonte) info.append(el('span', 'ac-fonte', c.fonte));
+  corpo.append(chamada, titulo, info);
+  caixa.append(selo, corpo);
+
+  if (c.modo === 'antes' && c.inicio) {
+    const arco = selo.querySelector('.ac-arco');
+    const [num, un] = [selo.querySelector('.ac-num'), selo.querySelector('.ac-un')];
+    const tique = () => {
+      if (estado.vista !== 'aviso' || !caixa.isConnected) { clearInterval(relogioCartao); return; }
+      const falta = c.inicio - Date.now();
+      const [n, u] = faltaTexto(falta);
+      num.textContent = n; un.textContent = u;
+      const janela = falta > 3600000 ? 86400000 : 3600000;
+      arco.style.strokeDasharray = `${Math.max(0.5, Math.min(100, (falta / janela) * 100)).toFixed(2)} 100`;
+      selo.classList.toggle('ultimo-minuto', falta < 60000);
+    };
+    arco.style.strokeDasharray = '0 100';
+    requestAnimationFrame(() => requestAnimationFrame(tique));
+    relogioCartao = setInterval(tique, 1000);
+  }
+}
+
+function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = false, botoes = [], cartao = null } = {}) {
   clearTimeout(timeoutAviso);
   const caixa = $('avisoBotoes');
   caixa.innerHTML = '';
@@ -92,7 +214,7 @@ function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = f
     caixa.appendChild(bt);
   }
   // avisos com ações (download, atualização, novidades...) ganham um × para fechar
-  if (botoes.length || alto) {
+  if ((botoes.length || alto) && !(cartao && botoes.length)) {
     const x = document.createElement('button');
     x.className = 'fechar-aviso';
     x.textContent = '×';
@@ -118,6 +240,8 @@ function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = f
   ic.className = 'aviso-icone ' + tipo;
   mostrar('aviso');
   ilha.classList.toggle('alto', alto);
+  ilha.classList.toggle('cartao-agenda', !!cartao);
+  ilha.classList.toggle('resumo', cartao?.modo === 'resumo');
   // painel alto do tamanho da lista (ajuda, novidades da versão...)
   if (alto && Array.isArray(sub)) {
     const e = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--escala')) || 1;
@@ -125,6 +249,7 @@ function aviso(titulo, sub = '', { icone = '✓', tipo = '', ms = 2600, alto = f
   } else {
     ilha.style.removeProperty('--altura-aviso');
   }
+  montarCartao(cartao);
   // com botões, espera o mouse sair antes de sumir
   const fechar = () => {
     if (botoes.length && estado.hover) { timeoutAviso = setTimeout(fechar, 1000); return; }

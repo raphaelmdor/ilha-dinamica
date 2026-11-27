@@ -1610,3 +1610,152 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
 
 /* no modo relógio, a barra do minuto pode passar um pouco da caixa do texto */
 .centro[data-modo="relogio"] { overflow: visible; }
+
+/* =========================================================
+   Cartão de compromisso (alertas da agenda)
+   ========================================================= */
+.aviso-cartao { display: none; }
+.ilha[data-estado="aviso"].cartao-agenda {
+  width: min(calc(432px * var(--escala)), calc(100vw - 24px));
+  height: calc(86px * var(--escala));
+  border-radius: calc(30px * var(--escala));
+}
+.ilha[data-estado="aviso"].cartao-agenda.resumo {
+  width: min(calc(420px * var(--escala)), calc(100vw - 24px));
+  height: var(--altura-aviso, calc(220px * var(--escala)));
+  border-radius: calc(32px * var(--escala));
+}
+.cartao-agenda .vista-aviso { padding: 0 calc(14px * var(--escala)) 0 calc(16px * var(--escala)); gap: 0; align-items: center; }
+.cartao-agenda .aviso-icone, .cartao-agenda .aviso-texto { display: none; }
+.cartao-agenda .aviso-cartao {
+  display: flex; align-items: center; gap: calc(13px * var(--escala));
+  flex: 1; min-width: 0; height: 100%;
+  font-size: calc(13px * var(--escala));
+}
+.cartao-agenda.resumo .vista-aviso { align-items: stretch; padding: calc(14px * var(--escala)) calc(18px * var(--escala)); }
+.cartao-agenda.resumo .aviso-cartao { flex-direction: column; align-items: stretch; gap: calc(10px * var(--escala)); height: auto; }
+
+/* brilho da cor da agenda vindo de trás do selo */
+.ac-aura {
+  position: absolute; inset: 0; pointer-events: none; border-radius: inherit; overflow: hidden;
+  background:
+    radial-gradient(120px 90px at 44px 50%, color-mix(in srgb, var(--cor-ag) 26%, transparent), transparent 70%),
+    linear-gradient(90deg, color-mix(in srgb, var(--cor-ag) 7%, transparent), transparent 60%);
+  animation: ac-respira 3.2s ease-in-out infinite;
+}
+.resumo .ac-aura { background: radial-gradient(200px 120px at 40px 34px, color-mix(in srgb, var(--cor-ag) 22%, transparent), transparent 70%); }
+.ac-aura::after { /* faixa de luz que passa uma vez quando o alerta chega */
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--cor-ag) 18%, rgba(255,255,255,.07)) 50%, transparent 70%);
+  transform: translateX(-100%); animation: ac-varre 1.4s 0.25s cubic-bezier(.3,.6,.3,1) forwards;
+}
+@keyframes ac-respira { 50% { opacity: 0.65; } }
+@keyframes ac-varre { to { transform: translateX(100%); } }
+
+/* selo: folhinha de calendário */
+.ac-selo { position: relative; flex: none; animation: ac-chega 0.7s var(--mola) both; }
+@keyframes ac-chega { from { transform: scale(0.4) rotate(-14deg); opacity: 0; } }
+.ac-folha {
+  width: calc(48px * var(--escala)); height: calc(54px * var(--escala));
+  border-radius: calc(12px * var(--escala)); overflow: visible;
+  background: linear-gradient(180deg, #2a2a30, #18181c);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset, 0 6px 16px rgba(0,0,0,.5), 0 0 22px color-mix(in srgb, var(--cor-ag) 30%, transparent);
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.ac-mes {
+  width: 100%; border-radius: calc(12px * var(--escala)) calc(12px * var(--escala)) 0 0;
+  background: var(--cor-ag); color: #0b0b10;
+  font-size: calc(9.5px * var(--escala)); font-weight: 800; letter-spacing: 1px; line-height: calc(15px * var(--escala));
+}
+.ac-dia { font-size: calc(22px * var(--escala)); font-weight: 750; line-height: 1.05; margin-top: calc(3px * var(--escala)); font-variant-numeric: tabular-nums; color: #fff; }
+.ac-semana { font-size: calc(8px * var(--escala)); font-weight: 700; letter-spacing: 1px; color: var(--suave); }
+.ac-sino {
+  position: absolute; right: calc(-8px * var(--escala)); bottom: calc(-7px * var(--escala));
+  width: calc(20px * var(--escala)); height: calc(20px * var(--escala)); border-radius: 50%;
+  display: grid; place-items: center; font-size: calc(10px * var(--escala));
+  background: #111; box-shadow: 0 0 0 2px var(--cor-ag);
+  transform-origin: 50% 10%; animation: sininho 1.6s 0.6s ease-in-out infinite;
+}
+/* "começa agora": ondas saindo da folhinha */
+[data-modo="agora"] .ac-folha::before, [data-modo="agora"] .ac-folha::after,
+[data-modo="adiado"] .ac-folha::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--cor-ag); opacity: 0;
+  animation: ac-onda 1.8s 0.5s ease-out 5;
+}
+[data-modo="agora"] .ac-folha::after { animation-delay: 1.4s; }
+@keyframes ac-onda { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(1.55); } }
+
+/* selo: anel de contagem regressiva */
+.ac-anel { width: calc(54px * var(--escala)); height: calc(54px * var(--escala)); }
+.ac-anel svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.ac-anel circle { fill: none; stroke-width: 3.6; stroke-linecap: round; }
+.ac-trilho { stroke: rgba(255,255,255,.09); }
+.ac-arco {
+  stroke: var(--cor-ag); stroke-dasharray: 0 100;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--cor-ag) 70%, transparent));
+  transition: stroke-dasharray 1s linear;
+}
+.ac-anel .ac-arco { transition: stroke-dasharray 1.1s cubic-bezier(.3,1.2,.4,1); }
+.ac-rotulo { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1; }
+.ac-num { font-size: calc(13.5px * var(--escala)); font-weight: 750; font-variant-numeric: tabular-nums; color: #fff; letter-spacing: -0.3px; }
+.ac-un { font-size: calc(7.5px * var(--escala)); font-weight: 700; letter-spacing: 1px; color: var(--suave); text-transform: uppercase; margin-top: 2px; }
+.ac-un:empty { display: none; }
+.ac-anel.ultimo-minuto { animation: ac-chega 0.7s var(--mola) both, ac-bate 1s ease-in-out infinite; }
+@keyframes ac-bate { 50% { transform: scale(1.07); } }
+
+/* textos */
+.ac-corpo { position: relative; min-width: 0; flex: 1; display: flex; flex-direction: column; gap: calc(2px * var(--escala)); }
+.ac-corpo > * { animation: ac-sobe 0.5s var(--mola) both; }
+.ac-corpo > :nth-child(2) { animation-delay: 0.06s; }
+.ac-corpo > :nth-child(3) { animation-delay: 0.12s; }
+@keyframes ac-sobe { from { opacity: 0; transform: translateY(7px); } }
+.ac-chamada {
+  font-size: calc(9.5px * var(--escala)); font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--cor-ag); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ac-titulo {
+  font-size: calc(16px * var(--escala)); font-weight: 700; color: #fff; letter-spacing: -0.2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ac-info { display: flex; align-items: center; gap: calc(7px * var(--escala)); min-width: 0; color: var(--suave); font-size: calc(11.5px * var(--escala)); white-space: nowrap; }
+.ac-info > span { overflow: hidden; text-overflow: ellipsis; }
+.ac-quando { flex: none; font-variant-numeric: tabular-nums; color: #d4d4da; font-weight: 600; }
+.ac-ponto { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--cor-ag); box-shadow: 0 0 6px var(--cor-ag); }
+.ac-fonte {
+  flex: none; max-width: 40%; padding: 1px 7px; border-radius: 999px; font-size: 0.9em; font-weight: 600;
+  background: color-mix(in srgb, var(--cor-ag) 16%, transparent); color: color-mix(in srgb, var(--cor-ag) 70%, #fff);
+}
+.ac-local { min-width: 0; }
+
+/* botões do cartão: em coluna, o principal na cor da agenda */
+.cartao-agenda .aviso-botoes { flex-direction: column; gap: calc(5px * var(--escala)); margin-left: calc(10px * var(--escala)); position: relative; animation: ac-sobe 0.5s 0.18s var(--mola) both; }
+.cartao-agenda .aviso-botoes button:not(.fechar-aviso) { min-width: calc(86px * var(--escala)); padding: calc(6px * var(--escala)) calc(10px * var(--escala)); border-radius: calc(11px * var(--escala)); }
+.cartao-agenda .aviso-botoes button:first-child:not(.fechar-aviso) { background: var(--cor-ag); color: #0b0b10; box-shadow: 0 0 14px color-mix(in srgb, var(--cor-ag) 40%, transparent); }
+.cartao-agenda.resumo .aviso-botoes { position: absolute; top: calc(12px * var(--escala)); right: calc(12px * var(--escala)); flex-direction: row; margin: 0; }
+
+/* resumo do dia: linha do tempo */
+.ac-topo { display: flex; align-items: center; gap: calc(13px * var(--escala)); position: relative; padding-right: 30px; }
+.resumo .ac-titulo { font-size: calc(15px * var(--escala)); }
+.ac-linhas { position: relative; display: flex; flex-direction: column; }
+.ac-linha {
+  display: grid; grid-template-columns: calc(54px * var(--escala)) 14px 1fr; align-items: center; column-gap: 8px;
+  height: calc(34px * var(--escala)); position: relative;
+  animation: ac-sobe 0.5s var(--mola) both; animation-delay: calc(0.15s + var(--i) * 0.07s);
+}
+.ac-lh { text-align: right; font-size: calc(12px * var(--escala)); font-weight: 650; font-variant-numeric: tabular-nums; color: #d4d4da; }
+.ac-no { justify-self: center; width: 9px; height: 9px; border-radius: 50%; background: var(--cor-ag); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cor-ag) 22%, transparent); position: relative; z-index: 1; }
+.ac-linha:not(:last-child) .ac-no::after { /* fio que liga um compromisso ao próximo */
+  content: ''; position: absolute; left: 50%; top: 9px; width: 1.5px; height: calc(34px * var(--escala) - 9px); transform: translateX(-50%);
+  background: linear-gradient(var(--cor-ag), rgba(255,255,255,.1));
+}
+.ac-lt { min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.ac-lt-titulo { font-size: calc(13.5px * var(--escala)); font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-lt-fonte { flex: none; max-width: 45%; font-size: calc(10.5px * var(--escala)); color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-linha.proximo::before {
+  content: ''; position: absolute; inset: 2px -8px; border-radius: 11px; z-index: 0;
+  background: color-mix(in srgb, var(--cor-ag) 12%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--cor-ag) 30%, transparent) inset;
+}
+.ac-linha.proximo > * { position: relative; }
+.ac-linha.proximo .ac-no { animation: ac-pisca-no 1.6s ease-in-out infinite; }
+@keyframes ac-pisca-no { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--cor-ag) 10%, transparent); } }

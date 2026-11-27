@@ -182,13 +182,18 @@ function lerICS(texto, origem, fonte = '') {
     if (linha === 'END:VEVENT') {
       if (ev?.inicio && ev.titulo && ev.status !== 'CANCELLED') {
         const ocorrencias = ev.regra ? expandirRegra(ev.inicio.data, ev.regra, ate) : [ev.inicio.data];
+        // duração (para mostrar "14:30 – 15:30" no alerta)
+        const dura = ev.fim && !ev.inicio.diaInteiro ? ev.fim.data - ev.inicio.data : 0;
         for (const d of ocorrencias) {
+          const fimOc = dura > 0 && dura < 86400000 ? new Date(d.getTime() + dura) : null;
           if (d < de || d > ate) continue;
           eventos.push({
             id: `ics-${origem}-${ev.uid || ev.titulo}-${d.getTime()}`,
             data: iso(d),
             hora: ev.inicio.diaInteiro ? null : `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+            fim: fimOc ? `${pad(fimOc.getHours())}:${pad(fimOc.getMinutes())}` : null,
             titulo: ev.titulo,
+            local: ev.local || '',
             origem: 'google', // compromisso externo, só leitura
             fonte,
           });
@@ -204,6 +209,8 @@ function lerICS(texto, origem, fonte = '') {
     const valor = linha.slice(i + 1);
     if (nome === 'DTSTART') ev.inicio = lerDataICS(valor, params.join(';'));
     else if (nome === 'SUMMARY') ev.titulo = valor.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\n/gi, ' ').trim();
+    else if (nome === 'DTEND') ev.fim = lerDataICS(valor, params.join(';'));
+    else if (nome === 'LOCATION') ev.local = valor.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\n/gi, ' ').trim().slice(0, 60);
     else if (nome === 'RRULE') ev.regra = valor;
     else if (nome === 'UID') ev.uid = valor;
     else if (nome === 'STATUS') ev.status = valor.trim();
