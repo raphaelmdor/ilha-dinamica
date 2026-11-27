@@ -49,9 +49,11 @@ function mostrar(vista) {
   } else if (vista === 'expandida') {
     clearTimeout(estado.timeoutInicio);
   }
+  const abriuPainel = vista === 'expandida' && estado.vista !== 'expandida';
   estado.vista = vista;
   ilha.dataset.estado = vista;
   if (vista !== 'aviso') ilha.classList.remove('alto', 'com-botoes', 'cartao-agenda', 'resumo');
+  if (abriuPainel) atualizarRelogio(); // ponteiros vão direto para a hora certa ao abrir
 }
 
 // Clique "atravessa" a janela fora da ilha. Guarda o estado e, com o mouse em cima da ilha,
@@ -465,8 +467,32 @@ function rolarPara(fita, n) { fita.style.transform = `translateY(${(-n * 1.3).to
 // O ":" fica naturalmente mais baixo que o meio dos números (e quanto, depende da fonte de cada PC).
 // Mede na própria fonte da ilha onde está o meio de "0" e o de ":" e sobe o ":" exatamente a diferença.
 const reguaTexto = document.createElement('canvas').getContext('2d');
+// Olhinhos do notch: dois pontinhos de verdade no lugar do ":" da fonte, colocados exatamente onde a
+// fonte desenharia os pontos (medido no canvas) e centralizados na altura dos números
+function posicionarOlhinhos(sep) {
+  const cs = getComputedStyle(sep);
+  const tam = parseFloat(cs.fontSize) || 12;
+  reguaTexto.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const dp = reguaTexto.measureText(':'), zero = reguaTexto.measureText('0');
+  const asc = dp.fontBoundingBoxAscent, desc = dp.fontBoundingBoxDescent;
+  if (!Number.isFinite(asc) || !dp.actualBoundingBoxAscent) return;
+  const linha = parseFloat(cs.lineHeight) || tam * 1.3;
+  const base = (linha - (asc + desc)) / 2 + asc;              // linha de base, a partir do topo da caixa
+  const topo = base - dp.actualBoundingBoxAscent;               // alto do ponto de cima
+  const fundo = base + dp.actualBoundingBoxDescent;             // baixo do ponto de baixo
+  const d = Math.max(tam * 0.13, dp.actualBoundingBoxRight + dp.actualBoundingBoxLeft); // tamanho do pontinho
+  const centroNumeros = base - (zero.actualBoundingBoxAscent - zero.actualBoundingBoxDescent) / 2;
+  const ajuste = centroNumeros - (topo + fundo) / 2;
+  const em = (v) => (v / tam).toFixed(3) + 'em';
+  sep.style.setProperty('--d', em(d));
+  sep.style.setProperty('--cima', em(topo + d / 2 + ajuste));
+  sep.style.setProperty('--baixo', em(fundo - d / 2 + ajuste));
+  sep.style.setProperty('--meio', em(centroNumeros));
+  sep.classList.add('pronto');
+}
 function centralizarDoisPontos(caixa) {
   for (const sep of caixa.querySelectorAll('.sep')) {
+    if (sep.classList.contains('olhinhos')) { posicionarOlhinhos(sep); continue; }
     const cs = getComputedStyle(sep);
     reguaTexto.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
     const meio = (t) => { const m = reguaTexto.measureText(t); return (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2; };
@@ -491,8 +517,16 @@ function desenharDigitos(texto, caixa = $('horaGrande'), olhinhos = false) {
         sep.className = ch === ':' ? 'sep' : 'letra';
         // no notch, os dois-pontos são dois olhinhos que piscam
         // no notch, os dois-pontos são "olhinhos" que piscam (o próprio ":" da fonte: sempre alinhado com os números)
-        if (ch === ':' && olhinhos) sep.classList.add('olhinhos');
-        sep.textContent = ch;
+        if (ch === ':' && olhinhos) {
+          sep.classList.add('olhinhos');
+          // giro (órbita/olhar) > par (piscar) > dois pontinhos (batimento a cada segundo)
+          const giro = document.createElement('span'); giro.className = 'giro';
+          const par = document.createElement('span'); par.className = 'par';
+          par.append(document.createElement('b'), document.createElement('b'));
+          giro.append(par); sep.append(giro);
+          // o batimento acontece exatamente na virada de cada segundo
+          sep.style.setProperty('--fase', `-${(Date.now() % 1000) / 1000}s`);
+        } else sep.textContent = ch;
         caixa.append(sep);
       }
     }
@@ -512,6 +546,8 @@ function desenharDigitos(texto, caixa = $('horaGrande'), olhinhos = false) {
     rolarPara(el.firstChild, Number(ch));
   }
 }
+// só escreve no DOM quando o valor muda de verdade (escrever o mesmo valor ainda faz o navegador recalcular a tela)
+function trocar(obj, chave, valor) { if (obj && obj[chave] !== valor) obj[chave] = valor; }
 function girarPonteiro(id, chave, graus) {
   const el = $(id);
   if (!el) return;
@@ -538,9 +574,10 @@ let ultimoMinuto = -1;
 function espiarRelogio(horaCheia) {
   const caixa = $('textoCompacto');
   if (estado.vista !== 'compacta' || caixa?.dataset.modo !== 'relogio' || document.documentElement.classList.contains('pausada')) return;
-  // minuto novo: uma faixa de luz passa pelos números
+  // minuto novo: uma faixa de luz passa pelos números e os olhinhos dão uma volta um no outro
   const rn = $('relogioNotch');
   if (rn) { rn.classList.remove('brilho'); void rn.offsetWidth; rn.classList.add('brilho'); }
+  gestoOlhinhos(horaCheia ? 'malabar' : 'orbita');
   if (horaCheia) {
     caixa.classList.remove('hora-cheia'); void caixa.offsetWidth; caixa.classList.add('hora-cheia');
     olhos.fazer?.('pulinho');
@@ -548,31 +585,53 @@ function espiarRelogio(horaCheia) {
   if (olhos.livre && !olhos.livre()) return;
   const r = caixa.getBoundingClientRect();
   if (!r.width) return;
+  setTimeout(() => gestoOlhinhos('olha-mascote'), 950); // e trocam um olhar com o mascote
   olhos.olhandoAte = Date.now() + 1500;
   olhos.olharPara(r.left + r.width / 2, r.top + r.height / 2);
   setTimeout(() => { if (olhos.cursor) olhos.olharPara(olhos.cursor.x, olhos.cursor.y); }, 1500);
 }
+// gestos dos olhinhos do relógio (classes curtas: só animam quando acontecem)
+const GESTOS_OLHINHOS = ['orbita', 'malabar', 'olha-mascote', 'curioso'];
+function gestoOlhinhos(nome) {
+  const giro = document.querySelector('#relogioNotch .sep.olhinhos .giro');
+  if (!giro || document.documentElement.classList.contains('pausada')) return;
+  giro.classList.remove(...GESTOS_OLHINHOS);
+  void giro.offsetWidth;
+  giro.classList.add(nome);
+  clearTimeout(giro.__fim);
+  giro.__fim = setTimeout(() => giro.classList.remove(nome), 2200);
+}
+// de vez em quando, sozinhos, os olhinhos espiam para os lados (como quem confere a hora)
+(function curiosidadeDosOlhinhos() {
+  setTimeout(() => {
+    if (estado.vista === 'compacta' && $('textoCompacto')?.dataset.modo === 'relogio') gestoOlhinhos('curioso');
+    curiosidadeDosOlhinhos();
+  }, 22000 + Math.random() * 26000);
+})();
 function atualizarRelogio() {
   const agora = new Date();
   desenharDigitos(fmtHora.format(agora));
   const dataCurta = fmtData.format(agora).replace(/\./g, '');
-  $('dataGrande').textContent = dataCurta.charAt(0).toUpperCase() + dataCurta.slice(1);
+  trocar($('dataGrande'), 'textContent', dataCurta.charAt(0).toUpperCase() + dataCurta.slice(1));
   const h = agora.getHours(), m = agora.getMinutes(), s = agora.getSeconds();
-  girarPonteiro('ponteiroH', 'h', (h % 12) * 30 + m * 0.5);
-  girarPonteiro('ponteiroM', 'm', m * 6 + s * 0.1);
-  girarPonteiro('ponteiroS', 's', s * 6);
+  // os ponteiros só andam com o painel aberto (fechado, ninguém vê e a animação gastava processamento)
+  if (estado.vista === 'expandida') {
+    girarPonteiro('ponteiroH', 'h', (h % 12) * 30 + m * 0.5);
+    girarPonteiro('ponteiroM', 'm', m * 6 + s * 0.1);
+    girarPonteiro('ponteiroS', 's', s * 6);
+  }
   const relogio = $('relogioTopo');
   if (relogio) {
-    relogio.dataset.periodo = periodoDoDia(h);
+    trocar(relogio.dataset, 'periodo', periodoDoDia(h));
     const longa = fmtDataLonga.format(agora);
-    relogio.title = longa.charAt(0).toUpperCase() + longa.slice(1);
+    trocar(relogio, 'title', longa.charAt(0).toUpperCase() + longa.slice(1));
     // hora cheia: os números fazem uma ondinha
     if (m === 0 && s < 2 && ultimaHoraCheia !== h) {
       ultimaHoraCheia = h;
       relogio.classList.remove('hora-cheia'); void relogio.offsetWidth; relogio.classList.add('hora-cheia');
     }
   }
-  $('textoCompacto').dataset.periodo = periodoDoDia(h);
+  trocar($('textoCompacto').dataset, 'periodo', periodoDoDia(h));
   atualizarTextoCompacto();
   // barra do minuto (anda 1 s por vez, suave; no segundo 0 volta ao começo sem animação)
   // a barra anda sozinha (animação contínua de 60 s); aqui só acerta com o relógio na virada do minuto
@@ -652,13 +711,16 @@ function posicaoMusica() {
 }
 function desenharProgresso() {
   const pos = posicaoMusica();
-  $('progresso').hidden = pos === null;
-  if (pos === null) { ilha.style.setProperty('--prog', 0); return; }
+  trocar($('progresso'), 'hidden', pos === null);
+  // --prog fica na ilha inteira: mudar à toa forçava recalcular a tela toda duas vezes por segundo
+  const prog = pos === null ? '0' : (pos / estado.midia.dur).toFixed(4);
+  if (ilha.__prog !== prog) { ilha.__prog = prog; ilha.style.setProperty('--prog', prog); }
+  if (pos === null) return;
   const dur = estado.midia.dur;
-  $('tempoAtual').textContent = fmtTempo(pos);
-  $('tempoTotal').textContent = fmtTempo(dur);
-  $('preenchimento').style.width = (100 * pos / dur).toFixed(2) + '%';
-  ilha.style.setProperty('--prog', (pos / dur).toFixed(4));
+  trocar($('tempoAtual'), 'textContent', fmtTempo(pos));
+  trocar($('tempoTotal'), 'textContent', fmtTempo(dur));
+  const largura = (100 * pos / dur).toFixed(2) + '%';
+  if ($('preenchimento').__w !== largura) { $('preenchimento').__w = largura; $('preenchimento').style.width = largura; }
 }
 setInterval(desenharProgresso, 500);
 $('trilhaMusica').addEventListener('click', (e) => {
@@ -845,8 +907,8 @@ function tickTimer() {
     return;
   }
   const txt = formatarDuracao(resta);
-  $('timerMini').textContent = txt;
-  $('timerGrande').textContent = '⏱ ' + txt;
+  trocar($('timerMini'), 'textContent', txt);
+  trocar($('timerGrande'), 'textContent', '⏱ ' + txt);
 }
 
 function timerConcluido(total) {
@@ -1606,8 +1668,8 @@ $('botaoConfig').addEventListener('click', () => api.abrirConfiguracoes());
 setInterval(() => {
   const a = widgets.atividade();
   const el = $('ativ');
-  ilha.classList.toggle('com-ativ', !!a);
-  if (a) { el.textContent = a.texto; el.className = 'ativ ' + a.classe; }
+  if (ilha.classList.contains('com-ativ') !== !!a) ilha.classList.toggle('com-ativ', !!a);
+  if (a) { trocar(el, 'textContent', a.texto); trocar(el, 'className', 'ativ ' + a.classe); }
 }, 500);
 
 // Aparência configurável

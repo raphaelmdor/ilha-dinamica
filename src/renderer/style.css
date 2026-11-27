@@ -1550,17 +1550,51 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
 .centro[data-periodo="tarde"] { --tom: #fdba74; }
 .centro[data-periodo="por-do-sol"] { --tom: #f9a8d4; }
 .centro[data-periodo="noite"] { --tom: #c4b5fd; }
+/* ---- Olhinhos do relógio: dois pontinhos vivos no lugar do ":" ---- */
 .relogio-notch .sep.olhinhos {
-  display: inline-block; width: 0.36em; text-align: center; height: 1.3em; line-height: 1.3em;
-  color: var(--tom); text-shadow: 0 0 6px color-mix(in srgb, var(--tom) 75%, transparent);
-  animation: olhinho-relogio 4.3s ease-in-out infinite;
+  position: relative; display: inline-block; width: 0.36em; height: 1.3em; line-height: 1.3em;
+  --d: 0.14em; --cima: 0.47em; --baixo: 0.83em; --meio: 0.65em; animation: none;
 }
-/* piscam de vez em quando (e pulsam de leve a cada segundo) */
-@keyframes olhinho-relogio {
-  0%, 100% { scale: 1 1; opacity: 1; }
-  11.5%, 34.5%, 57.5%, 80.5% { opacity: 0.55; }
-  23%, 46%, 69%, 92% { opacity: 1; }
-  95% { scale: 1 0.1; }
+.sep.olhinhos .giro, .sep.olhinhos .par { position: absolute; inset: 0; transform-origin: 50% var(--meio); }
+.sep.olhinhos b {
+  position: absolute; left: 50%; width: var(--d); height: var(--d); margin: calc(var(--d) / -2) 0 0 calc(var(--d) / -2);
+  border-radius: 50%; background: var(--tom);
+  box-shadow: 0 0 0.22em color-mix(in srgb, var(--tom) 85%, transparent), 0 0 0.5em color-mix(in srgb, var(--tom) 35%, transparent);
+  /* batimento: a cada segundo os dois dão um "tum" (o de baixo um instante depois, como uma ondinha) */
+  animation: olhinho-bate 1s cubic-bezier(0.2, 0.7, 0.4, 1) infinite var(--fase, 0s);
+}
+.sep.olhinhos b:first-child { top: var(--cima); }
+.sep.olhinhos b:last-child { top: var(--baixo); animation-delay: calc(var(--fase, 0s) + 0.09s); }
+.sep.olhinhos:not(.pronto) b { opacity: 0; }
+@keyframes olhinho-bate {
+  0% { scale: 1.35; opacity: 1; }
+  30% { scale: 1; opacity: 0.95; }
+  100% { scale: 0.9; opacity: 0.55; }
+}
+/* piscam juntos de vez em quando, como olhos */
+.sep.olhinhos .par { animation: olhinho-pisca 6.4s ease-in-out infinite 1.7s; }
+@keyframes olhinho-pisca { 0%, 94%, 100% { scale: 1 1; } 97% { scale: 1 0.15; } }
+
+/* minuto novo: dão uma volta um em torno do outro e trocam de lugar */
+.sep.olhinhos .giro.orbita { animation: olhinho-orbita 0.95s cubic-bezier(0.5, -0.05, 0.25, 1.3); }
+@keyframes olhinho-orbita { from { rotate: 0deg; } to { rotate: 180deg; } }
+.giro.orbita b { box-shadow: 0 0 0.3em var(--tom), 0 0 0.8em color-mix(in srgb, var(--tom) 60%, transparent); }
+
+/* hora cheia: malabarismo, um sobe enquanto o outro desce, três vezes */
+.giro.malabar b:first-child { animation: olhinho-bate 1s cubic-bezier(0.2, 0.7, 0.4, 1) infinite var(--fase, 0s), olhinho-sobe 0.42s ease-in-out 3 alternate; }
+.giro.malabar b:last-child { animation: olhinho-bate 1s cubic-bezier(0.2, 0.7, 0.4, 1) infinite calc(var(--fase, 0s) + 0.09s), olhinho-desce 0.42s ease-in-out 3 alternate; }
+@keyframes olhinho-sobe { to { translate: 0 -0.28em; } }
+@keyframes olhinho-desce { to { translate: 0 0.2em; } }
+
+/* olham para o mascote (que fica à esquerda) quando ele espia o relógio */
+.sep.olhinhos .giro.olha-mascote { animation: olhinho-olha 1.5s cubic-bezier(0.3, 0.8, 0.3, 1); }
+@keyframes olhinho-olha { 0%, 100% { translate: 0 0; } 18%, 75% { translate: -0.09em 0; } }
+/* curiosos: espiam para um lado, para o outro, e voltam */
+.sep.olhinhos .giro.curioso { animation: olhinho-curioso 2s ease-in-out; }
+@keyframes olhinho-curioso {
+  0%, 100% { translate: 0 0; }
+  15%, 38% { translate: -0.08em 0; }
+  52%, 78% { translate: 0.08em 0; }
 }
 .centro.hora-cheia .relogio-notch > * { animation: onda-hora 0.9s ease-in-out; }
 .centro.hora-cheia .relogio-notch > *:nth-child(2) { animation-delay: 0.07s; }
@@ -1768,3 +1802,7 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
 
 /* relógio do notch um pouco maior (+23%), mais fácil de ler de longe */
 .vista-compacta .relogio-caixa { font-size: 1.23em; }
+
+/* painel fechado: as animações dele ficam congeladas (ninguém vê; antes continuavam rodando escondidas) */
+.ilha:not([data-estado="expandida"]) .vista-expandida,
+.ilha:not([data-estado="expandida"]) .vista-expandida * { animation-play-state: paused !important; }
