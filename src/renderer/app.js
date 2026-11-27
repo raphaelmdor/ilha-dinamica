@@ -470,24 +470,23 @@ const reguaTexto = document.createElement('canvas').getContext('2d');
 // Olhinhos do notch: dois pontinhos de verdade no lugar do ":" da fonte, colocados exatamente onde a
 // fonte desenharia os pontos (medido no canvas) e centralizados na altura dos números
 function posicionarOlhinhos(sep) {
+  // tamanho e espaçamento fixos (em "em"): o ":" da fonte do Windows tem pontos grandes e colados, que no
+  // notch viravam uma bolinha só. Do texto, só se mede o centro dos números, para ficarem bem no meio.
   const cs = getComputedStyle(sep);
   const tam = parseFloat(cs.fontSize) || 12;
   reguaTexto.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  const dp = reguaTexto.measureText(':'), zero = reguaTexto.measureText('0');
-  const asc = dp.fontBoundingBoxAscent, desc = dp.fontBoundingBoxDescent;
-  if (!Number.isFinite(asc) || !dp.actualBoundingBoxAscent) return;
-  const linha = parseFloat(cs.lineHeight) || tam * 1.3;
-  const base = (linha - (asc + desc)) / 2 + asc;              // linha de base, a partir do topo da caixa
-  const topo = base - dp.actualBoundingBoxAscent;               // alto do ponto de cima
-  const fundo = base + dp.actualBoundingBoxDescent;             // baixo do ponto de baixo
-  const d = Math.max(tam * 0.13, dp.actualBoundingBoxRight + dp.actualBoundingBoxLeft); // tamanho do pontinho
-  const centroNumeros = base - (zero.actualBoundingBoxAscent - zero.actualBoundingBoxDescent) / 2;
-  const ajuste = centroNumeros - (topo + fundo) / 2;
-  const em = (v) => (v / tam).toFixed(3) + 'em';
-  sep.style.setProperty('--d', em(d));
-  sep.style.setProperty('--cima', em(topo + d / 2 + ajuste));
-  sep.style.setProperty('--baixo', em(fundo - d / 2 + ajuste));
-  sep.style.setProperty('--meio', em(centroNumeros));
+  const zero = reguaTexto.measureText('0');
+  const asc = zero.fontBoundingBoxAscent, desc = zero.fontBoundingBoxDescent;
+  let centro = 0.65; // meio da caixa (em), caso a medição não funcione
+  if (Number.isFinite(asc) && zero.actualBoundingBoxAscent) {
+    const linha = parseFloat(cs.lineHeight) || tam * 1.3;
+    const base = (linha - (asc + desc)) / 2 + asc;
+    centro = (base - (zero.actualBoundingBoxAscent - zero.actualBoundingBoxDescent) / 2) / tam;
+  }
+  sep.style.setProperty('--d', '0.16em');
+  sep.style.setProperty('--cima', (centro - 0.21).toFixed(3) + 'em');
+  sep.style.setProperty('--baixo', (centro + 0.21).toFixed(3) + 'em');
+  sep.style.setProperty('--meio', centro.toFixed(3) + 'em');
   sep.classList.add('pronto');
 }
 function centralizarDoisPontos(caixa) {

@@ -1,7 +1,4 @@
-## Novidades da 5.14.1: relógio do notch mais limpo
+## Novidades da 5.14.2
 
-- **Menos é mais:** os números voltaram a ser sólidos, sem gradiente, faixa de brilho nem desfoque.
-- **Dois-pontos calmos:** dois pontinhos na cor do período do dia, com um respiro suave. Saíram a órbita, o malabarismo e as espiadas.
-- **Fio do minuto discreto:** mais fino, sem a bolinha brilhante, enchendo de forma contínua.
-- Continuam: a rolagem dos números, o tamanho maior e a ondinha na hora cheia.
-- Inclui a otimização da 5.14.0 (menos trabalho para a tela).
+- **Dois-pontos do relógio corrigidos:** no Windows, os dois pontinhos estavam grudados e viravam uma bolinha só. Agora têm tamanho e espaçamento fixos, bem separados e centralizados na altura dos números em qualquer escala de tela.
+- Inclui a 5.14.1: relógio do notch mais limpo.
