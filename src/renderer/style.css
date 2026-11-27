@@ -1567,3 +1567,46 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
 .centro.hora-cheia .relogio-notch > *:nth-child(3) { animation-delay: 0.14s; }
 .centro.hora-cheia .relogio-notch > *:nth-child(4) { animation-delay: 0.21s; }
 .centro.hora-cheia .relogio-notch > *:nth-child(5) { animation-delay: 0.28s; }
+
+/* =========================================================
+   Relógio do notch, versão "uau"
+   ========================================================= */
+.relogio-caixa { position: relative; display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; }
+/* números com gradiente: da cor do relógio até um toque da cor do período do dia */
+.relogio-notch .fita i {
+  background-image:
+    linear-gradient(105deg, transparent 0 38%, color-mix(in srgb, var(--tom) 35%, #fff) 50%, transparent 62%),
+    linear-gradient(180deg, var(--cor-relogio, #fff) 28%, color-mix(in srgb, var(--tom) 55%, var(--cor-relogio, #fff)) 100%);
+  background-size: 320% 100%, 100% 100%;
+  background-position: 160% 0, 0 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+}
+/* desfoque de movimento enquanto o dígito rola */
+.relogio-notch .rolo .fita, .digitos .rolo .fita { transition: transform 0.65s cubic-bezier(0.3, 1.5, 0.5, 1), filter 0.25s ease; }
+.rolo.rolando .fita { filter: blur(0.45px); }
+/* faixa de luz a cada minuto novo (passa dígito por dígito) */
+.relogio-caixa.brilho .fita i { animation: brilho-digito 1.1s cubic-bezier(0.3, 0.6, 0.3, 1); }
+.relogio-caixa.brilho .rolo:nth-child(2) .fita i { animation-delay: 0.08s; }
+.relogio-caixa.brilho .rolo:nth-child(4) .fita i { animation-delay: 0.2s; }
+.relogio-caixa.brilho .rolo:nth-child(5) .fita i { animation-delay: 0.28s; }
+@keyframes brilho-digito { from { background-position: 160% 0, 0 0; } to { background-position: -60% 0, 0 0; } }
+/* fio do minuto com cabeça de cometa */
+.minuto {
+  position: absolute; left: 4%; right: 4%; bottom: -0.22em; height: 2px; border-radius: 2px;
+  background: color-mix(in srgb, var(--tom) 22%, transparent);
+}
+.minuto i {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tom) 45%, transparent), var(--tom));
+  box-shadow: 0 0 4px color-mix(in srgb, var(--tom) 50%, transparent);
+  transition: width 1s linear;
+}
+.minuto i::after {
+  content: ""; position: absolute; right: -1.5px; top: 50%; width: 3px; height: 3px; margin-top: -1.5px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 4px 1px var(--tom), 0 0 9px 2px color-mix(in srgb, var(--tom) 45%, transparent);
+}
+
+/* no modo relógio, a barra do minuto pode passar um pouco da caixa do texto */
+.centro[data-modo="relogio"] { overflow: visible; }

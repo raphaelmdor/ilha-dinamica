@@ -362,7 +362,15 @@ function desenharDigitos(texto, caixa = $('horaGrande'), olhinhos = false) {
   let k = 0;
   for (const ch of texto) {
     const el = caixa.children[k++];
-    if (el?.classList.contains('rolo')) rolarPara(el.firstChild, Number(ch));
+    if (!el?.classList.contains('rolo')) continue;
+    // o dígito que muda rola com um leve desfoque de movimento, como um mecanismo de verdade
+    if (el.dataset.n !== undefined && el.dataset.n !== ch) {
+      el.classList.add('rolando');
+      clearTimeout(el.__timerRolo);
+      el.__timerRolo = setTimeout(() => el.classList.remove('rolando'), 650);
+    }
+    el.dataset.n = ch;
+    rolarPara(el.firstChild, Number(ch));
   }
 }
 function girarPonteiro(id, chave, graus) {
@@ -391,6 +399,9 @@ let ultimoMinuto = -1;
 function espiarRelogio(horaCheia) {
   const caixa = $('textoCompacto');
   if (estado.vista !== 'compacta' || caixa?.dataset.modo !== 'relogio' || document.documentElement.classList.contains('pausada')) return;
+  // minuto novo: uma faixa de luz passa pelos números
+  const rn = $('relogioNotch');
+  if (rn) { rn.classList.remove('brilho'); void rn.offsetWidth; rn.classList.add('brilho'); }
   if (horaCheia) {
     caixa.classList.remove('hora-cheia'); void caixa.offsetWidth; caixa.classList.add('hora-cheia');
     olhos.fazer?.('pulinho');
@@ -424,6 +435,18 @@ function atualizarRelogio() {
   }
   $('textoCompacto').dataset.periodo = periodoDoDia(h);
   atualizarTextoCompacto();
+  // barra do minuto (anda 1 s por vez, suave; no segundo 0 volta ao começo sem animação)
+  const fio = $('relogioNotch')?.querySelector('.minuto i');
+  if (fio) {
+    const fracao = ((s + agora.getMilliseconds() / 1000) / 60) * 100;
+    if (s === 0 || fio.__ultimo === undefined || fracao < fio.__ultimo) {
+      fio.style.transition = 'none';
+      fio.style.width = (s === 0 ? 0 : fracao).toFixed(2) + '%';
+      void fio.offsetWidth;
+      fio.style.transition = '';
+    } else fio.style.width = Math.min(100, fracao + 100 / 60).toFixed(2) + '%';
+    fio.__ultimo = fracao;
+  }
   if (ultimoMinuto !== -1 && ultimoMinuto !== m) espiarRelogio(m === 0);
   ultimoMinuto = m;
 }
@@ -439,11 +462,14 @@ function atualizarTextoCompacto() {
       caixa.dataset.modo = 'relogio';
       caixa.dataset.texto = '';
       caixa.classList.remove('rolando');
-      const d = document.createElement('span');
-      d.className = 'digitos relogio-notch';
-      caixa.replaceChildren(d);
+      const embrulho = document.createElement('span'); embrulho.className = 'relogio-caixa'; embrulho.id = 'relogioNotch';
+      const d = document.createElement('span'); d.className = 'digitos relogio-notch';
+      // fio de luz embaixo da hora: enche ao longo do minuto, com uma "cabeça" de cometa
+      const barra = document.createElement('span'); barra.className = 'minuto'; barra.append(document.createElement('i'));
+      embrulho.append(d, barra);
+      caixa.replaceChildren(embrulho);
     }
-    desenharDigitos(texto, caixa.firstElementChild, true);
+    desenharDigitos(texto, $('relogioNotch').firstElementChild, true);
     return;
   }
   caixa.dataset.modo = 'texto';
