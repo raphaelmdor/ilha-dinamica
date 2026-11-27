@@ -2077,9 +2077,14 @@ function medirDesempenho() {
       janela.webContents.on('did-finish-load', () => janela.webContents.send('modoApp', modoAtual));
     }
 
-    // Telas: quando uma liga/desliga ou a principal muda, o Windows leva um tempinho para decidir
-    // quem é a principal. A ilha confere logo, de novo em seguida, e também a cada 5 s.
-    const reconferirTela = () => { for (const ms of [0, 400, 1500, 4000]) setTimeout(posicionarJanela, ms); };
+    // Telas: só quando o Windows avisa que algo mudou (tela ligada/desligada, configuração, suspensão).
+    // Ele leva um tempinho para decidir quem é a principal, então a ilha confere logo e mais 3 vezes
+    // nos segundos seguintes — e depois não fica checando nada.
+    let timersTela = [];
+    const reconferirTela = () => {
+      timersTela.forEach(clearTimeout);
+      timersTela = [0, 500, 2000, 6000].map((ms) => setTimeout(posicionarJanela, ms));
+    };
     screen.on('display-metrics-changed', reconferirTela);
     screen.on('display-added', reconferirTela);
     screen.on('display-removed', reconferirTela);
@@ -2087,15 +2092,7 @@ function medirDesempenho() {
       const { powerMonitor } = require('electron');
       powerMonitor.on('resume', reconferirTela);
       powerMonitor.on('unlock-screen', reconferirTela);
-      powerMonitor.on('user-did-become-active', reconferirTela);
     } catch { /* sem eventos de energia */ }
-    setInterval(() => {
-      try {
-        const p = screen.getPrimaryDisplay();
-        const chave = `${p.id}|${p.bounds.x},${p.bounds.y},${p.bounds.width}x${p.bounds.height}`;
-        if (chave !== ultimaTelaPrincipal) posicionarJanela();
-      } catch { /* ignora */ }
-    }, 5000);
   });
 
   app.on('before-quit', () => {

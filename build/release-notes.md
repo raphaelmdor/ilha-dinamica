@@ -1,4 +1,4 @@
-## Novidades da 5.11.4
+## Novidades da 5.11.5
 
-- **Sempre na tela principal:** se o PC liga com a tela principal desligada, a ilha abre na outra. Quando a principal é ligada (ou volta a ser a principal), a ilha passa para ela sozinha. Ela confere a tela principal a cada 5 segundos, sempre que uma tela liga ou desliga, ao voltar da suspensão e ao desbloquear o PC.
-- Inclui a 5.11.3: dois-pontos do relógio alinhados.
+- **Tela principal sem ficar checando:** a ilha não confere mais a tela de tempos em tempos. Ela só reage quando o Windows avisa que algo mudou (tela ligada ou desligada, configuração das telas, volta da suspensão, desbloqueio) e confere mais 3 vezes nos segundos seguintes, porque o Windows demora um pouco para decidir qual é a principal.
+- Inclui a 5.11.4: a ilha passa sozinha para a tela principal quando ela é ligada.
