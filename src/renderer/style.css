@@ -1597,16 +1597,22 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
   position: absolute; left: 4%; right: 4%; bottom: -0.22em; height: 2px; border-radius: 2px;
   background: color-mix(in srgb, var(--tom) 22%, transparent);
 }
-.minuto i {
-  position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: inherit;
+.minuto i { /* o preenchimento: cresce esticando (transform), liso e sem recalcular layout */
+  position: absolute; inset: 0; border-radius: inherit; transform-origin: left center; transform: scaleX(0);
   background: linear-gradient(90deg, color-mix(in srgb, var(--tom) 45%, transparent), var(--tom));
   box-shadow: 0 0 4px color-mix(in srgb, var(--tom) 50%, transparent);
-  transition: width 1s linear;
+  animation: minuto-enche 60s linear infinite; will-change: transform;
 }
-.minuto i::after {
+.minuto b { /* trilho invisível do tamanho da barra que desliza levando a cabeça do cometa na ponta */
+  position: absolute; inset: 0; transform: translateX(-100%); pointer-events: none;
+  animation: minuto-anda 60s linear infinite; will-change: transform;
+}
+.minuto b::after {
   content: ""; position: absolute; right: -1.5px; top: 50%; width: 3px; height: 3px; margin-top: -1.5px; border-radius: 50%;
   background: #fff; box-shadow: 0 0 4px 1px var(--tom), 0 0 9px 2px color-mix(in srgb, var(--tom) 45%, transparent);
 }
+@keyframes minuto-enche { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes minuto-anda { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 
 /* no modo relógio, a barra do minuto pode passar um pouco da caixa do texto */
 .centro[data-modo="relogio"] { overflow: visible; }

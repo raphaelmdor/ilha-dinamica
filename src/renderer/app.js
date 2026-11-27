@@ -371,9 +371,23 @@ let timeoutPainelTeclado = null;
 // Ctrl+Alt+I durante um jogo: painel aberto e pegando mouse e teclado até você sair
 // Ilha escondida (jogo, ou escondida pelo atalho): pausa todas as animações e os gestos;
 // volta exatamente de onde parou quando reaparece
+// barra do minuto: recomeça a animação no ponto certo do minuto atual
+function sincronizarBarraMinuto(barra, agora = new Date()) {
+  const seg = agora.getSeconds() + agora.getMilliseconds() / 1000;
+  for (const parte of barra.children) {
+    parte.style.animation = 'none';
+    void parte.offsetWidth;
+    parte.style.animation = '';
+    parte.style.animationDelay = `-${seg.toFixed(3)}s`;
+  }
+  barra.__sinc = true;
+}
 api.on('janela:pausar', (sim) => {
   document.documentElement.classList.toggle('pausada', !!sim);
   olhos.pausar?.(sim);
+  // voltou a aparecer: a barra ficou parada enquanto escondida, acerta com o relógio
+  const barraMin = !sim && $('relogioNotch')?.querySelector('.minuto');
+  if (barraMin) sincronizarBarraMinuto(barraMin);
 });
 
 // Faxina de memória (a cada 10 min e ao entrar num jogo): solta imagens e caches que não estão em uso
@@ -561,17 +575,9 @@ function atualizarRelogio() {
   $('textoCompacto').dataset.periodo = periodoDoDia(h);
   atualizarTextoCompacto();
   // barra do minuto (anda 1 s por vez, suave; no segundo 0 volta ao começo sem animação)
-  const fio = $('relogioNotch')?.querySelector('.minuto i');
-  if (fio) {
-    const fracao = ((s + agora.getMilliseconds() / 1000) / 60) * 100;
-    if (s === 0 || fio.__ultimo === undefined || fracao < fio.__ultimo) {
-      fio.style.transition = 'none';
-      fio.style.width = (s === 0 ? 0 : fracao).toFixed(2) + '%';
-      void fio.offsetWidth;
-      fio.style.transition = '';
-    } else fio.style.width = Math.min(100, fracao + 100 / 60).toFixed(2) + '%';
-    fio.__ultimo = fracao;
-  }
+  // a barra anda sozinha (animação contínua de 60 s); aqui só acerta com o relógio na virada do minuto
+  const barraMin = $('relogioNotch')?.querySelector('.minuto');
+  if (barraMin && (s === 0 || !barraMin.__sinc)) sincronizarBarraMinuto(barraMin, agora);
   if (ultimoMinuto !== -1 && ultimoMinuto !== m) espiarRelogio(m === 0);
   ultimoMinuto = m;
 }
@@ -590,7 +596,7 @@ function atualizarTextoCompacto() {
       const embrulho = document.createElement('span'); embrulho.className = 'relogio-caixa'; embrulho.id = 'relogioNotch';
       const d = document.createElement('span'); d.className = 'digitos relogio-notch';
       // fio de luz embaixo da hora: enche ao longo do minuto, com uma "cabeça" de cometa
-      const barra = document.createElement('span'); barra.className = 'minuto'; barra.append(document.createElement('i'));
+      const barra = document.createElement('span'); barra.className = 'minuto'; barra.append(document.createElement('i'), document.createElement('b'));
       embrulho.append(d, barra);
       caixa.replaceChildren(embrulho);
     }
