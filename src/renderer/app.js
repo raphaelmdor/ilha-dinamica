@@ -525,7 +525,7 @@ function desenharDigitos(texto, caixa = $('horaGrande'), olhinhos = false) {
           par.append(document.createElement('b'), document.createElement('b'));
           giro.append(par); sep.append(giro);
           // o batimento acontece exatamente na virada de cada segundo
-          sep.style.setProperty('--fase', `-${(Date.now() % 1000) / 1000}s`);
+          sep.style.setProperty('--fase', `-${(Date.now() % 2000) / 1000}s`);
         } else sep.textContent = ch;
         caixa.append(sep);
       }
@@ -538,7 +538,7 @@ function desenharDigitos(texto, caixa = $('horaGrande'), olhinhos = false) {
     if (!el?.classList.contains('rolo')) continue;
     // o dígito que muda rola com um leve desfoque de movimento, como um mecanismo de verdade
     if (el.dataset.n !== undefined && el.dataset.n !== ch) {
-      el.classList.add('rolando');
+      if (!caixa.closest('#relogioNotch')) el.classList.add('rolando');
       clearTimeout(el.__timerRolo);
       el.__timerRolo = setTimeout(() => el.classList.remove('rolando'), 650);
     }
@@ -574,10 +574,6 @@ let ultimoMinuto = -1;
 function espiarRelogio(horaCheia) {
   const caixa = $('textoCompacto');
   if (estado.vista !== 'compacta' || caixa?.dataset.modo !== 'relogio' || document.documentElement.classList.contains('pausada')) return;
-  // minuto novo: uma faixa de luz passa pelos números e os olhinhos dão uma volta um no outro
-  const rn = $('relogioNotch');
-  if (rn) { rn.classList.remove('brilho'); void rn.offsetWidth; rn.classList.add('brilho'); }
-  gestoOlhinhos(horaCheia ? 'malabar' : 'orbita');
   if (horaCheia) {
     caixa.classList.remove('hora-cheia'); void caixa.offsetWidth; caixa.classList.add('hora-cheia');
     olhos.fazer?.('pulinho');
@@ -585,29 +581,10 @@ function espiarRelogio(horaCheia) {
   if (olhos.livre && !olhos.livre()) return;
   const r = caixa.getBoundingClientRect();
   if (!r.width) return;
-  setTimeout(() => gestoOlhinhos('olha-mascote'), 950); // e trocam um olhar com o mascote
   olhos.olhandoAte = Date.now() + 1500;
   olhos.olharPara(r.left + r.width / 2, r.top + r.height / 2);
   setTimeout(() => { if (olhos.cursor) olhos.olharPara(olhos.cursor.x, olhos.cursor.y); }, 1500);
 }
-// gestos dos olhinhos do relógio (classes curtas: só animam quando acontecem)
-const GESTOS_OLHINHOS = ['orbita', 'malabar', 'olha-mascote', 'curioso'];
-function gestoOlhinhos(nome) {
-  const giro = document.querySelector('#relogioNotch .sep.olhinhos .giro');
-  if (!giro || document.documentElement.classList.contains('pausada')) return;
-  giro.classList.remove(...GESTOS_OLHINHOS);
-  void giro.offsetWidth;
-  giro.classList.add(nome);
-  clearTimeout(giro.__fim);
-  giro.__fim = setTimeout(() => giro.classList.remove(nome), 2200);
-}
-// de vez em quando, sozinhos, os olhinhos espiam para os lados (como quem confere a hora)
-(function curiosidadeDosOlhinhos() {
-  setTimeout(() => {
-    if (estado.vista === 'compacta' && $('textoCompacto')?.dataset.modo === 'relogio') gestoOlhinhos('curioso');
-    curiosidadeDosOlhinhos();
-  }, 22000 + Math.random() * 26000);
-})();
 function atualizarRelogio() {
   const agora = new Date();
   desenharDigitos(fmtHora.format(agora));
