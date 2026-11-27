@@ -1759,3 +1759,6 @@ html.pausada *, html.pausada *::before, html.pausada *::after { animation-play-s
 .ac-linha.proximo > * { position: relative; }
 .ac-linha.proximo .ac-no { animation: ac-pisca-no 1.6s ease-in-out infinite; }
 @keyframes ac-pisca-no { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--cor-ag) 10%, transparent); } }
+
+/* relógio do notch um pouco maior (+23%), mais fácil de ler de longe */
+.vista-compacta .relogio-caixa { font-size: 1.23em; }
