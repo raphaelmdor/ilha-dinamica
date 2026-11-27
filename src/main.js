@@ -845,10 +845,16 @@ function executarAcao(acao) {
 // ---------------------------------------------------------------------------
 // Janela da ilha
 // ---------------------------------------------------------------------------
+let ultimaTelaPrincipal = '';
 function posicionarJanela() {
-  if (!janela) return;
+  if (!janela || janela.isDestroyed()) return;
   const tela = screen.getPrimaryDisplay();
   const area = tela.workArea;
+  const chave = `${tela.id}|${tela.bounds.x},${tela.bounds.y},${tela.bounds.width}x${tela.bounds.height}`;
+  if (chave !== ultimaTelaPrincipal) {
+    if (ultimaTelaPrincipal) log(`Tela principal agora: ${tela.bounds.width}x${tela.bounds.height} em (${tela.bounds.x}, ${tela.bounds.y}) — ${screen.getAllDisplays().length} tela(s)`);
+    ultimaTelaPrincipal = chave;
+  }
   // Responsivo: em telas estreitas a janela encolhe junto
   // a janela cresce junto com o tamanho escolhido (até 200%), sem passar da tela
   const fator = Math.max(1, Number(config?.tamanho) || 1);
@@ -2071,9 +2077,25 @@ function medirDesempenho() {
       janela.webContents.on('did-finish-load', () => janela.webContents.send('modoApp', modoAtual));
     }
 
-    screen.on('display-metrics-changed', posicionarJanela);
-    screen.on('display-added', posicionarJanela);
-    screen.on('display-removed', posicionarJanela);
+    // Telas: quando uma liga/desliga ou a principal muda, o Windows leva um tempinho para decidir
+    // quem é a principal. A ilha confere logo, de novo em seguida, e também a cada 5 s.
+    const reconferirTela = () => { for (const ms of [0, 400, 1500, 4000]) setTimeout(posicionarJanela, ms); };
+    screen.on('display-metrics-changed', reconferirTela);
+    screen.on('display-added', reconferirTela);
+    screen.on('display-removed', reconferirTela);
+    try {
+      const { powerMonitor } = require('electron');
+      powerMonitor.on('resume', reconferirTela);
+      powerMonitor.on('unlock-screen', reconferirTela);
+      powerMonitor.on('user-did-become-active', reconferirTela);
+    } catch { /* sem eventos de energia */ }
+    setInterval(() => {
+      try {
+        const p = screen.getPrimaryDisplay();
+        const chave = `${p.id}|${p.bounds.x},${p.bounds.y},${p.bounds.width}x${p.bounds.height}`;
+        if (chave !== ultimaTelaPrincipal) posicionarJanela();
+      } catch { /* ignora */ }
+    }, 5000);
   });
 
   app.on('before-quit', () => {
